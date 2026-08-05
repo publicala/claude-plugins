@@ -1,0 +1,7 @@
+# Everything in this repo defines what Publica.la distributes publicly.
+# Changes need approval from @publicala/public-repo-owners. The
+# repository ruleset "public content ownership" enforces this with a
+# required-reviewers rule over all files, and lets team members
+# bypass it so they can merge their own changes with autonomy.
+
+* @publicala/public-repo-owners

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "publicala",
+  "description": "Public Claude Code plugins by Publica.la.",
+  "owner": {
+    "name": "Publica.la",
+    "email": "engineering@publica.la"
+  },
+  "plugins": [
+    {
+      "name": "feed-claude-md-files",
+      "description": "Surfaces recurring patterns in commits and corrections, proposes them as new CLAUDE.md rules.",
+      "source": {
+        "source": "github",
+        "repo": "publicala/feed-claude-md-files-skill"
+      },
+      "homepage": "https://github.com/publicala/feed-claude-md-files-skill"
+    },
+    {
+      "name": "bake-claude-md-files",
+      "description": "Converts CLAUDE.md rules into automated checks, freeing up agent context.",
+      "source": {
+        "source": "github",
+        "repo": "publicala/bake-claude-md-files-skill"
+      },
+      "homepage": "https://github.com/publicala/bake-claude-md-files-skill"
+    },
+    {
+      "name": "audit-claude-md-files",
+      "description": "Prunes CLAUDE.md files down to what a session cannot derive on its own, with every cut backed by evidence.",
+      "source": {
+        "source": "github",
+        "repo": "publicala/audit-claude-md-files-skill"
+      },
+      "homepage": "https://github.com/publicala/audit-claude-md-files-skill"
+    }
+  ]
+}
