@@ -1,0 +1,15 @@
+{
+  "name": "bonsai",
+  "description": "Keeps CLAUDE.md files deliberately small and shaped: feed grows rules from observed patterns, bake converts them into automated checks, audit prunes with evidence, split moves rules to the scope that reads them.",
+  "author": { "name": "Publica.la" },
+  "repository": "https://github.com/publicala/claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "claude-md",
+    "context-optimization",
+    "audit",
+    "linting",
+    "placement",
+    "patterns"
+  ]
+}
