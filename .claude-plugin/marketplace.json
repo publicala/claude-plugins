@@ -8,40 +8,10 @@
   },
   "plugins": [
     {
-      "name": "feed-claude-md-files",
-      "description": "Surfaces recurring patterns in commits and corrections, proposes them as new CLAUDE.md rules.",
-      "source": {
-        "source": "github",
-        "repo": "publicala/feed-claude-md-files-skill"
-      },
-      "homepage": "https://github.com/publicala/feed-claude-md-files-skill"
-    },
-    {
-      "name": "bake-claude-md-files",
-      "description": "Converts CLAUDE.md rules into automated checks, freeing up agent context.",
-      "source": {
-        "source": "github",
-        "repo": "publicala/bake-claude-md-files-skill"
-      },
-      "homepage": "https://github.com/publicala/bake-claude-md-files-skill"
-    },
-    {
-      "name": "audit-claude-md-files",
-      "description": "Prunes CLAUDE.md files down to what a session cannot derive on its own, with every cut backed by evidence.",
-      "source": {
-        "source": "github",
-        "repo": "publicala/audit-claude-md-files-skill"
-      },
-      "homepage": "https://github.com/publicala/audit-claude-md-files-skill"
-    },
-    {
-      "name": "split-claude-md-files",
-      "description": "Moves CLAUDE.md rules to the load scope of the sessions they govern.",
-      "source": {
-        "source": "github",
-        "repo": "publicala/split-claude-md-files-skill"
-      },
-      "homepage": "https://github.com/publicala/split-claude-md-files-skill"
+      "name": "bonsai",
+      "description": "Keeps CLAUDE.md files deliberately small and shaped: feed grows rules from observed patterns, bake converts them into automated checks, audit prunes with evidence, split moves rules to the scope that reads them.",
+      "source": "./plugins/bonsai",
+      "homepage": "https://github.com/publicala/claude-plugins/tree/main/plugins/bonsai"
     }
   ]
 }
