@@ -53,6 +53,8 @@ The six classes above cut on sight. A cut for any other derivability claim needs
 
 A probe is only valid when the probed line is absent from the probe agent's context. When the harness injects the audited file into every subagent (resident files always are), no probe can run clean: record that, and send the candidate to the capability-floor panel instead.
 
+Evidence must hold in the file's own scope, not just the auditing environment. A pointer that fails only where the audit runs (a tool the auditor's settings deny, a skill the auditor lacks, a URL the auditor cannot open) may work for every other consumer of the file: that is an open question for the user, never a cut backed by evidence.
+
 ### 3. Enforcement verification
 
 Never trust a claim (yours or the file's) that "the linter handles this". Inspect every enforcement surface: formatter and linter configs, static analysis, architecture or convention tests, git hooks, CI workflows. Record which surfaces you checked per rule. Then classify each rule by its feedback loop:
