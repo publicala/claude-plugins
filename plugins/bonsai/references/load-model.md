@@ -15,6 +15,8 @@ Nested files and path-scoped rules are the two scope-triggered classes. Judge th
 
 A scoped file loads on a read, and only on a read. A session that creates a new in-scope file without reading a neighbor first, or that touches in-scope paths only through shell commands, never loads it. Edits are covered, because the harness refuses an edit without a prior read. Every demotion verdict hangs on this fact.
 
+Some harness modes tell the session to read files through shell commands (`cat`, `sed`, `grep`) instead of the file tools. In those modes no scoped file ever loads, for the whole session. A demotion is only safe for sessions that read through the harness's file tools.
+
 Compaction adds an asymmetry: the root file is re-injected after a compaction automatically, while scoped files return only on the next in-scope read.
 
 ## Safety prohibition

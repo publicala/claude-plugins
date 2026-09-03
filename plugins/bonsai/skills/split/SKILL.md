@@ -1,7 +1,7 @@
 ---
 name: split
 description: >
-  Moves CLAUDE.md rules to the load scope of the sessions they govern: demotes always-resident rules that bind one subtree or one file pattern into nested CLAUDE.md files or path-scoped rules, promotes scoped rules that outgrew their file, and flags orphaned scoped files. Use when a resident CLAUDE.md grows past about 200 lines, when the root file accumulates rules that only apply to one area, or after an audit run (`/bonsai:audit`).
+  Moves CLAUDE.md rules to the load scope of the sessions they govern (nested files, path-scoped rules, or root). Run after an audit, or when a resident file carries rules that bind one area.
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -48,7 +48,7 @@ The grep is the verdict on shape. The author's sense of where a rule "belongs" i
 A demotion only works if the scoped file is loaded by the time the rule matters. Name the mistake the rule prevents, then classify the action that commits it:
 
 - Editing an existing in-scope file: demote. The harness refuses an edit without a prior read in the session, and the read loads the scoped file.
-- Creating a new in-scope file, or acting on in-scope paths through shell or git: the read trigger can miss. For these rules no verdict exists until a load-path probe runs, as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: one fresh low-effort agent gets the task that would commit the mistake, in the real repo, without mention of the rule. It reads an in-scope file first: demote. It acts without reading: the rule stays resident. The author guessing whether sessions read first is the same simulation the probe replaces.
+- Creating a new in-scope file, or acting on in-scope paths through shell or git: the read trigger can miss. For these rules no verdict exists until a load-path probe runs, as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: one fresh low-effort agent gets the task that would commit the mistake, in the real repo, without mention of the rule. It reads an in-scope file first: demote. It acts without reading: the rule stays resident. Run the probe in the harness mode the team works in: a mode that reads through the shell never loads a scoped file, and a demotion probed in another mode is untested for it. The author guessing whether sessions read first is the same simulation the probe replaces.
 
 ### 4. The other direction
 

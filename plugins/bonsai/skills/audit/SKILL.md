@@ -1,7 +1,7 @@
 ---
 name: audit
 description: >
-  Prunes loaded CLAUDE.md files down to the lines a fresh session cannot derive on its own, every cut backed by evidence. Use when CLAUDE.md files have grown without review, or after a stretch of feed runs (`/bonsai:feed`) (feed adds rules, bake converts them into tooling, audit prunes what remains).
+  Prunes CLAUDE.md files to the lines a fresh session cannot derive, every cut backed by evidence. Run when the files have grown without review.
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -28,6 +28,8 @@ Check every line against this list before anything else. A match is a KEEP and s
 
 ## The audit, in order
 
+A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 6 line by line, and present one report with no phases. Probes and the panel still decide what the steps route to them; a small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `references/probe.md`.
+
 ### 1. Inventory
 
 List each in-scope file with its load class and est. token cost (label every figure "est."). Include equivalent rule files other agents consume (`.cursor/rules`, `AGENTS.md` and the like) in the inventory and the dedup pass, even though edits target CLAUDE.md files. Migrating a foreign-format rule file into the project's native format is never part of an audit apply: record it as a proposal and act only on explicit user approval.
@@ -51,7 +53,7 @@ Evidence must hold in the file's own scope, not just the auditing environment. A
 
 ### 3. Enforcement verification
 
-Never trust a claim (yours or the file's) that "the linter handles this". Inspect every enforcement surface: formatter and linter configs, static analysis, architecture or convention tests, git hooks, CI workflows. Record which surfaces you checked per rule. Then classify each rule by its feedback loop:
+Never trust a claim (yours or the file's) that "the linter handles this". Inspect every enforcement surface: formatter and linter configs, static analysis, architecture or convention tests, git hooks, CI workflows, and the project's committed `.claude/settings.json`. A surface counts only when it is committed: a hook or deny rule that lives in someone's local settings enforces nothing for teammates or CI, so a rule backed only by it is unenforced. Record which surfaces you checked per rule. Then classify each rule by its feedback loop:
 
 - **Auto-fixed at format time**: confirm the tool's file globs cover the affected paths and that it runs before code lands (hook or CI), then cut the prose. Violations get rewritten silently, so the line prevents nothing.
 - **Fails at suite time only** (architecture test, CI check): the prose can still pay for itself by preventing a write, fail, rewrite roundtrip. Leave the verdict open. Step 4 closes it: keep when neighbors teach the wrong pattern, cut when they teach the right one.
@@ -66,6 +68,8 @@ The codebase teaches conventions whether or not the doc repeats them. Grep befor
 - **Compliance at 90% or above**: the code teaches the convention, a session copies its neighbors correctly. Cut.
 - **Compliance at 70% or below**: neighbors teach the wrong pattern, so the line is the only corrective. Keep. (Example: 38 files import dates the required way, 125 the banned way. 23% compliant, KEEP.)
 - **In between**: borderline. Step 5 decides.
+
+A rule that names nothing greppable (commit style, PR flow, shell habits) is path-free: skip this step and send it straight to step 5.
 
 ### 5. Capability-floor panel
 
