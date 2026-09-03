@@ -9,4 +9,4 @@ The standard for any rule text bonsai writes or records: a feed proposal, an int
 - Verify every symbol an example references against the real codebase: an example calling a method that does not exist teaches a wrong API and is worse than no example
 - Precise but generic: keep load-bearing identifiers exact, never enumerate driftable inventories (class lists, file lists, counts)
 - Write for the class of mistake, not the incident that revealed it: the correction that prompted a rule is evidence for it, never phrasing to copy
-- No self-referential metadata or biography: version stamps, "last updated" lines, rename history, drift-tracking clauses between files, rules phrased against the past ("previously X, now Z"). State the rule present tense. Git is the history, and the audit cuts these on sight
+- No document metadata or biography (version stamps, rename history, "previously X, now Z"). State the rule present tense. Git is the history, and the audit cuts these on sight

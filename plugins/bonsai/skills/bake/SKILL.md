@@ -17,7 +17,7 @@ Before modifying any CLAUDE.md file, present a summary of:
 - Which rules will be automated (and by which tool)
 - Which rules will be kept (and why - e.g. requires human judgment, context-dependent)
 
-Ask first (one AskUserQuestion) whether the user wants that summary as an interactive artifact or as plain text. The artifact is a live doc (`capabilities: {artifact: {}}`): one row per rule with its repo-relative source file, the proposed enforcement tool, an approve checkbox, a free-text input for objections, and a copy-decisions control as the fallback path back into the session.
+Ask first (one AskUserQuestion) whether the user wants that summary as an interactive artifact or as plain text. For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the page. Bake rows are one per rule with its source file and the proposed enforcement tool.
 
 Only proceed after the user approves. Then implement the automated checks, verify everything passes, and only remove a rule from CLAUDE.md after its corresponding check passes. Passing on the current tree is not enough: confirm the check's file globs cover the affected paths and that it runs before code lands (hook or CI).
 
@@ -26,10 +26,6 @@ Only proceed after the user approves. Then implement the automated checks, verif
 `/bonsai:intake` records check-shaped candidates (`Class: bake`) under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the key and the format. Read every `bake` candidate with `Status: open` or `watch` under this project's key, and report "no intake entries under `<path>`" when the directory is missing. Treat a candidate as a rule to automate when its slug appears in two or more source PRs, or when the user names it: a check costs CI time, false positives, and tolerance for the tool, so it earns its place the way prose does. The `Check` line names the tool and shape intake verified.
 
 After a check lands, set `baked: <check> (<PR URL or commit>)` on every entry carrying the slug. When you decline because no tool can express it, or the check is not worth its cost, set `Class: prose` and keep `open`, with the reason in `History`, so `/bonsai:feed` can still propose the prose. Set `rejected: <reason>` only when the rule itself is wrong or already enforced. Append a dated `History` line either way.
-
-## Building the decision artifact
-
-Read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the artifact page.
 
 ## Implementation priority
 

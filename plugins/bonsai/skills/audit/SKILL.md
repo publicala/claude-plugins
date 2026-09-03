@@ -14,19 +14,15 @@ Throughout the audit, "cut" means recording a cut verdict in the report. No file
 
 Default scope is the current project: its root CLAUDE.md, nested CLAUDE.md files, and the rule files they point to. User-level and ancestor-directory files load in every project, so include them only when the user asks, and evaluate them against a session in an arbitrary project (codebase greps and CI checks do not apply to them). Exclude vendored code, build output, and worktree copies everywhere: from the inventory and from every grep.
 
-Not everything called "referenced" is deferred. Classify each file before judging it:
-
-- **Always resident**: the root CLAUDE.md, user-level and ancestor files, and anything they pull in with `@path` imports. An `@path` import costs full price in every session. Moving text behind one saves nothing.
-- **Scope-triggered**: nested CLAUDE.md files and path-scoped rule files load only for sessions working in their subtree. Judge their lines against a fresh session working there, not against every session.
-- **Deferred**: a plain markdown pointer loads nothing until an agent chooses to read the target. This is the only class where content is close to free.
+Not everything called "referenced" is deferred. Classify each file by its load class before judging it: read [../../references/load-model.md](../../references/load-model.md) (relative to this skill's directory). Judge a scope-triggered line against a fresh session working in its scope, not against every session, and never count a move behind an `@path` import as a saving.
 
 ## Never cut
 
 Check every line against this list before anything else. A match is a KEEP and skips the rest of the audit, with one exception: a rule the formatter rewrites silently may still fall in step 3, because the tool guarantees it.
 
-- Safety prohibitions ("never force-push", "never run the seeder against a shared database")
+- Safety prohibitions, as `references/load-model.md` defines them ("never force-push", "never run the seeder against a shared database")
 - Gotchas that contradict appearances (the call that silently no-ops, the flag that looks optional but is not). Greps come back clean precisely because the line works, so step 4 would misread these as derivable.
-- Conventions that differ from the framework or tool default
+- Conventions that differ from the framework or tool default, including conventions phrased with "never"
 - Precedence and routing clauses
 - Read-triggers for referenced docs
 
@@ -49,9 +45,7 @@ Cut what a fresh session reconstructs with a few tool calls:
 
 Test: delete the line and name the mistake a session in the file's scope now makes. No mistake, no line. A line that fails the test but matters in one identifiable situation moves instead of dying (see "Extract, don't delete").
 
-The six classes above cut on sight. A cut for any other derivability claim needs a clean-context probe first: give one fresh low-effort agent a task the line governs in the file's scope, without the line, and record whether it derives the fact or makes the mistake. The probe's outcome is the verdict. The loaded auditor has read the line and cannot un-read it, so its own guess at what a fresh session derives is not evidence.
-
-A probe is only valid when the probed line is absent from the probe agent's context. When the harness injects the audited file into every subagent (resident files always are), no probe can run clean: record that, and send the candidate to the capability-floor panel instead.
+The six classes above cut on sight. A cut for any other derivability claim needs a derivability probe first, run as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: one fresh low-effort agent gets a task the line governs, in the file's scope, without the line, and whether it derives the fact or makes the mistake is the verdict. The loaded auditor has read the line and cannot un-read it, so its own guess is not evidence. A line in an always-resident file never probes clean: record that and send the candidate to the capability-floor panel instead.
 
 Evidence must hold in the file's own scope, not just the auditing environment. A pointer that fails only where the audit runs (a tool the auditor's settings deny, a skill the auditor lacks, a URL the auditor cannot open) may work for every other consumer of the file: that is an open question for the user, never a cut backed by evidence.
 
@@ -107,7 +101,7 @@ State each fact once, at the smallest scope that covers its readers. When a rule
 
 ## Precise but generic
 
-Phrasing gets judged only after a line earns its keep. Every specific detail in a kept line (a class inventory, an enumerated list, a count) is either load-bearing, meaning generalizing it would change what a session does, or a liability that drifts as the code moves. When a kept line carries non-load-bearing specifics, record a **rewrite**: drop those specifics, keep the load-bearing identifiers verbatim, and change nothing else. A rewrite never widens scope, weakens the boundary, or adds advice, and every identifier it keeps gets verified against the codebase like any example symbol.
+Phrasing gets judged only after a line earns its keep, against the standard in [../../references/rule-writing.md](../../references/rule-writing.md) (relative to this skill's directory). Every specific detail in a kept line (a class inventory, an enumerated list, a count) is either load-bearing, meaning generalizing it would change what a session does, or a liability that drifts as the code moves. When a kept line carries non-load-bearing specifics, record a **rewrite**: drop those specifics, keep the load-bearing identifiers verbatim, and change nothing else. A rewrite never widens scope, weakens the boundary, or adds advice, and every identifier it keeps gets verified against the codebase like any example symbol.
 
 Two senses of "generic" live in this skill. Step 2 cuts generic best practices because they pin no boundary. Generic here means phrased at the pattern level while still pinning one. When dropping the driftable specifics would leave nothing a session cannot derive, the line was inventory all along: cut, not rewrite. Precision earns the keep, genericity makes it last.
 
@@ -123,16 +117,11 @@ Never write a new validator for a rule one in app/Validators already covers.
 
 Content needed only in a specific situation moves verbatim to a referenced file, leaving a one-line read-trigger behind ("read X before doing Y"). A move must beat the pointer it leaves behind: content no longer than its read-trigger stays resident. Reuse the project's existing referenced-doc location (detect it from current pointers) instead of inventing a new one. Deletion is only for content that fails step 2 outright.
 
-Environment-conditional content is its own extract class: sentences that bind only in some execution environments (a cloud sandbox, CI, containerized local dev). No load mechanism triggers on environment, so path scoping cannot help. The pattern is one resident discriminator line per environment naming the trigger and the doc ("cloud session? read X before running anything"), with everything conditional moved to that doc verbatim. Classifying each sentence by the environments it governs is judgement the loaded auditor shortcuts: hand the section to one clean-context agent with the single question "which execution environments does each sentence govern", and treat every section with mixed answers as an extract candidate.
+Environment-conditional content is its own extract class: sentences that bind only in some execution environments (a cloud sandbox, CI, containerized local dev). No load mechanism triggers on environment, so path scoping cannot help. The pattern is one resident discriminator line per environment naming the trigger and the doc ("cloud session? read X before running anything"), with everything conditional moved to that doc verbatim. Classifying each sentence by the environments it governs is judgement the loaded auditor shortcuts: run a classification probe (`references/probe.md`) with the single question "which execution environments does each sentence govern", and treat every section with mixed answers as an extract candidate.
 
 ## Report delivery
 
-Before the inventory, ask one AskUserQuestion: does the user want the report as an interactive artifact or as plain text? When they pick the artifact, publish it as a live doc (`capabilities: {artifact: {}}`) so their in-page decisions persist and the session reads them back, and build it so they can decide while reading:
-
-- Every finding names its file by repo-relative path, never a shorthand or a directory nickname.
-- Each verdict row carries an approve checkbox, grouped per file, checked by default for recommended verdicts.
-- Each file to be edited shows a diff of the proposed result against the current content. Draft the proposed files outside the repo (scratchpad) to generate these; the drafts double as the apply source.
-- A copy-decisions control as the fallback path back into the session.
+Before the inventory, ask one AskUserQuestion: does the user want the report as an interactive artifact or as plain text? For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the page. Audit rows are one per verdict, grouped per file, checked by default for recommended verdicts.
 
 ## Phase the decisions, not the audit
 
@@ -144,10 +133,6 @@ A many-file audit produces more decisions than one sitting absorbs: objective co
 4. **Structure** — moves, extractions, and new-file proposals: anything that changes where content lives.
 
 Each phase is its own decision surface and its own apply, in either delivery mode: an artifact report republishes in place (same URL, a phase roadmap showing position), a plain-text report presents one phase per message with its own approval round. Land the approved phase as its own branch and PR, and only then present the next one, with its diffs regenerated against the tree the previous phase produced. A phase-1 apply edits only the affected lines in place, leaving structure and wording untouched, so no diff ever mixes a factual fix with a taste rewrite. An open question rides with the phase whose decision it gates (a question blocking a deletion belongs to the deletions phase). Below the threshold, one page holds everything as usual.
-
-## Building the decision artifact
-
-Read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the artifact page.
 
 ## Approval and apply
 
