@@ -12,9 +12,9 @@ Keeps CLAUDE.md files like a bonsai: small on purpose, shaped by continuous feed
 
 Run `intake` after each review round, `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.
 
-## Evidence stays local
+## Evidence
 
-`/bonsai:intake` writes under `~/.claude/bonsai/intake/<owner>/<repo>/`, outside every repository. Review threads quote customers, internal names, and unreleased design, so entries are never committed and never shared. Recurrence is therefore per machine: a rule earns a proposal when the same person sees the same class of mistake in two pull requests.
+`/bonsai:intake` writes under `~/.claude/bonsai/intake/<owner>/<repo>/`, outside every repository. Review threads quote customers, internal names, and unreleased design, so the ledger never leaves the machine. Recurrence counted there is per person. With `--export`, the candidate sections alone (rule text, target, symbols, ratio) also land in the target repository under `.claude/bonsai/candidates/`, uncommitted, so once committed the whole team's reviews count toward the same threshold. `references/intake-entry.md` is the contract.
 
 ## Install
 
@@ -26,7 +26,7 @@ Run `intake` after each review round, `feed` after a working session, `bake` onc
 ## Layout
 
 - `skills/<verb>/SKILL.md` — one skill per lifecycle verb
-- `references/` — guidance shared by the skills, loaded on demand (the decision-artifact spec, the intake entry format)
+- `references/` — guidance shared by the skills, loaded on demand (the decision-artifact spec, the intake entry contract, the rule-writing standard)
 - `evals/<verb>/PLAN.md` — eval plans per skill
 
 ## License

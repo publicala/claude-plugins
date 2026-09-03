@@ -8,8 +8,6 @@ disable-model-invocation: true
 
 Read all CLAUDE.md files in the project, along with the existing tool configurations (eslint, phpstan, pint, package.json scripts, lefthook, git hooks, GitLab CI or GitHub Actions and everything else relevant).
 
-Also read the intake entries for this repository under `~/.claude/bonsai/intake/<owner>/<repo>/` (the repository `origin` points at): every candidate with `Class: bake` and `Status: open` is a check waiting to be wired, whatever its recurrence, and its `Check` line names the tool and shape intake verified. Treat them as rules to automate alongside the CLAUDE.md prose. After a check lands, set the candidate's status to `baked: <check> (<PR URL or commit>)`. When you decline one because no tool can express it, set `Class: prose` and leave the status `open`, with the reason in `History`, so `/bonsai:feed` still sees it. When you decline one for any other reason (the rule itself is wrong, already enforced, or not worth a check), set `rejected: <reason>`, which is terminal. Append a dated line to the entry's `History` either way. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the format. Skip silently if the directory does not exist.
-
 When the project has more than one CLAUDE.md file, fan out instead of loading them all: build the tool inventory once and hand it with one file to each clean-context agent, the root file included, then merge the verdicts in the main session. A single window holding every file blurs rules across scopes and crowds the tool configurations out of attention.
 
 Identify rules in the CLAUDE.md files that can be turned into automated checks. Every rule we can remove is context freed up for the agent.
@@ -22,6 +20,12 @@ Before modifying any CLAUDE.md file, present a summary of:
 Ask first (one AskUserQuestion) whether the user wants that summary as an interactive artifact or as plain text. The artifact is a live doc (`capabilities: {artifact: {}}`): one row per rule with its repo-relative source file, the proposed enforcement tool, an approve checkbox, a free-text input for objections, and a copy-decisions control as the fallback path back into the session.
 
 Only proceed after the user approves. Then implement the automated checks, verify everything passes, and only remove a rule from CLAUDE.md after its corresponding check passes. Passing on the current tree is not enough: confirm the check's file globs cover the affected paths and that it runs before code lands (hook or CI).
+
+## Intake candidates
+
+`/bonsai:intake` records check-shaped candidates (`Class: bake`) under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the key and the format. Read every `bake` candidate with `Status: open` or `watch` under this project's key, and report "no intake entries under `<path>`" when the directory is missing. Treat a candidate as a rule to automate when its slug appears in two or more source PRs, or when the user names it: a check costs CI time, false positives, and tolerance for the tool, so it earns its place the way prose does. The `Check` line names the tool and shape intake verified.
+
+After a check lands, set `baked: <check> (<PR URL or commit>)` on every entry carrying the slug. When you decline because no tool can express it, or the check is not worth its cost, set `Class: prose` and keep `open`, with the reason in `History`, so `/bonsai:feed` can still propose the prose. Set `rejected: <reason>` only when the rule itself is wrong or already enforced. Append a dated `History` line either way.
 
 ## Building the decision artifact
 
@@ -44,13 +48,3 @@ Read [../../references/decision-artifact.md](../../references/decision-artifact.
 ## Keep prose when the feedback loop is late
 
 A format-time auto-fix corrects violations silently, so its prose can always go. A check that fails only at suite time (architecture test, CI step) corrects the agent after the code is written. When the surrounding code mostly violates the rule, neighbors teach the wrong pattern and the agent writes the violation first, every time. Keep a one-line prose rule next to that check, noting what enforces it.
-
-## The lifecycle
-
-- `/bonsai:intake` records verified evidence from PR reviews
-- `/bonsai:feed` adds rules from observed patterns, intake entries included
-- `/bonsai:bake` converts crystallized rules into tooling and removes the prose
-- `/bonsai:audit` prunes and verifies what remains
-- `/bonsai:split` moves what remains to the scope that reads it
-
-Run `intake` after each review round, `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.
