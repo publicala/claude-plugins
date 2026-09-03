@@ -156,13 +156,14 @@ Present the full report before editing anything; a phased report satisfies this 
 - **Checked-in files**: granular commits, one concern per commit, on a branch cut from the default branch with a clean tree (stop and ask if the tree is dirty), with a PR, so reviewers judge each cut in isolation.
 - **Local files** (user-level memory, `CLAUDE.local.md`): edit directly, back up first.
 
-After applying, re-resolve every pointer you touched. Close the report with before and after est. token totals per file, listing deferred (moved) tokens separately from deleted ones.
+After applying, re-resolve every pointer you touched. When a cut line came from an intake candidate (its `encoded:` status names the rule path), set that candidate to `rejected: cut by audit, <reason>` under `~/.claude/bonsai/intake/<owner>/<repo>/` and append a dated `History` line, so `/bonsai:feed` does not propose it again. Close the report with before and after est. token totals per file, listing deferred (moved) tokens separately from deleted ones.
 
-## The quartet
+## The lifecycle
 
-- `/bonsai:feed` adds rules from observed patterns
+- `/bonsai:intake` records verified evidence from PR reviews
+- `/bonsai:feed` adds rules from observed patterns, intake entries included
 - `/bonsai:bake` converts crystallized rules into tooling and removes the prose
 - `/bonsai:audit` prunes and verifies what remains
 - `/bonsai:split` moves what remains to the scope that reads it
 
-Run `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.
+Run `intake` after each review round, `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.

@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 Read all CLAUDE.md files in the project, along with the existing tool configurations (eslint, phpstan, pint, package.json scripts, lefthook, git hooks, GitLab CI or GitHub Actions and everything else relevant).
 
+Also read the intake entries for this repository under `~/.claude/bonsai/intake/<owner>/<repo>/` (the repository `origin` points at): every candidate with `Class: bake` and `Status: open` is a check waiting to be wired, whatever its recurrence, and its `Check` line names the tool and shape intake verified. Treat them as rules to automate alongside the CLAUDE.md prose. After a check lands, set the candidate's status to `baked: <check> (<PR URL or commit>)`. When you decline one, set `rejected: <reason>` and re-class it `prose` when the reason is that no tool can express it, so `/bonsai:feed` may propose the prose. Append a dated line to the entry's `History` either way. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the format. Skip silently if the directory does not exist.
+
 When the project has more than one CLAUDE.md file, fan out instead of loading them all: build the tool inventory once and hand it with one file to each clean-context agent, the root file included, then merge the verdicts in the main session. A single window holding every file blurs rules across scopes and crowds the tool configurations out of attention.
 
 Identify rules in the CLAUDE.md files that can be turned into automated checks. Every rule we can remove is context freed up for the agent.
@@ -43,11 +45,12 @@ Read [../../references/decision-artifact.md](../../references/decision-artifact.
 
 A format-time auto-fix corrects violations silently, so its prose can always go. A check that fails only at suite time (architecture test, CI step) corrects the agent after the code is written. When the surrounding code mostly violates the rule, neighbors teach the wrong pattern and the agent writes the violation first, every time. Keep a one-line prose rule next to that check, noting what enforces it.
 
-## The quartet
+## The lifecycle
 
-- `/bonsai:feed` adds rules from observed patterns
+- `/bonsai:intake` records verified evidence from PR reviews
+- `/bonsai:feed` adds rules from observed patterns, intake entries included
 - `/bonsai:bake` converts crystallized rules into tooling and removes the prose
 - `/bonsai:audit` prunes and verifies what remains
 - `/bonsai:split` moves what remains to the scope that reads it
 
-Run `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.
+Run `intake` after each review round, `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.

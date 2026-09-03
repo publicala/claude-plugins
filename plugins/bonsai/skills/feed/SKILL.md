@@ -6,7 +6,7 @@ user-invocable: true
 disable-model-invocation: true
 ---
 
-Read recent git history (commits + diffs), the current conversation's user corrections and feedback, and all existing CLAUDE.md files in the project.
+Read recent git history (commits + diffs), the current conversation's user corrections and feedback, the intake entries recorded for this repository (see below), and all existing CLAUDE.md files in the project.
 
 Cluster recurring patterns into candidate rules. A pattern is anything that recurs: the same correction asked for twice, the same kind of edit across multiple commits, the same nit, the same naming or style choice, the same architectural decision applied repeatedly.
 
@@ -34,8 +34,9 @@ Read [../../references/decision-artifact.md](../../references/decision-artifact.
 
 1. **Current conversation corrections** — strongest. Direct "no, do it like X" / "stop doing Y" / "always do Z" carries explicit intent.
 2. **Recent commit diffs** — next. If the same kind of change recurs (consistent param ordering, error-handling shape, test layout, commit-message style), it is a pattern.
-3. **Auto-memory feedback files** — read-only input. Look for `feedback*.md` (and any file with `type: feedback` in its frontmatter) under `~/.claude/projects/*/memory/` — both the user-home-encoded directory and the project-cwd-encoded directory if present. Treat these like prior corrections but with lower confidence (they may be older or stale). Skip silently if none exist.
-4. **Existing CLAUDE.md files** — used to deduplicate and to pick the right home for new rules, not as a source of new ones.
+3. **Intake entries** — verified evidence from PR reviews, recorded by `/bonsai:intake` under `~/.claude/bonsai/intake/<owner>/<repo>/` for the repository `origin` points at. Read every candidate with `Status: open`. Propose those with `Recurrence` at two or more, or any the user names explicitly (one PR is an incident, two are a pattern). Route `Class: bake` candidates to `/bonsai:bake` instead of writing prose, unless the candidate already carries `rejected` from bake with a reason. Copy the entry's `Rule` text as the proposal and re-verify every symbol it names against the current tree before writing: the entry's `verified_on` commit may be stale. After writing an approved rule, set that candidate's status to `encoded: <rule path> (<PR URL or commit>)` and append a dated line to the entry's `History`. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the format. Skip silently if the directory does not exist.
+4. **Auto-memory feedback files** — read-only input. Look for `feedback*.md` (and any file with `type: feedback` in its frontmatter) under `~/.claude/projects/*/memory/` — both the user-home-encoded directory and the project-cwd-encoded directory if present. Treat these like prior corrections but with lower confidence (they may be older or stale). Skip silently if none exist.
+5. **Existing CLAUDE.md files** — used to deduplicate and to pick the right home for new rules, not as a source of new ones.
 
 ## Scope: project files only
 
@@ -45,7 +46,7 @@ This skill writes **only** to CLAUDE.md files inside the current project tree. N
 - `~/.claude/projects/*/memory/` — auto-memory files (read-only input)
 - Any path outside the project root
 
-Reads from `~/.claude/projects/*/memory/` are fine; writes only ever land in the project's root `CLAUDE.md` or a scoped subdir `CLAUDE.md`.
+One exception: the status line and `History` of an intake candidate under `~/.claude/bonsai/intake/` that this run encoded. Nothing else there changes. Reads from `~/.claude/projects/*/memory/` are fine; rule text only ever lands in the project's root `CLAUDE.md` or a scoped subdir `CLAUDE.md`.
 
 ## What to skip
 
@@ -79,11 +80,12 @@ Examples:
 - Write the rule for the class of mistake, not the incident that revealed it: the correction that prompted a rule is evidence for it, never phrasing to copy
 - Never add self-referential document metadata or biography: version stamps, "last updated" lines, rename history, drift-tracking clauses between files, rules phrased against the past ("previously X, now Z"). State the rule present tense. Git is the history, and the audit cuts these on sight
 
-## The quartet
+## The lifecycle
 
-- `/bonsai:feed` adds rules from observed patterns
+- `/bonsai:intake` records verified evidence from PR reviews
+- `/bonsai:feed` adds rules from observed patterns, intake entries included
 - `/bonsai:bake` converts crystallized rules into tooling and removes the prose
 - `/bonsai:audit` prunes and verifies what remains
 - `/bonsai:split` moves what remains to the scope that reads it
 
-Run `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.
+Run `intake` after each review round, `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.
