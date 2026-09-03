@@ -13,7 +13,9 @@ Each skill states the question its probe answers. The mechanics and the validity
 
 ## Budget
 
-Probes are the expensive step, and nothing above says how many. Before spawning any, group the candidates by the task that would reveal them: one probe tests every line that task exercises, so a section of six related lines costs one agent, not six. Cap the run at about ten probes per pass (reruns included) and report every candidate the cap left unprobed as an open question, never as a verdict. A candidate that shares no task with any other gets its own probe only when the cap has room.
+Probes are the expensive step, and nothing above says how many. Before spawning any, group the derivability and load-path candidates by the task that would reveal them: one agent runs that task once, and its transcript yields a verdict per line the task exercised, so a section of six related lines costs one agent, not six. Cap those at about ten agents per pass (reruns included) and report every candidate the cap left unprobed as an open question, never as a verdict. A candidate that shares no task with any other gets its own agent only when the cap has room.
+
+Post-apply marker probes sit outside the cap: every created or changed glob gets verified, so apply only as many globs per round as the run can verify.
 
 ## Validity rules
 
@@ -21,4 +23,4 @@ Probes are the expensive step, and nothing above says how many. Before spawning 
 - **A behavioral probe runs the task, a judging probe answers only.** A derivability or load-path probe is evidence only if the agent attempts the task: the mistake, or the read before the mistake, has to appear in its transcript. A classification probe, a marker probe, and a capability-floor panelist return the answer and stop: tell them so, because a floor model handed a task or a block will otherwise start executing it.
 - **Search the whole context, not just the file.** For a marker probe, say explicitly that the phrase may sit anywhere in the context window. Asked about "the file", an agent answers about the file alone and returns a false NONE.
 - **Rerun once before judging a NONE.** Self-report probes return false negatives at a measurable rate even when phrased correctly. One NONE is a retry, two are the verdict.
-- **One agent per question.** A probe answers one question about one line, rule, or glob. One file cannot vouch for a glob that did not select it, and one task cannot vouch for a line it never exercised.
+- **One question per agent.** A behavioral probe asks one task, and the transcript answers for every line that task exercised, and for no other: one task cannot vouch for a line it never exercised. A marker probe asks about one glob: one file cannot vouch for a glob that did not select it.
