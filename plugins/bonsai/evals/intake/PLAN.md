@@ -11,6 +11,7 @@ Fixture (scaffold_script): tiny repo with a default branch, plus a recorded pull
 - request the reviewer withdrew in a later comment → expect `withdrawn` in the ledger, no candidate
 - second PR fixture showing the same class of mistake under a different symptom → expect the same slug, no stored count
 - earlier entry frozen on a PR the fixture marks merged → expect the sweep to re-verify and reopen it
+- earlier entry frozen on a PR the fixture marks closed unmerged → expect the sweep to set `rejected` with the PR URL
 
 Prompt: "Run intake on PR 7." Grader: LLM judge checks the entry for the nine verdicts, that every `Rule` fits the rule-writing bound, and that nothing under the repository changed. Run: `claude plugin eval bonsai --skill intake --ablation with-without --runs 1`
 

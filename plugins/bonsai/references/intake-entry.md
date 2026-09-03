@@ -4,7 +4,7 @@ Shared contract for `/bonsai:intake` (writer), `/bonsai:feed` and `/bonsai:bake`
 
 ## Repository key
 
-The key is the canonical GitHub name of the target repository, `owner/repo`, as `gh repo view <target> --json nameWithOwner` resolves it. Run inside a clone, `gh repo view --json nameWithOwner` prefers the `upstream` remote over `origin`, so a fork clone still resolves to the canonical name. Every skill derives the key this way and no other. A reader that finds no directory under the key reports "no intake entries under `<path>`" rather than skipping silently, so a key mismatch is visible.
+The key is the canonical GitHub name of the target repository, `owner/repo`: run `gh repo view <target> --json nameWithOwner,parent` and take `parent.nameWithOwner` when it is set, else `nameWithOwner`. Inside a clone, `gh repo view` prefers the `upstream` remote over `origin`, and the `parent` field covers a fork clone that has no `upstream` remote, so both resolve to the canonical name. Every skill derives the key this way and no other. A reader that finds no directory under the key reports "no intake entries under `<path>`" rather than skipping silently, so a key mismatch is visible.
 
 ## Files
 
@@ -15,7 +15,7 @@ A reader treats a local entry and an exported file with the same `source_pr` as 
 
 ## Rerun
 
-A rerun of intake on the same PR rewrites the ledger and the intake-owned fields of each candidate (`Symbols`, `Current code`, `Existing coverage`, `Rule` or `Check`, `Target`, `Evidence`, `verified_on`). It never changes a status that feed, bake, or audit wrote (`encoded`, `baked`, `rejected`), never removes a `History` line, and never creates a second file for the same PR. A candidate the rerun no longer produces keeps its section and gets a `History` line saying so.
+A rerun of intake on the same PR rewrites the ledger and the intake-owned fields of each candidate (`Symbols`, `Current code`, `Existing coverage`, `Rule` or `Check`, `Target`, `Evidence`, `verified_on`). It never changes a status that feed or bake wrote (`encoded`, `baked`, `rejected`), never removes a `History` line, and never creates a second file for the same PR. A candidate the rerun no longer produces keeps its section and gets a `History` line saying so.
 
 ## Format
 
@@ -79,7 +79,7 @@ verified_on: 3f2a9c1
 - `verified_on`: the default-branch commit of the target repository the symbol checks ran against.
 - Ledger `Outcome`: the slug of the candidate the thread feeds, or the reason it feeds none. One row per thread. This is the only place a dropped thread appears.
 - `Class`: `prose` or `bake`. Intake fixes it; bake may change `bake` to `prose` when it declines.
-- `Status`: `open`, `frozen-until: <PR URL>`, or `watch` (written by intake), then `encoded: <rule path> (<PR URL or commit>)`, `baked: <check> (<PR URL or commit>)`, or `rejected: <reason>` (written by feed or bake). `rejected` is terminal and means the rule itself is wrong or already enforced. Declining a check for any other reason is not a rejection: bake sets `Class: prose`, keeps `open`, and writes the reason in `History`.
+- `Status`: `open`, `frozen-until: <PR URL>`, or `watch` (written by intake), then `encoded: <rule path> (<PR URL or commit>)`, `baked: <check> (<PR URL or commit>)`, or `rejected: <reason>` (written by feed or bake, or by intake's sweep when the freezing PR closed unmerged). `rejected` is terminal and means the rule itself is wrong, already enforced, or names a symbol that never landed. Declining a check for any other reason is not a rejection: bake sets `Class: prose`, keeps `open`, and writes the reason in `History`.
 - `Mistake`: the concrete failure a session produces without the rule, one sentence.
 - `Symbols`: every identifier the rule or check names, each marked `exists` on the default branch or the PR it waits for.
 - `Current code`: numerator, denominator, and verdict (`complies`, `contradicts`, `no instances`).
@@ -87,7 +87,7 @@ verified_on: 3f2a9c1
 - `Rule` (prose) or `Check` (bake): final text on the indented line below the label, ready to copy, written to [rule-writing.md](rule-writing.md).
 - `Target`: repo-relative path the rule or check lands in.
 - `Evidence`: direct thread links.
-- `History`: one dated line per write, by intake, feed, bake, or audit.
+- `History`: one dated line per write, by intake, feed, or bake.
 
 ## Recurrence
 
