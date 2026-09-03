@@ -28,7 +28,7 @@ Read each whole thread before judging any comment in it. The last reviewer messa
 
 ### 2. Sweep frozen candidates
 
-Before classifying anything, read every existing entry under the target repository key. For each candidate whose status is `frozen-until: <PR>`, check that PR's merge state with `gh`. When it has merged, re-verify the candidate's symbols against the default branch (step 4) and set it `open`, with a dated `History` line. This sweep runs on every intake, whatever PR it targets, so a frozen candidate does not depend on anyone remembering to rerun intake on the PR that froze it.
+Before classifying anything, read every existing entry under the target repository key. For each candidate whose status is `frozen-until: <PR>`, check that PR's merge state with `gh`. When it has merged, re-verify the candidate's symbols against the default branch (step 5) and set it `open`. When it was closed without merging, set `rejected: <PR URL> closed unmerged`: the symbol the rule names never landed, and a later PR that lands it produces its own intake. Either way, add a dated `History` line. This sweep runs on every intake, whatever PR it targets, so a frozen candidate does not depend on anyone remembering to rerun intake on the PR that froze it.
 
 ### 3. Ledger
 
@@ -77,7 +77,7 @@ Status, in precedence order (the first that applies wins):
 2. **watch**: the reviewer's request was declined or is still disputed, or the finding is a preference the codebase seems to teach. Feed reads `watch` and runs its probe.
 3. **open**: everything else. A rule the default branch contradicts is `open` when the author fixed the instance and the PR merged: the code teaches the wrong pattern, so the line is the only corrective, and the recorded ratio shows feed how wrong. A contradicted rule whose fix was declined is `watch`, because the disagreement is a design decision the proposal must surface, not a convention.
 
-Feed, bake, and audit later write `encoded`, `baked`, or `rejected`. Intake never writes those and never overwrites them.
+Feed and bake later write `encoded`, `baked`, or `rejected`. Intake writes `rejected` only from the sweep, and never overwrites a status feed or bake set.
 
 ### 7. Slug
 

@@ -15,7 +15,7 @@ Keeps CLAUDE.md files like a bonsai: small on purpose, shaped by continuous feed
 
 | Skill | Role |
 | --- | --- |
-| `/bonsai:intake` | Records verified evidence from PR review threads, locally and never in the repo |
+| `/bonsai:intake` | Records verified evidence from PR review threads outside the repo, shared only with `--export` |
 | `/bonsai:feed` | Adds rules from observed patterns (commits, in-session corrections, intake entries) |
 | `/bonsai:bake` | Converts crystallized rules into automated checks and removes the prose |
 | `/bonsai:audit` | Prunes and verifies what remains, every cut backed by evidence |
