@@ -21,6 +21,12 @@ Ask first (one AskUserQuestion) whether the user wants that summary as an intera
 
 Only proceed after the user approves. Then implement the automated checks, verify everything passes, and only remove a rule from CLAUDE.md after its corresponding check passes. Passing on the current tree is not enough: confirm the check's file globs cover the affected paths and that it runs before code lands (hook or CI).
 
+## Intake candidates
+
+`/bonsai:intake` records check-shaped candidates (`Class: bake`) under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the key and the format. Read every `bake` candidate with `Status: open` or `watch` under this project's key, and report "no intake entries under `<path>`" when the directory is missing. Treat a candidate as a rule to automate when its slug appears in two or more source PRs, or when the user names it: a check costs CI time, false positives, and tolerance for the tool, so it earns its place the way prose does. The `Check` line names the tool and shape intake verified.
+
+After a check lands, set `baked: <check> (<PR URL or commit>)` on every entry carrying the slug. When you decline because no tool can express it, or the check is not worth its cost, set `Class: prose` and keep `open`, with the reason in `History`, so `/bonsai:feed` can still propose the prose. Set `rejected: <reason>` only when the rule itself is wrong or already enforced. Append a dated `History` line either way.
+
 ## Building the decision artifact
 
 Read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the artifact page.
@@ -42,12 +48,3 @@ Read [../../references/decision-artifact.md](../../references/decision-artifact.
 ## Keep prose when the feedback loop is late
 
 A format-time auto-fix corrects violations silently, so its prose can always go. A check that fails only at suite time (architecture test, CI step) corrects the agent after the code is written. When the surrounding code mostly violates the rule, neighbors teach the wrong pattern and the agent writes the violation first, every time. Keep a one-line prose rule next to that check, noting what enforces it.
-
-## The quartet
-
-- `/bonsai:feed` adds rules from observed patterns
-- `/bonsai:bake` converts crystallized rules into tooling and removes the prose
-- `/bonsai:audit` prunes and verifies what remains
-- `/bonsai:split` moves what remains to the scope that reads it
-
-Run `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.

@@ -157,12 +157,3 @@ Present the full report before editing anything; a phased report satisfies this 
 - **Local files** (user-level memory, `CLAUDE.local.md`): edit directly, back up first.
 
 After applying, re-resolve every pointer you touched. Close the report with before and after est. token totals per file, listing deferred (moved) tokens separately from deleted ones.
-
-## The quartet
-
-- `/bonsai:feed` adds rules from observed patterns
-- `/bonsai:bake` converts crystallized rules into tooling and removes the prose
-- `/bonsai:audit` prunes and verifies what remains
-- `/bonsai:split` moves what remains to the scope that reads it
-
-Run `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.

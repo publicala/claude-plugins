@@ -83,12 +83,3 @@ A demotion leaves nothing behind. The scoped file loads automatically, so a poin
 ## Skill candidates
 
 Content shaped as a procedure (a numbered workflow, a deploy guide, a checklist walked start to finish) belongs in a skill body, not in any CLAUDE.md. Flag it with a proposed skill name and stop there. Writing skills is a different job with its own standards.
-
-## The quartet
-
-- `/bonsai:feed` adds rules from observed patterns
-- `/bonsai:bake` converts crystallized rules into tooling and removes the prose
-- `/bonsai:audit` prunes and verifies what remains
-- `/bonsai:split` moves what remains to the scope that reads it
-
-Run `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.

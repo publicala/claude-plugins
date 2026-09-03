@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "bonsai",
-      "description": "Keeps CLAUDE.md files deliberately small and shaped: feed grows rules from observed patterns, bake converts them into automated checks, audit prunes with evidence, split moves rules to the scope that reads them.",
+      "description": "Keeps CLAUDE.md files deliberately small and shaped: intake records verified evidence from PR reviews, feed grows rules from observed patterns, bake converts them into automated checks, audit prunes with evidence, split moves rules to the scope that reads them.",
       "source": "./plugins/bonsai",
       "homepage": "https://github.com/publicala/claude-plugins/tree/main/plugins/bonsai"
     }
