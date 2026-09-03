@@ -22,13 +22,9 @@ Use `AskUserQuestion` to propose each rule with:
 - The target file path (suggested; let the user pick another)
 - Optionally: defer-to-bake instead of writing prose
 
-When the candidate list is long (more than AskUserQuestion comfortably carries), first ask whether the user wants the proposals as an interactive artifact instead: a live doc (`capabilities: {artifact: {}}`) listing each candidate with its exact rule text, repo-relative target path, an approve checkbox, and a free-text input for rewording, plus a copy-decisions control as the fallback path back into the session.
+When the candidate list is long (more than AskUserQuestion comfortably carries), first ask whether the user wants the proposals as an interactive artifact instead. For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the page. Feed rows are one per candidate with its exact rule text and target path, the note field taking rewordings.
 
 Only write after approval. Create the target file if it does not exist. Append under an appropriate heading; never duplicate or near-duplicate an existing rule.
-
-## Building the decision artifact
-
-Read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the artifact page.
 
 ## Signal priority
 
@@ -43,7 +39,7 @@ Read [../../references/decision-artifact.md](../../references/decision-artifact.
 `/bonsai:intake` records verified evidence from PR reviews under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the key, the format, and how recurrence is counted. Then:
 
 - Read every candidate with `Status: open` or `Status: watch` under this project's key. Report "no intake entries under `<path>`" when the directory is missing, never skip silently.
-- Propose a candidate when its slug appears in two or more source PRs, or when the user names it. One PR is an incident, two are a pattern. A `watch` candidate goes through the clean-context probe below before it is proposed or skipped.
+- Propose a candidate when its slug appears in two or more source PRs, or when the user names it. One PR is an incident, two are a pattern. A `watch` candidate goes through the derivability probe (see "What to skip") before it is proposed or skipped.
 - Route `Class: bake` candidates to `/bonsai:bake` instead of writing prose.
 - Copy the candidate's `Rule` text as the proposal and re-verify every symbol it names against the current tree: `verified_on` may be stale.
 - After writing an approved rule, set `encoded: <rule path> (<PR URL or commit>)` on every entry carrying that slug and append a dated `History` line to each.
@@ -65,7 +61,7 @@ One exception: the status line and `History` of intake candidates this run encod
 - Anything a fresh session derives with a few tool calls (setup commands, stack inventories, directory layouts): inventory, not instruction
 - Conventions the codebase already demonstrates nearly everywhere: a new session copies its neighbors without being told; write the rule only where the dominant pattern is the wrong one
 
-The last two reasons are claims about what a fresh session does, and the loaded model making them has already read everything it claims that session would derive. Before skipping a candidate for either, run a clean-context probe: give one fresh low-effort agent the task that surfaced the pattern, without the rule, and record whether it makes the mistake the rule would prevent. The probe decides the skip. The other reasons are checkable directly and never probe. A wrongly written rule gets pruned by a later audit, a wrongly skipped one is gone for good, so the probe guards the skip side.
+The last two reasons are claims about what a fresh session does, and the loaded model making them has already read everything it claims that session would derive. Before skipping a candidate for either, run a derivability probe as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: the task that surfaced the pattern, without the rule. The probe decides the skip. The other reasons are checkable directly and never probe. A wrongly written rule gets pruned by a later audit, a wrongly skipped one is gone for good, so the probe guards the skip side.
 
 ## Targeted vs root
 
