@@ -19,10 +19,20 @@ function walk(dir) {
   });
 }
 
+// Inline destinations, angle-bracket destinations, and reference definitions.
+function linkTargets(text) {
+  const inline = [...text.matchAll(/\]\((<[^>]*>|[^)\s]+)(?:\s+"[^"]*")?\)/g)];
+  const definitions = [
+    ...text.matchAll(/^ {0,3}\[[^\]]+\]:\s*(<[^>]*>|\S+)/gm),
+  ];
+  return [...inline, ...definitions].map((match) =>
+    match[1].startsWith("<") ? match[1].slice(1, -1) : match[1],
+  );
+}
+
 function checkLinks(file) {
   const text = readFileSync(file, "utf8");
-  for (const match of text.matchAll(/\]\(([^)\s]+)\)/g)) {
-    const target = match[1];
+  for (const target of linkTargets(text)) {
     if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith("#")) continue;
     const path = resolve(dirname(file), target.split("#")[0]);
     if (!existsSync(path)) {
