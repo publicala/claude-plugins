@@ -19,7 +19,7 @@ Before modifying any CLAUDE.md file, present a summary of:
 
 Ask first (one AskUserQuestion) whether the user wants that summary as an interactive artifact or as plain text. For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the page. Bake rows are one per rule with its source file and the proposed enforcement tool.
 
-Only proceed after the user approves. Then implement the automated checks, verify everything passes, and only remove a rule from CLAUDE.md after its corresponding check passes. Passing on the current tree is not enough: confirm the check's file globs cover the affected paths and that it runs before code lands (hook or CI).
+Only proceed after the user approves. Then implement the automated checks, verify everything passes, and only remove a rule from CLAUDE.md after its corresponding check passes. Passing on the current tree is not enough: confirm the check's file globs cover the affected paths, that it runs before code lands (hook or CI), and that it lives in a committed file. A check that exists only in a user's local settings enforces nothing for teammates or CI, and its prose stays.
 
 ## Intake candidates
 
@@ -37,7 +37,7 @@ After a check lands, set `baked: <check> (<PR URL or commit>)` on every entry ca
    - Structural search and lint (ast-grep) for syntax-shaped rules a stock linter cannot express (a banned call pattern, a required argument shape)
    - Git hooks (Lefthook, Husky, pre-commit)
    - CI pipeline steps
-   - Agent-harness hooks (Claude Code PreToolUse deny rules) for rules about how a command is invoked (a required flag, a banned subcommand), which no linter or code check can see
+   - Agent-harness hooks (Claude Code PreToolUse deny rules in the project's committed `.claude/settings.json`) for rules about how a command is invoked (a required flag, a banned subcommand), which no linter or code check can see
 3. **Custom scripts only as last resort** - only when no existing tool can express the check
 4. **Wire into existing runners** - new checks must run via existing test/lint commands, not new entrypoints
 
