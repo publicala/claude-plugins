@@ -1,7 +1,7 @@
 ---
 name: split
 description: >
-  Moves CLAUDE.md rules to the load scope of the sessions they govern: demotes always-resident rules that bind one subtree or one file pattern into nested CLAUDE.md files or path-scoped rules, promotes scoped rules that outgrew their file, and flags orphaned scoped files. Use when a resident CLAUDE.md grows past about 200 lines, when the root file accumulates rules that only apply to one area, or after an audit run (`/bonsai:audit`).
+  Moves CLAUDE.md rules to the load scope of the sessions they govern (nested files, path-scoped rules, or root). Run after an audit, or when a resident file carries rules that bind one area.
 user-invocable: true
 disable-model-invocation: true
 ---

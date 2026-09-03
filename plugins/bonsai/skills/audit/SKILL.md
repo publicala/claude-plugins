@@ -1,7 +1,7 @@
 ---
 name: audit
 description: >
-  Prunes loaded CLAUDE.md files down to the lines a fresh session cannot derive on its own, every cut backed by evidence. Use when CLAUDE.md files have grown without review, or after a stretch of feed runs (`/bonsai:feed`) (feed adds rules, bake converts them into tooling, audit prunes what remains).
+  Prunes CLAUDE.md files to the lines a fresh session cannot derive, every cut backed by evidence. Run when the files have grown without review.
 user-invocable: true
 disable-model-invocation: true
 ---

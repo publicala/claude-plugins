@@ -1,81 +1,73 @@
 ---
 name: feed
 description: >
-  Surfaces recurring patterns in recent commits and in-session corrections, proposes them as new CLAUDE.md rules in the right file, and writes them only after approval. The inverse of the bake skill (`/bonsai:bake`).
+  Turns recurring corrections (conversation, intake entries, recent commits) into CLAUDE.md rules. Run after a working session or a review round.
 user-invocable: true
 disable-model-invocation: true
 ---
 
-Read recent git history (commits + diffs), the current conversation's user corrections and feedback, the intake entries recorded for this repository (see "Intake entries" below), and all existing CLAUDE.md files in the project.
+Judge every recurring correction against one question: **which CLAUDE.md line would have prevented it?** A correction asked for once is an incident. Asked for twice, or recorded by intake from two reviews, it is a pattern, and a pattern with no line yet is the gap this skill closes. The goal is a small set of rules a fresh session would have broken without them.
 
-Cluster recurring patterns into candidate rules. A pattern is anything that recurs: the same correction asked for twice, the same kind of edit across multiple commits, the same nit, the same naming or style choice, the same architectural decision applied repeatedly.
+Throughout, "propose" means recording a candidate in the report. No file changes before approval, no exceptions.
 
-For each candidate, decide:
+## Scope
 
-- Whether it duplicates an existing CLAUDE.md rule (drop)
-- Whether it would be better expressed as a tooling check (lint, static analysis, CI, hook) — if so, propose deferring to `/bonsai:bake` instead of writing prose
-- Which CLAUDE.md file it belongs in: a scoped subdir (preferred when the pattern only applies there) or root (only when the rule genuinely cuts across the project)
+Writes land only in CLAUDE.md files and path-scoped rule files (`.claude/rules/*.md`) inside the current project tree, plus the status line and `History` of intake candidates this run encoded, local or exported. Never write to `~/.claude/` (global skills, settings, user memory), to `~/.claude/projects/*/memory/` (auto-memory is read-only input), or to any path outside the project root.
 
-Use `AskUserQuestion` to propose each rule with:
+## Never propose
 
-- The exact rule text
-- The target file path (suggested; let the user pick another)
-- Optionally: defer-to-bake instead of writing prose
+Check each candidate against this list before anything else:
 
-When the candidate list is long (more than AskUserQuestion comfortably carries), first ask whether the user wants the proposals as an interactive artifact instead. For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the page. Feed rows are one per candidate with its exact rule text and target path, the note field taking rewordings.
+- A rule an existing CLAUDE.md line already states, or near-states. Drop it.
+- A style preference a linter or formatter in the repo already enforces. Drop it.
+- A one-off correction that looks situational. Drop it.
+- Anything a fresh session derives with a few tool calls (setup commands, stack inventories, directory layouts), or a convention the codebase demonstrates nearly everywhere. These two are claims about what a fresh session does, and the loaded model making them has already read everything it claims that session would derive. Before skipping for either, run a derivability probe as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: the task that surfaced the pattern, without the rule. The probe decides the skip. A wrongly written rule gets pruned by a later audit, a wrongly skipped one is gone for good, so the probe guards the skip side.
 
-Only write after approval. Create the target file if it does not exist. Append under an appropriate heading; never duplicate or near-duplicate an existing rule.
+## The pass, in order
 
-## Signal priority
+### 1. Gather signals
 
-1. **Current conversation corrections** — strongest. Direct "no, do it like X" / "stop doing Y" / "always do Z" carries explicit intent.
-2. **Intake entries** — a reviewer's correction the author accepted, with symbols verified and a compliance ratio measured (see "Intake entries" below). Explicit intent plus evidence, so it outranks inference from diffs.
-3. **Recent commit diffs** — next. If the same kind of change recurs (consistent param ordering, error-handling shape, test layout, commit-message style), it is a pattern.
-4. **Auto-memory feedback files** — read-only input. Look for `feedback*.md` (and any file with `type: feedback` in its frontmatter) under `~/.claude/projects/*/memory/` — both the user-home-encoded directory and the project-cwd-encoded directory if present. Treat these like prior corrections but with lower confidence (they may be older or stale). Skip silently if none exist.
-5. **Existing CLAUDE.md files** — used to deduplicate and to pick the right home for new rules, not as a source of new ones.
+Read the sources in priority order. Explicit intent outranks inference:
+
+1. **Current conversation corrections**: direct "no, do it like X", "stop doing Y", "always do Z".
+2. **Intake entries**: a reviewer's correction the author accepted, with symbols verified and a compliance ratio measured. See "Intake entries" below.
+3. **Recent commit diffs**: the same kind of change recurring (parameter ordering, error-handling shape, test layout, commit-message style).
+4. **Auto-memory feedback files**: `feedback*.md`, and any file with `type: feedback` in its frontmatter, under `~/.claude/projects/*/memory/`, in both the user-home-encoded and the project-cwd-encoded directories when present. Prior corrections at lower confidence: they may be stale. Skip silently when none exist.
+5. **Existing CLAUDE.md files**: for deduplication and for picking a rule's home, never as a source of rules.
+
+### 2. Cluster
+
+Group what recurs into candidate rules: the same correction asked for twice, the same edit across commits, the same nit, the same naming or style choice, the same architectural decision applied repeatedly. One candidate per class of mistake, not per incident.
+
+### 3. Route
+
+For each candidate, decide whether a tool could enforce it instead (lint, static analysis, architecture test, CI, hook). If so, the proposal is a deferral to `/bonsai:bake`, not prose. `Class: bake` intake candidates always route there.
+
+### 4. Place
+
+Default to the smallest scope that still captures the rule, and promote to root only when the rule genuinely cuts across the project:
+
+- React component pattern → `src/components/CLAUDE.md`
+- Eloquent model convention → `app/Models/CLAUDE.md`
+- Test layout rule → `tests/CLAUDE.md`
+- Commit message style → root `CLAUDE.md`
+- Cross-cutting safety rule ("never log PII") → root `CLAUDE.md`
+- Convention binding one file pattern across directories (`**/*.blade.php`) → `.claude/rules/<topic>.md`, but only when intake recorded that target. Otherwise write to the nearest CLAUDE.md and let `/bonsai:split` move it: placement by file pattern is split's call, with its load-path check.
+
+### 5. Write the rule text
+
+Write each proposal in final form, following [../../references/rule-writing.md](../../references/rule-writing.md) (relative to this skill's directory). For an intake candidate, copy its `Rule` text and re-verify every symbol it names against the current tree: `verified_on` may be stale.
 
 ## Intake entries
 
 `/bonsai:intake` records verified evidence from PR reviews under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the key, the format, and how recurrence is counted. Then:
 
 - Read every candidate with `Status: open` or `Status: watch` under this project's key. Report "no intake entries under `<path>`" when the directory is missing, never skip silently.
-- Propose a candidate when its slug appears in two or more source PRs, or when the user names it. One PR is an incident, two are a pattern. A `watch` candidate goes through the derivability probe (see "What to skip") before it is proposed or skipped.
-- Route `Class: bake` candidates to `/bonsai:bake` instead of writing prose.
-- Copy the candidate's `Rule` text as the proposal and re-verify every symbol it names against the current tree: `verified_on` may be stale.
+- Propose a candidate when its slug appears in two or more source PRs, or when the user names it. One PR is an incident, two are a pattern. A `watch` candidate goes through the derivability probe (see "Never propose") before it is proposed or skipped.
 - After writing an approved rule, set `encoded: <rule path> (<PR URL or commit>)` on every entry carrying that slug and append a dated `History` line to each.
 
-## Scope: project files only
+## Approval and apply
 
-This skill writes **only** to CLAUDE.md files and path-scoped rule files (`.claude/rules/*.md`) inside the current project tree. Never write to:
+Propose each rule through AskUserQuestion with the exact rule text, the suggested target path (the user may pick another), and, where step 3 applies, the defer-to-bake option. When the list is longer than AskUserQuestion comfortably carries, first ask whether the user wants the proposals as an interactive artifact instead. For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the page. Feed rows are one per candidate with its exact rule text and target path, the note field taking rewordings.
 
-- `~/.claude/` — global skills, settings, or user memory
-- `~/.claude/projects/*/memory/` — auto-memory files (read-only input)
-- Any path outside the project root
-
-One exception: the status line and `History` of intake candidates this run encoded, local or exported. Nothing else there changes. Reads from `~/.claude/projects/*/memory/` are fine; rule text only ever lands in the project's root `CLAUDE.md`, a scoped subdir `CLAUDE.md`, or a path-scoped rule file under `.claude/rules/` when the rule binds a file pattern across directories.
-
-## What to skip
-
-- One-off corrections that look situational
-- Style preferences already enforced by linters/formatters in the repo
-- Anything a fresh session derives with a few tool calls (setup commands, stack inventories, directory layouts): inventory, not instruction
-- Conventions the codebase already demonstrates nearly everywhere: a new session copies its neighbors without being told; write the rule only where the dominant pattern is the wrong one
-
-The last two reasons are claims about what a fresh session does, and the loaded model making them has already read everything it claims that session would derive. Before skipping a candidate for either, run a derivability probe as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: the task that surfaced the pattern, without the rule. The probe decides the skip. The other reasons are checkable directly and never probe. A wrongly written rule gets pruned by a later audit, a wrongly skipped one is gone for good, so the probe guards the skip side.
-
-## Targeted vs root
-
-Default to the smallest scope that still captures the rule. Promote to root only when the rule genuinely cuts across the project.
-
-Examples:
-
-- React component pattern → `src/components/CLAUDE.md`
-- Eloquent model convention → `app/Models/CLAUDE.md`
-- Test layout rule → `tests/CLAUDE.md`
-- Commit message style → root `CLAUDE.md`
-- Cross-cutting safety rule (e.g. "never log PII") → root `CLAUDE.md`
-- Convention binding one file pattern across directories (`**/*.blade.php`) → `.claude/rules/<topic>.md`, but only when intake recorded that target. Otherwise write to the nearest CLAUDE.md and let `/bonsai:split` move it: placement by file pattern is split's call, with its load-path check.
-
-## Rule writing
-
-Follow [../../references/rule-writing.md](../../references/rule-writing.md) (relative to this skill's directory).
+Only write after approval. Create the target file if it does not exist, and append under a heading that matches its existing structure. Then update the intake entries the run encoded.
