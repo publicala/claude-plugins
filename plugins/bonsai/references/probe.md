@@ -11,6 +11,10 @@ Each skill states the question its probe answers. The mechanics and the validity
 - **Marker probe** (split, after apply): give the agent one file matched by the scoped file's glob to read, and ask it to quote every context line containing a phrase unique to the scoped file. The phrase comes back: the glob fires.
 - **Classification probe** (audit, extract pass): hand the agent a section with one question ("which execution environments does each sentence govern") and take its answer as the classification.
 
+## Budget
+
+Probes are the expensive step, and nothing above says how many. Before spawning any, group the candidates by the task that would reveal them: one probe tests every line that task exercises, so a section of six related lines costs one agent, not six. Cap the run at about ten probes per pass (reruns included) and report every candidate the cap left unprobed as an open question, never as a verdict. A candidate that shares no task with any other gets its own probe only when the cap has room.
+
 ## Validity rules
 
 - **For a behavioral probe, the probed line must be absent from the agent's context.** A derivability or load-path probe measures what an agent does without the line, so a line it can see measures nothing. Subagents receive the resident CLAUDE.md set the parent session loaded at launch, whatever working directory they run in: a worktree-isolated subagent gets the same set, and a file added or edited in a worktree after launch is not in it. So a line in an always-resident file (the root CLAUDE.md, user-level and ancestor files, `@path` imports) is present in every subagent, and no probe of it runs clean. Record that for those candidates and send them to the capability-floor panel. Scope-triggered and deferred files are absent until read, so their lines probe clean. A classification probe is exempt: it receives the section by design, because its question is about the text, not about behavior without it.
