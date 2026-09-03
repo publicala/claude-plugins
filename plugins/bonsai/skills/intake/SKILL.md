@@ -1,7 +1,7 @@
 ---
 name: intake
 description: >
-  Records one GitHub pull request's review threads as local evidence entries that `/bonsai:feed` and `/bonsai:bake` act on. Use after a review round (`/bonsai:intake <PR number or URL>`, add `--export` to also write the shareable candidate sections into the target repository). Reads GitHub only, through `gh`. Never commits, never comments on or resolves review threads.
+  Records one pull request's review threads as local evidence for feed and bake. Run after a review round with the PR number or URL, `--export` to share candidates through the repo. Never commits, never touches the threads.
 user-invocable: true
 disable-model-invocation: true
 ---

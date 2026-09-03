@@ -1,45 +1,52 @@
 ---
 name: bake
 description: >
-  Converts CLAUDE.md rules into automated checks, removes the automated rules from CLAUDE.md, and verifies everything passes. Frees up agent context by replacing prose with tooling.
+  Converts CLAUDE.md rules into automated checks and removes the prose once the check runs before code lands. Run once enough rules have accumulated to be worth automating.
 user-invocable: true
 disable-model-invocation: true
 ---
 
-Read all CLAUDE.md files in the project, along with the existing tool configurations (eslint, phpstan, pint, package.json scripts, lefthook, git hooks, GitLab CI or GitHub Actions and everything else relevant).
+Judge every CLAUDE.md rule against one question: **which tool could enforce this before code lands?** A rule a committed check enforces is context spent on nothing, because the violation never reaches review. The goal is a file where every remaining line needs judgment no tool can express.
 
-When the project has more than one CLAUDE.md file, fan out instead of loading them all: build the tool inventory once and hand it with one file to each clean-context agent, the root file included, then merge the verdicts in the main session. A single window holding every file blurs rules across scopes and crowds the tool configurations out of attention.
+Throughout, "automate" means recording a proposal in the report. No config edits and no CLAUDE.md edits before approval, no exceptions.
 
-Identify rules in the CLAUDE.md files that can be turned into automated checks. Every rule we can remove is context freed up for the agent.
+## Scope
 
-Before modifying any CLAUDE.md file, present a summary of:
+Every CLAUDE.md file in the project and every enforcement surface it already has: linters and formatters, static analysis, architecture tests, package scripts, git hooks, CI workflows, and the project's committed `.claude/settings.json`. When the project has more than one CLAUDE.md file, fan out instead of loading them all: build the tool inventory once and hand it with one file to each clean-context agent, the root file included, then merge the verdicts in the main session. A single window holding every file blurs rules across scopes and crowds the tool configurations out of attention.
 
-- Which rules will be automated (and by which tool)
-- Which rules will be kept (and why - e.g. requires human judgment, context-dependent)
+## Never
 
-Ask first (one AskUserQuestion) whether the user wants that summary as an interactive artifact or as plain text. For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the page. Bake rows are one per rule with its source file and the proposed enforcement tool.
+- Remove a rule's prose before its check passes on the current tree, covers the affected paths with its file globs, runs before code lands (hook or CI), and lives in a committed file. A check that exists only in a user's local settings enforces nothing for teammates or CI.
+- Add a new entrypoint. New checks run through the existing test and lint commands.
+- Write a custom script while an existing tool can express the check.
 
-Only proceed after the user approves. Then implement the automated checks, verify everything passes, and only remove a rule from CLAUDE.md after its corresponding check passes. Passing on the current tree is not enough: confirm the check's file globs cover the affected paths, that it runs before code lands (hook or CI), and that it lives in a committed file. A check that exists only in a user's local settings enforces nothing for teammates or CI, and its prose stays.
+## The pass, in order
 
-## Intake candidates
+### 1. Inventory the tooling
+
+List the enforcement surfaces present, with the paths each one covers. Everything later is expressed through them, in this order of preference:
+
+1. Linter and formatter rules (ESLint, Biome, Prettier, Pint, Ruff, gofmt)
+2. Static analysis, including custom rules (TypeScript strict, PHPStan levels and custom rules, mypy, Rector)
+3. Architecture tests (Pest arch, ArchUnit, dependency-cruiser)
+4. Structural search and lint (ast-grep) for syntax-shaped rules a stock linter cannot express (a banned call pattern, a required argument shape)
+5. Git hooks (Lefthook, Husky, pre-commit) and CI pipeline steps
+6. Agent-harness hooks (Claude Code PreToolUse deny rules in the project's committed `.claude/settings.json`) for rules about how a command is invoked (a required flag, a banned subcommand), which no linter or code check can see
+7. A custom script, only when nothing above can express the check
+
+### 2. Classify each rule
+
+For every rule, record either the tool and the shape of the check that enforces it, or why it stays prose: it needs human judgment, or it is context-dependent, or its feedback loop is too late (see "Keep prose when the feedback loop is late").
+
+### 3. Read the intake candidates
 
 `/bonsai:intake` records check-shaped candidates (`Class: bake`) under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the key and the format. Read every `bake` candidate with `Status: open` or `watch` under this project's key, and report "no intake entries under `<path>`" when the directory is missing. Treat a candidate as a rule to automate when its slug appears in two or more source PRs, or when the user names it: a check costs CI time, false positives, and tolerance for the tool, so it earns its place the way prose does. The `Check` line names the tool and shape intake verified.
 
-After a check lands, set `baked: <check> (<PR URL or commit>)` on every entry carrying the slug. When you decline because no tool can express it, or the check is not worth its cost, set `Class: prose` and keep `open`, with the reason in `History`, so `/bonsai:feed` can still propose the prose. Set `rejected: <reason>` only when the rule itself is wrong or already enforced. Append a dated `History` line either way.
+### 4. Approval and apply
 
-## Implementation priority
+Present the full report before touching anything: which rules will be automated and by which tool, which stay prose and why. Ask first (one AskUserQuestion) whether the user wants that report as an interactive artifact or as plain text. For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the page. Bake rows are one per rule with its source file and the proposed enforcement tool.
 
-1. **Discover existing tooling first** - inventory linters, test frameworks, static analyzers, CI pipelines, and git hooks before implementing anything
-2. **Use native capabilities** - express checks through tools already in the project:
-   - Linter/formatter rules (ESLint, Biome, Prettier, Pint, Ruff, gofmt)
-   - Static analysis, including authoring custom rules (TypeScript strict, PHPStan strictness levels and custom PHPStan rules, mypy, Rector)
-   - Architecture tests (Pest arch, ArchUnit, dependency-cruiser)
-   - Structural search and lint (ast-grep) for syntax-shaped rules a stock linter cannot express (a banned call pattern, a required argument shape)
-   - Git hooks (Lefthook, Husky, pre-commit)
-   - CI pipeline steps
-   - Agent-harness hooks (Claude Code PreToolUse deny rules in the project's committed `.claude/settings.json`) for rules about how a command is invoked (a required flag, a banned subcommand), which no linter or code check can see
-3. **Custom scripts only as last resort** - only when no existing tool can express the check
-4. **Wire into existing runners** - new checks must run via existing test/lint commands, not new entrypoints
+After approval, implement each check, verify it passes, and only then remove its rule from CLAUDE.md, under the conditions in "Never". Then update the intake entries: after a check lands, set `baked: <check> (<PR URL or commit>)` on every entry carrying the slug. When you decline because no tool can express it, or the check is not worth its cost, set `Class: prose` and keep `open`, with the reason in `History`, so `/bonsai:feed` can still propose the prose. Set `rejected: <reason>` only when the rule itself is wrong or already enforced. Append a dated `History` line either way.
 
 ## Keep prose when the feedback loop is late
 
