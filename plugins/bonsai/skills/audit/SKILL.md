@@ -28,7 +28,7 @@ Check every line against this list before anything else. A match is a KEEP and s
 
 ## The audit, in order
 
-A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 6 line by line, and present one report. No panel, no phases, and probes only where a cut would otherwise rest on the auditor's guess. Above that, the steps below run as written, and every probe counts against the budget in `references/probe.md`.
+A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 6 line by line, and present one report with no phases. Probes and the panel still decide what the steps route to them; a small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `references/probe.md`.
 
 ### 1. Inventory
 
