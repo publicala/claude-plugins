@@ -6,7 +6,7 @@ user-invocable: true
 disable-model-invocation: true
 ---
 
-Judge every CLAUDE.md rule against one question: **which tool could enforce this before code lands?** A rule a committed check enforces is context spent on nothing, because the violation never reaches review. The goal is a file where every remaining line needs judgment no tool can express.
+Judge every CLAUDE.md rule against one question: **which tool could enforce this before code lands?** A rule a committed check enforces is context spent on nothing, because the violation never reaches review. The goal is a file where every remaining line either needs judgment no tool can express or bridges a check whose feedback arrives after the code is written (see "Keep prose when the feedback loop is late").
 
 Throughout, "automate" means recording a proposal in the report. No config edits and no CLAUDE.md edits before approval, no exceptions.
 
