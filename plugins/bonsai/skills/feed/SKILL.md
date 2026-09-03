@@ -40,13 +40,13 @@ Read [../../references/decision-artifact.md](../../references/decision-artifact.
 
 ## Scope: project files only
 
-This skill writes **only** to CLAUDE.md files inside the current project tree. Never write to:
+This skill writes **only** to CLAUDE.md files and path-scoped rule files (`.claude/rules/*.md`) inside the current project tree. Never write to:
 
 - `~/.claude/` — global skills, settings, or user memory
 - `~/.claude/projects/*/memory/` — auto-memory files (read-only input)
 - Any path outside the project root
 
-One exception: the status line and `History` of an intake candidate under `~/.claude/bonsai/intake/` that this run encoded. Nothing else there changes. Reads from `~/.claude/projects/*/memory/` are fine; rule text only ever lands in the project's root `CLAUDE.md` or a scoped subdir `CLAUDE.md`.
+One exception: the status line and `History` of an intake candidate under `~/.claude/bonsai/intake/` that this run encoded. Nothing else there changes. Reads from `~/.claude/projects/*/memory/` are fine; rule text only ever lands in the project's root `CLAUDE.md`, a scoped subdir `CLAUDE.md`, or a path-scoped rule file under `.claude/rules/` when the rule binds a file pattern across directories.
 
 ## What to skip
 

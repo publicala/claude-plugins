@@ -1,6 +1,6 @@
 # Intake entry format
 
-One file per source pull request, at `~/.claude/bonsai/intake/<owner>/<repo>/<YYYY-MM-DD>-pr<number>.md`, where `<owner>/<repo>` is the repository the candidates target. Intake writes the file. Feed, bake, and audit update the `status` of individual candidates and append to `history`. Nothing else edits it.
+One file per source pull request, at `~/.claude/bonsai/intake/<owner>/<repo>/pr<number>.md`, where `<owner>/<repo>` is the repository the candidates target. The filename carries no date, so a rerun of intake finds the same file. Intake writes the file and, on a rerun, refreshes only the ledger and the fields it owns. Feed, bake, and audit update the `Status` of individual candidates and append to `History`. Those updates survive a rerun. Nothing else edits the file.
 
 ```markdown
 ---
@@ -41,7 +41,7 @@ verified_on: 3f2a9c1 # default-branch commit every symbol check ran against
 
 - Class: bake
 - Status: open
-- Recurrence: 2 ([earlier entry](~/.claude/bonsai/intake/owner/repo/2026-01-10-pr98.md))
+- Recurrence: 2 ([earlier entry](~/.claude/bonsai/intake/owner/repo/pr98.md))
 - Mistake: a store imports the bridge package directly and has to handle transport-level errors the communication facade already translates
 - Symbols: `src/communication/` (exists), `@vendor/bridge` (dependency on default branch)
 - Current code: 0 of 14 non-facade modules import the bridge (complies)
@@ -65,7 +65,7 @@ verified_on: 3f2a9c1 # default-branch commit every symbol check ran against
 - `target_repo`, `source_repo`, `source_pr`: `source_repo` differs from `target_repo` when a review on one repository surfaces a rule for another.
 - `verified_on`: the default-branch commit of the target repository at verification time. Every symbol claim in the file is relative to it.
 - `Class`: `prose` or `bake`. Fixed at intake.
-- `Status`: `open`, `frozen-until: <PR URL>`, `watch`, `do-not-encode` (written by intake), then `encoded: <rule path> (<PR URL>)`, `baked: <check> (<PR URL>)`, or `rejected: <reason>` (written by feed, bake, or audit). A rejected bake candidate may be re-classed `prose` by bake, with the reason on the same line.
+- `Status`: `open`, `frozen-until: <PR URL>`, `watch`, `do-not-encode` (written by intake), then `encoded: <rule path> (<PR URL>)`, `baked: <check> (<PR URL>)`, or `rejected: <reason>` (written by feed, bake, or audit). When bake declines a candidate because no tool can express it, bake sets `Class: prose` and puts the status back to `open`, with the reason in `History`, so feed can still propose the prose. `rejected` is terminal.
 - `Recurrence`: the count of distinct source PRs showing the same `mistake` slug in this target repository, with links to the earlier entries. Feed proposes at two or more.
 - `Mistake`: the concrete failure a session produces without the rule, one sentence.
 - `Symbols`: every identifier the rule or check names, each marked `exists` on the default branch, or the PR it waits for.

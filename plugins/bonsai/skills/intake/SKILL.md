@@ -12,7 +12,7 @@ Throughout, "record" means writing to the local intake directory. Intake never e
 
 ## Storage
 
-Entries live outside every repository, under `~/.claude/bonsai/intake/<owner>/<repo>/<YYYY-MM-DD>-pr<number>.md`, one file per source pull request. Rerunning intake on the same PR rewrites that file. Review threads quote customer names, internal service names, and unreleased design, so the directory is local and uncommitted by construction. Never copy an entry into a repository, a shared drive, or a chat.
+Entries live outside every repository, under `~/.claude/bonsai/intake/<owner>/<repo>/pr<number>.md`, one file per source pull request, named by the PR alone so a rerun on another day finds the same file. Rerunning intake on the same PR refreshes the ledger and the intake-owned fields of each candidate, and keeps every status feed, bake, or audit wrote (`encoded`, `baked`, `rejected`) together with the `History` lines under it. A candidate that already carries one of those statuses is never reopened by intake, and a rerun never creates a second file for the same PR. Review threads quote customer names, internal service names, and unreleased design, so the directory is local and uncommitted by construction. Never copy an entry into a repository, a shared drive, or a chat.
 
 `<owner>/<repo>` is the repository the candidate targets, which is not always the repository under review. A review on a client library can surface a rule for its host application. Write each candidate under its target repository, so `/bonsai:feed` run there finds it.
 
@@ -64,7 +64,7 @@ Every surviving candidate gets exactly one class:
 - **bake**: a tool the repository already runs can express the check (linter rule, static analysis, architecture test, hook, CI step, agent-harness deny rule). Record the tool and the shape of the check. A bake candidate never becomes prose through intake; `/bonsai:bake` gets the first attempt and records a reason when it declines.
 - **prose**: the rule needs judgment no tool can express, or the feedback loop is too late for a check alone (see the bake skill on late feedback).
 
-And one status: `open`, `frozen-until: <PR>`, `watch`, or `do-not-encode`. Feed and bake move an entry to `encoded`, `baked`, or `rejected` later; intake never writes those.
+And one status: `open`, `frozen-until: <PR>`, `watch`, or `do-not-encode`. Feed, bake, and audit move a candidate to `encoded`, `baked`, or `rejected` later; intake never writes those and never overwrites them on a rerun.
 
 ### 6. Recurrence
 
