@@ -2,13 +2,26 @@
 
 The page exists so the user decides what needs their judgment, and nothing else. The skill verifies. The user decides intent, taste, and the close calls. A page that asks the user to re-verify every verdict costs attention and hides the few rows that matter.
 
+## Delivery
+
+Pick the delivery after the checks, by the size of the round:
+
+- **`--headless` in the arguments**: follow [headless.md](headless.md). Ask nothing.
+- **No calls**: no page. One AskUserQuestion: "Apply N ready changes?", with the groups and their diffs in the preview of the recommended "Apply" option, plus "Show me the page" and "Stop".
+- **1 to 3 calls**: AskUserQuestion, one question per call with Apply, Skip and Later. The Apply option's preview carries the diff, the why and "If you skip". When ready groups exist, add one question: "Apply all N ready changes" (recommended) or "Let me pick", which opens the page.
+- **More than 3 calls**, or the user asks for it: the page. Plain text instead when the stored `delivery` preference says so ([decision-memory.md](decision-memory.md)).
+
+The ship choice comes from the stored settings. Ask it once, with the first round that needs it, and store the answer.
+
+## Build the page
+
 Write data and let the renderer build the page: [../renderer/README.md](../renderer/README.md) documents the data file, and `example/data.json` there is a complete run. Draft the data in the scratchpad, run `python3 ../renderer/build.py data.json -o page.html` (the path is relative to this file), and publish the result. Never write or hand-edit the page's HTML. The build quotes every removed line from disk, so the page always shows the file as it is, and it refuses data that would render a misleading page.
 
 ## Route every change to a lane
 
 - **Call**: the change alters what a rule says (a fix of a false claim, a rewrite whose meaning the second check flagged), moves content to another file, adds a rule, rests on a close vote or a compliance count between 70% and 90%, or needs intent the agent cannot verify. Calls start undecided. The user answers Apply, Skip or Later.
 - **Ready**: objective, with direct evidence, and no change in meaning: a line a committed tool enforces or a file states, a rewrite the second check found the same. Ready changes are on by default, with an opt-out per change.
-- **Auto**: reserved for change classes the user has applied consistently. A skill fills it only from its record of past decisions. Shown collapsed as "Applied automatically", with an undo per change.
+- **Auto**: a change class that earned auto-apply in [decision-memory.md](decision-memory.md). Shown collapsed as "Applied automatically", with an undo per change.
 - **Kept**: lines the run checked and keeps. One collapsed list, never a decision.
 
 Group ready and auto changes by cause, one group per cause, and name the cause and the count in the group title ("Delete 4 lines the repo already covers").
