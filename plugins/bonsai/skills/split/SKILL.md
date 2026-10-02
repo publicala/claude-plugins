@@ -58,7 +58,7 @@ Flag orphans while there: a nested CLAUDE.md whose directory no longer holds fir
 
 ### 5. Approval and apply
 
-Ask at the start of the pass, one AskUserQuestion: does the user want the report as an interactive artifact or as plain text? For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the page. Split rows are one per rule with its source and destination paths and the load-path result.
+Ask at the start of the pass, one AskUserQuestion: does the user want the report as an interactive artifact or as plain text? For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) and build the page with the renderer it names. Each demotion or promotion is one `move` change: an edit that removes the rule from its source and an edit that inserts it in the destination, with the governed paths and the load-path result as evidence. Flags and skill candidates are questions or `kept` items, never moves.
 
 Present the full report before editing anything. Per rule: the verdict (demote, promote, keep, flag), the destination, and the evidence (governed paths, load-path result). Only edit after approval, on a branch with a PR for checked-in files. Close with est. resident tokens per session before and after, listing separately what every session pays and what only in-scope sessions pay.
 

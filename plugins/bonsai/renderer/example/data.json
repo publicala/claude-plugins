@@ -1,0 +1,271 @@
+{
+  "run": {
+    "skill": "audit",
+    "title": "Acme Books CLAUDE.md Audit",
+    "heading": "Acme Books",
+    "subject": "CLAUDE.md",
+    "target": "acme-books",
+    "date": "2026-10-02",
+    "round": 1,
+    "rounds": 2,
+    "waiting": 3,
+    "root": "repo",
+    "editor": null,
+    "outcome": "Make the always-loaded CLAUDE.md smaller, and fix two rules that point sessions the wrong way.",
+    "method": "Read the whole file (34 lines, loaded in every session). Checked the lint, static analysis, test, git hook and CI config for rules a tool already enforces. Counted how many files follow each rule. Gave borderline lines to 3 small models each, without the line, and asked whether it changed their work. A second model checked every rewrite for a change in meaning."
+  },
+  "files": [
+    { "path": "CLAUDE.md", "resident": true },
+    { "path": "tests/CLAUDE.md", "new": true }
+  ],
+  "groups": [
+    {
+      "id": "covered",
+      "lane": "ready",
+      "title": "Delete 3 lines the repo already covers",
+      "lede": "A tool enforces it or a file states it. A session that never reads these lines still does the right thing."
+    },
+    {
+      "id": "triggers",
+      "lane": "ready",
+      "title": "Turn the payouts summary into a read-before trigger",
+      "lede": "A pointer says when to read a doc. A summary loads the doc's words into every session and goes stale when the doc changes."
+    },
+    {
+      "id": "cli",
+      "lane": "auto",
+      "title": "Applied automatically",
+      "lede": "Standard CLI usage. You applied every change of this kind in the last 24 decisions."
+    }
+  ],
+  "changes": [
+    {
+      "id": "livewire",
+      "lane": "call",
+      "verb": "fix",
+      "title": "Name the Livewire default that causes the mistake",
+      "why": "The line describes the folder layout, which a session sees in the code. The real trap is `make:livewire`: in Livewire 4 it makes single-file components by default.",
+      "skip": "A session runs `make:livewire` and gets a single-file component next to class-based pages.",
+      "edits": [
+        {
+          "file": "CLAUDE.md",
+          "lines": [26, 26],
+          "write": [
+            "- Pages are class-based Livewire components, never single-file components (the `make:livewire` default)."
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "text": "Livewire's config sets `make_command.type` to `sfc`, and the app does not override it.",
+          "file": "vendor/livewire/livewire/config/livewire.php",
+          "line": 72
+        },
+        { "text": "All 41 components in `app/Livewire` are class-based." }
+      ],
+      "check": {
+        "verdict": "same",
+        "summary": "Both lines cover every page component, and the new one adds the default a session would otherwise follow."
+      }
+    },
+    {
+      "id": "imports",
+      "lane": "call",
+      "verb": "rewrite",
+      "title": "Drop the job list from the import-queue rule",
+      "why": "The list names 3 of the 7 import jobs and goes stale as jobs are added. The rule is the queue.",
+      "skip": "The list of 3 jobs stays, and sessions keep reading it as the complete set.",
+      "edits": [
+        {
+          "file": "CLAUDE.md",
+          "lines": [28, 28],
+          "write": ["- Import jobs run on the `imports` queue."]
+        }
+      ],
+      "evidence": [
+        {
+          "text": "7 classes in `app/Jobs/Imports`, 6 of them on the `imports` queue.",
+          "file": "config/horizon.php",
+          "line": 40
+        }
+      ],
+      "check": {
+        "verdict": "drift",
+        "summary": "`ImportPriceList` runs on the `prices` queue in `config/horizon.php`, so the general rule is false for it."
+      }
+    },
+    {
+      "id": "testing",
+      "lane": "call",
+      "verb": "move",
+      "title": "Move the factory rule to tests/CLAUDE.md",
+      "why": "Only sessions that edit tests need it, and every test lives under `tests/`. A session reads a test before it edits one, so the scoped file loads in time.",
+      "skip": "Every session keeps loading a rule that only test edits need.",
+      "edits": [
+        { "file": "CLAUDE.md", "lines": [29, 29], "write": [] },
+        {
+          "file": "tests/CLAUDE.md",
+          "at": "end",
+          "write": [
+            "# Tests",
+            "",
+            "- Use the `Acme\\Testing\\Factories` factories, never `DB::table()` directly."
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "text": "A fresh agent asked to add a test read `tests/Feature/CheckoutTest.php` first, so the scoped file loads."
+        }
+      ]
+    },
+    {
+      "id": "framing",
+      "lane": "call",
+      "verb": "delete",
+      "title": "Drop the sentence under \"Hard constraints\"",
+      "why": "It repeats the heading and names no rule. The test was close, so it is your call.",
+      "skip": "Nothing breaks. The file keeps one sentence that changes no session's work.",
+      "split": "2 cut, 1 keep",
+      "edits": [{ "file": "CLAUDE.md", "lines": [17, 18], "write": [] }],
+      "evidence": [
+        {
+          "text": "3 small models did a task the section governs without the sentence: 2 said cut, 1 said keep."
+        }
+      ]
+    },
+    {
+      "id": "stack",
+      "lane": "ready",
+      "group": "covered",
+      "verb": "delete",
+      "title": "Stack and versions",
+      "why": "`composer.json` and `package.json` list every version.",
+      "edits": [{ "file": "CLAUDE.md", "lines": [5, 8], "write": [] }],
+      "evidence": [
+        {
+          "text": "Lockfiles hold every package the section names.",
+          "file": "composer.json"
+        }
+      ]
+    },
+    {
+      "id": "dev",
+      "lane": "ready",
+      "group": "covered",
+      "verb": "delete",
+      "title": "`composer dev`",
+      "why": "The standard Laravel script, defined in `composer.json`.",
+      "edits": [{ "file": "CLAUDE.md", "lines": [11, 11], "write": [] }],
+      "evidence": [
+        { "text": "`composer.json` scripts.dev", "file": "composer.json" }
+      ]
+    },
+    {
+      "id": "strict",
+      "lane": "ready",
+      "group": "covered",
+      "verb": "delete",
+      "title": "`strict_types` and `final`",
+      "why": "Pint adds both on every commit, and an architecture test fails if one is missing.",
+      "edits": [{ "file": "CLAUDE.md", "lines": [25, 25], "write": [] }],
+      "evidence": [
+        {
+          "text": "`pint.json` rules `declare_strict_types` and `final_class`, run by the pre-commit hook.",
+          "file": "pint.json",
+          "line": 4
+        }
+      ]
+    },
+    {
+      "id": "payouts",
+      "lane": "ready",
+      "group": "triggers",
+      "verb": "rewrite",
+      "title": "Payouts doc",
+      "why": "Says when to read it instead of what it holds.",
+      "edits": [
+        {
+          "file": "CLAUDE.md",
+          "lines": [33, 33],
+          "write": [
+            "- Read `docs/payouts.md` before you change the payout run or the finance CSV."
+          ]
+        }
+      ],
+      "evidence": [{ "text": "Target exists.", "file": "docs/payouts.md" }],
+      "check": {
+        "verdict": "same",
+        "summary": "The doc covers the run, the lock, retries and the CSV, and the trigger reaches all four."
+      }
+    },
+    {
+      "id": "pest",
+      "lane": "auto",
+      "group": "cli",
+      "verb": "delete",
+      "title": "Run one test file",
+      "why": "Standard Pest usage.",
+      "edits": [{ "file": "CLAUDE.md", "lines": [13, 13], "write": [] }]
+    }
+  ],
+  "questions": [
+    {
+      "id": "search-doc",
+      "text": "The pointer to `docs/search.md` names a file that does not exist. What should happen to it?",
+      "why": "No doc and no branch holds that file. Only you know whether it is coming.",
+      "options": [
+        {
+          "id": "delete",
+          "label": "Delete the pointer",
+          "detail": "Add it back with the doc.",
+          "recommended": true
+        },
+        { "id": "keep", "label": "Keep it", "detail": "The doc is on its way." }
+      ]
+    }
+  ],
+  "kept": [
+    {
+      "file": "CLAUDE.md",
+      "lines": [1, 3],
+      "title": "What Acme Books is",
+      "why": "\"Pays publishers monthly\" kept all 3 test models away from instant payouts."
+    },
+    {
+      "file": "CLAUDE.md",
+      "lines": [12, 12],
+      "title": "`composer test` is the full gate",
+      "why": "Names the gate. 3 of 3 models needed it."
+    },
+    {
+      "file": "CLAUDE.md",
+      "lines": [19, 21],
+      "title": "Hard constraints",
+      "why": "Traps that contradict appearances, and one safety rule."
+    },
+    {
+      "file": "CLAUDE.md",
+      "lines": [27, 27],
+      "title": "Money goes through `App\\Support\\Money`",
+      "why": "38 nearby `number_format()` calls teach the wrong pattern."
+    }
+  ],
+  "next": [
+    {
+      "id": "bake-money",
+      "title": "Turn the Money rule (line 27) into a PHPStan rule",
+      "why": "Nothing fails today when a new view formats money by hand.",
+      "command": "/bonsai:bake",
+      "default": true
+    }
+  ],
+  "ship": {
+    "default": "pr",
+    "remembered": true,
+    "options": [
+      { "id": "pr", "label": "Branch, one commit per cause, PR" },
+      { "id": "local", "label": "Edit only, I commit myself" }
+    ]
+  }
+}

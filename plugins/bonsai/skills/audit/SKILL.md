@@ -125,7 +125,7 @@ Environment-conditional content is its own extract class: sentences that bind on
 
 ## Report delivery
 
-Before the inventory, ask one AskUserQuestion: does the user want the report as an interactive artifact or as plain text? For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) before building the page. Audit rows are one per verdict, grouped per file, checked by default for recommended verdicts.
+Before the inventory, ask one AskUserQuestion: does the user want the report as an interactive artifact or as plain text? For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) and build the page with the renderer it names. Each cut, rewrite, move or extract verdict is one change, routed to its lane. Keeps go to `kept`, never to a decision.
 
 ## Phase the decisions, not the audit
 
