@@ -15,7 +15,7 @@ Group ready and auto changes by cause, one group per cause, and name the cause a
 
 ## Keep a round small
 
-A round holds at most 5 calls (questions included) and 3 ready groups. The build enforces both limits. Rank calls by stakes: fixes to false claims first, then changes a check flagged, then close calls. Everything past the limit waits for the next round: count it in `run.waiting` and say in the outcome sentence what this round achieves.
+A round holds at most 5 calls (questions included) and 3 ready groups, and the build enforces both limits. [rounds.md](rounds.md) says how to rank the changes, where the rest wait, and how the next run continues. Count the waiting changes in `run.waiting`, and say in the outcome sentence what this round achieves.
 
 ## Write for the reader
 
