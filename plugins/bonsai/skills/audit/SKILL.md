@@ -28,7 +28,7 @@ Check every line against this list before anything else. A match is a KEEP and s
 
 ## The audit, in order
 
-A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 6 line by line, and present one report with no phases. Probes and the panel still decide what the steps route to them; a small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `references/probe.md`.
+A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 8 line by line, and present the result as one round when it fits the budget in `references/rounds.md`. Probes and the panel still decide what the steps route to them; a small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `references/probe.md`.
 
 ### 1. Inventory
 
@@ -103,6 +103,10 @@ The same rule governs skill frontmatter descriptions: triggers and routing keywo
 
 State each fact once, at the smallest scope that covers its readers. When a rule repeats across files, keep the copy closest to where it applies, keep the load-bearing identifier resident (the helper name, the command), and defer the rationale to one referenced doc.
 
+### 8. Second check
+
+The auditor wrote every rewrite and judges it with the same blind spots. Before the report, run a meaning check ([../../references/probe.md](../../references/probe.md), relative to this skill's directory) over every rewrite, move and extract: a fresh agent gets the current text, the proposed text and the stated reason, verifies against the repository, and answers "same" or "drift" per change. On a drift, revise the change once to address the finding and check it again. A change that still drifts goes to the user as a call, with the finding on its card.
+
 ## Precise but generic
 
 Phrasing gets judged only after a line earns its keep, against the standard in [../../references/rule-writing.md](../../references/rule-writing.md) (relative to this skill's directory). Every specific detail in a kept line (a class inventory, an enumerated list, a count) is either load-bearing, meaning generalizing it would change what a session does, or a liability that drifts as the code moves. When a kept line carries non-load-bearing specifics, record a **rewrite**: drop those specifics, keep the load-bearing identifiers verbatim, and change nothing else. A rewrite never widens scope, weakens the boundary, or adds advice, and every identifier it keeps gets verified against the codebase like any example symbol.
@@ -125,24 +129,20 @@ Environment-conditional content is its own extract class: sentences that bind on
 
 ## Report delivery
 
-Before the inventory, ask one AskUserQuestion: does the user want the report as an interactive artifact or as plain text? For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) and build the page with the renderer it names. Each cut, rewrite, move or extract verdict is one change, routed to its lane. Keeps go to `kept`, never to a decision.
+Before the inventory, ask one AskUserQuestion: does the user want the report as an interactive artifact or as plain text? For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) and build the page with the renderer it names. Each cut, rewrite, move or extract verdict is one change. Route it:
 
-## Phase the decisions, not the audit
+- Cut on sight (step 2), cut because a committed tool enforces the rule (step 3), or cut at 90% compliance or above (step 4): **ready**, grouped by cause.
+- Rewrite (step 6 or "Precise but generic") the second check found the same: **ready**, grouped by cause.
+- False or stale claim, rewrite that still drifts, cut by a split panel vote or at a borderline compliance count, move, extract: **call**.
+- Evidence that holds only in the auditor's environment, a foreign-format migration proposal: **question**.
+- Keep: `kept`, never a decision.
 
-A many-file audit produces more decisions than one sitting absorbs: objective corrections sit next to taste-level rewrites, and the review stalls where the opinions start. Keep the audit itself a single pass (verification is the expensive part, and findings interact: a false-claim fix changes the same lines a later trim rewrites). When the report carries more than about 20 decision rows, present and apply it in phases ordered by how objective the call is:
+## Rounds
 
-1. **Correctness** — false and stale claims. Factual, near-zero controversy, fast to approve.
-2. **Dead weight** — deletions: orphan files, duplicate pointers, unreferenced scaffolding.
-3. **Compression** — rewrites and cuts for token count. The user's opinions concentrate here, so the phase gets their undivided attention and the full note-field treatment.
-4. **Structure** — moves, extractions, and new-file proposals: anything that changes where content lives.
-
-Each phase is its own decision surface and its own apply, in either delivery mode: an artifact report republishes in place (same URL, a phase roadmap showing position), a plain-text report presents one phase per message with its own approval round. Land the approved phase as its own branch and PR, and only then present the next one, with its diffs regenerated against the tree the previous phase produced. A phase-1 apply edits only the affected lines in place, leaving structure and wording untouched, so no diff ever mixes a factual fix with a taste rewrite. An open question rides with the phase whose decision it gates (a question blocking a deletion belongs to the deletions phase). Below the threshold, one page holds everything as usual.
+Keep the audit a single pass: verification is the expensive part, and findings interact (a false-claim fix changes the same lines a later trim rewrites). Present the decisions in rounds as [../../references/rounds.md](../../references/rounds.md) (relative to this skill's directory) prescribes. A correctness fix edits only the affected lines, leaving structure and wording untouched, so no diff mixes a factual fix with a taste rewrite. An open question rides in the round whose changes it gates.
 
 ## Approval and apply
 
-Present the full report before editing anything; a phased report satisfies this per phase, presenting each phase's findings in full before that phase's edits, with later phases following as earlier ones land. Per finding: the verdict (cut, keep, rewrite, move, defer), the exact text affected, and the evidence (surfaces checked, grep ratio, panel vote). Approval arrives item by item: from the artifact's saved state (or its pasted export) when the report is an artifact, from AskUserQuestion otherwise. Only edit after approval, and approval to edit is not approval to publish: confirm separately before creating commits, branches, or PRs.
-
-- **Checked-in files**: granular commits, one concern per commit, on a branch cut from the default branch with a clean tree (stop and ask if the tree is dirty), with a PR, so reviewers judge each cut in isolation.
-- **Local files** (user-level memory, `CLAUDE.local.md`): edit directly, back up first.
+Present each round in full before editing anything. Per change: the verdict, the exact text affected, and the evidence (surfaces checked, grep ratio, panel vote, second check). Approval arrives as the decisions message when the round is a page, and from AskUserQuestion in plain text, where the ship choice joins the first round's questions. Only edit after approval, and apply as `references/rounds.md` prescribes: one commit per cause on a branch, with a PR, when the user ships as a PR.
 
 After applying, re-resolve every pointer you touched. Close the report with before and after est. token totals per file, listing deferred (moved) tokens separately from deleted ones.

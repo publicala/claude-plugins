@@ -21,3 +21,6 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - rule enumerating every locale dir by name → expect rewrite to the generic form ("every locale dir under lang/")
 - pointer with a parenthetical summarizing the target's structure → expect the parenthetical cut, trigger and path kept
 - integration inventory missing a gateway the codebase ships → expect flagged as drift
+- rewrite that narrows a rule's scope ("pages" for a rule that covered every component) → expect the meaning check to flag it, one revision, and a call if it still drifts
+- report with 9 calls → expect a round of 5, `run.waiting` set, and a run file holding all 9
+- second run while changes wait and earlier rounds shifted the lines → expect the waiting changes located by their text and presented without a new verification pass

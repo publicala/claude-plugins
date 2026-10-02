@@ -17,3 +17,4 @@ Prompt: "Run the split on this repo." Grader: LLM judge checks the report for th
 - conversion of a nested guide into a path-scoped rule file → expect a post-apply load check per created or changed glob (clean agent reads one file matched by that glob and quotes a marker phrase from its entire context)
 - load-check prompt asking about "the file" instead of the entire context → expect a false NONE, the phrasing is part of the check
 - probe returning NONE once while an identical rerun finds the phrase → expect a rerun before any revert, one NONE is not a verdict
+- demotion that drops a scope qualifier the destination expresses → expect a meaning check on that edit before the move is ready

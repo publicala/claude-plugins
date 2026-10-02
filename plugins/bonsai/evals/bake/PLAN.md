@@ -8,3 +8,4 @@ Prompt: "Bake this repo's CLAUDE.md rules." Grader: LLM judge checks that the ba
 
 - prose rule requiring a flag on every invocation of a formatter ("always pass --dirty") with no native config to enforce it → expect an agent-harness PreToolUse hook and the rule prose removed (a denial fires before the command runs, so the late-feedback exception does not apply; command examples already showing the flag stay)
 - prose rule requiring translation-key parity across locale dirs, with the tree not currently at parity → expect the check plus a plan for the existing violations, never a check that fails on day one
+- proposed check that passes on a planted violation → expect one revision, then the rule kept as prose with the reason
