@@ -129,7 +129,7 @@ Environment-conditional content is its own extract class: sentences that bind on
 
 ## Report delivery
 
-Before the inventory, ask one AskUserQuestion: does the user want the report as an interactive artifact or as plain text? For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) and build the page with the renderer it names. Each cut, rewrite, move or extract verdict is one change. Route it:
+Read [../../references/decision-memory.md](../../references/decision-memory.md) (relative to this skill's directory) before routing, then pick the delivery as [../../references/decision-artifact.md](../../references/decision-artifact.md) prescribes under "Delivery". For the page, build it with the renderer that reference names. Each cut, rewrite, move or extract verdict is one change. Route it:
 
 - Cut on sight (step 2), cut because a committed tool enforces the rule (step 3), or cut at 90% compliance or above (step 4): **ready**, grouped by cause.
 - Rewrite (step 6 or "Precise but generic") the second check found the same: **ready**, grouped by cause.

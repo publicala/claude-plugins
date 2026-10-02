@@ -58,7 +58,7 @@ Flag orphans while there: a nested CLAUDE.md whose directory no longer holds fir
 
 ### 5. Approval and apply
 
-Ask at the start of the pass, one AskUserQuestion: does the user want the report as an interactive artifact or as plain text? For the artifact, read [../../references/decision-artifact.md](../../references/decision-artifact.md) (relative to this skill's directory) and build the page with the renderer it names. Each demotion or promotion is one `move` change: an edit that removes the rule from its source and an edit that inserts it in the destination, with the governed paths and the load-path result as evidence. Route it:
+Read [../../references/decision-memory.md](../../references/decision-memory.md) (relative to this skill's directory) before routing, then pick the delivery as [../../references/decision-artifact.md](../../references/decision-artifact.md) prescribes under "Delivery". For the page, build it with the renderer that reference names. Each demotion or promotion is one `move` change: an edit that removes the rule from its source and an edit that inserts it in the destination, with the governed paths and the load-path result as evidence. Route it:
 
 - A demotion the edit rule or a load-path probe settled, and every promotion: **ready**, one group per destination file.
 - A move that drops a scope qualifier the destination expresses gets a meaning check (`references/probe.md`) on that edit. A drift makes it a **call**.

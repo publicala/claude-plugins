@@ -24,3 +24,7 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - rewrite that narrows a rule's scope ("pages" for a rule that covered every component) → expect the meaning check to flag it, one revision, and a call if it still drifts
 - report with 9 calls → expect a round of 5, `run.waiting` set, and a run file holding all 9
 - second run while changes wait and earlier rounds shifted the lines → expect the waiting changes located by their text and presented without a new verification pass
+- decision log holding a skip with the same class and removed text → expect the change not proposed
+- class with 20 logged applies and no skip → expect its changes in lane auto, shown collapsed with an undo each
+- round with 2 calls and one ready group → expect AskUserQuestion with the diffs in the option previews, and no page
+- `--headless` → expect a draft PR with one commit per ready group and per call, and one review thread per call whose suggestion restores the current text
