@@ -39,7 +39,7 @@ When the skill starts, read the newest run file for this key and skill. If chang
 - A change whose lines changed goes back through the skill's checks, for those lines only.
 - Present the next round from the waiting changes, ranked again. Do not repeat the verification for the rest.
 
-A skipped change never comes back in a later round of the same run. A run ends when nothing waits. The file stays as the record.
+A skipped change never comes back in a later round of the same run, nor in a later run while its evidence holds ([decision-memory.md](decision-memory.md)). A run ends when nothing waits. The file stays as the record.
 
 ## Apply
 
@@ -49,4 +49,4 @@ The decisions message is the approval for everything it names, including the shi
 - One commit per applied call.
 - Local files outside a repository (user-level memory, `CLAUDE.local.md`): edit directly after a backup, no commits.
 
-After the apply, update every entry's `status` in the run file, then reply on the page and republish it as the record (see [decision-artifact.md](decision-artifact.md)).
+After the apply, update every entry's `status` in the run file, append the decisions to the log in [decision-memory.md](decision-memory.md), then reply on the page and republish it as the record (see [decision-artifact.md](decision-artifact.md)).

@@ -26,7 +26,7 @@ Run `intake` after each review round, `feed` after a working session, `bake` onc
 ## Layout
 
 - `skills/<verb>/SKILL.md` — one skill per lifecycle verb
-- `references/` — guidance shared by the skills, loaded on demand: the load model, the clean-context probe and the second checks, the rule-writing standard, rounds and the run file, the decision-page spec, the intake entry contract
+- `references/` — guidance shared by the skills, loaded on demand: the load model, the clean-context probe and the second checks, the rule-writing standard, rounds and the run file, decision memory, headless mode, the decision-page spec, the intake entry contract
 - `renderer/` — builds the decision page from a data file, with its tests and an example run
 - `evals/<verb>/PLAN.md` — eval plans per skill
 
