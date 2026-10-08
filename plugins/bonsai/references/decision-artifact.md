@@ -15,7 +15,7 @@ The ship choice comes from the stored settings. Ask it once, with the first roun
 
 ## Build the page
 
-Write data and let the renderer build the page: [../renderer/README.md](../renderer/README.md) documents the data file, and `example/data.json` there is a complete run. Draft the data in the scratchpad, run `python3 ../renderer/build.py data.json -o page.html` (the path is relative to this file), and publish the result. Never write or hand-edit the page's HTML. The build quotes every removed line from disk, so the page always shows the file as it is, and it refuses data that would render a misleading page.
+Write data and let the renderer build the page: [../renderer/README.md](../renderer/README.md) documents the data file, and `example/data.json` there is a complete run. Draft the data in the scratchpad, run `bun ../renderer/build.ts data.json -o page.html` (the path is relative to this file), and publish the result. When `bun` is missing, deliver the round in plain text and tell the user the page needs [Bun](https://bun.sh). Never write or hand-edit the page's HTML. The build quotes every removed line from disk, so the page always shows the file as it is, and it refuses data that would render a misleading page.
 
 ## Route every change to a lane
 
