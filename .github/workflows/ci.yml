@@ -1,5 +1,5 @@
-# Standard CI for a skill repo (Markdown, YAML, and JSON; no build), plus the
-# tests of the bonsai page renderer.
+# CI for a skill repo: Markdown, YAML and JSON, plus the TypeScript scripts
+# that run on Bun (the bonsai page renderer and the plugin checks).
 #
 # Gate jobs feed a single `ci-success` aggregate. Make `ci-success` the required
 # status check in branch protection, so adding or renaming a gate never touches
@@ -28,24 +28,58 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          node-version: 22
-      # No package.json, so fetch Prettier on demand. Honors prettier.config.mjs
-      # and .prettierignore.
-      - run: npx --yes prettier@3 --check .
+          bun-version: "1"
+      - run: bun install --frozen-lockfile
+      - run: bun run format:check
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1"
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1"
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+
+  # The renderer runs on the user's machine, usually macOS, so the tests run
+  # there too. bunfig.toml holds the coverage floor.
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1"
+      - run: bun install --frozen-lockfile
+      - run: bun test --coverage
 
   validate-json:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          node-version: 22
+          bun-version: "1"
       - name: Every tracked JSON parses
         run: |
           for json_file in $(git ls-files '*.json'); do
-            node -e "JSON.parse(require('fs').readFileSync('$json_file', 'utf8'))" \
+            bun -e "JSON.parse(await Bun.file('$json_file').text())" \
               || { echo "::error file=$json_file::invalid JSON"; exit 1; }
           done
 
@@ -53,35 +87,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          node-version: 22
+          bun-version: "1"
       - name: Relative links resolve and SKILL.md frontmatter is complete
-        run: node .github/scripts/check-plugins.mjs
-
-  # The renderer runs on the user's machine, where python3 can be as old as the
-  # macOS system Python (3.9), so the tests run on the oldest and newest.
-  renderer:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: ["3.9", "3.x"]
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python }}
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-      - run: python -m unittest discover -s plugins/bonsai/renderer -v
+        run: bun scripts/check-plugins.ts
 
   # The single status check branch protection requires on `main`. Runs even when
   # a gate fails or is skipped (if: !cancelled()), but not when the run is
   # cancelled, so a cancelled run reports as cancelled rather than failed.
   ci-success:
     if: ${{ !cancelled() }}
-    needs: [format, validate-json, validate-plugins, renderer]
+    needs: [format, lint, typecheck, test, validate-json, validate-plugins]
     runs-on: ubuntu-latest
     steps:
       - uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # v1.2.2

@@ -27,6 +27,18 @@ See [plugins/bonsai](plugins/bonsai) for details.
 
 Everything listed here is distributed publicly. Additions and changes need approval from `@publicala/public-repo-owners` (enforced by a repository ruleset). Plugins live in this repo under `plugins/`, and shared content inside a plugin lives once in its `references/` directory rather than duplicated per skill.
 
+## Development
+
+Scripts are TypeScript run with [Bun](https://bun.sh). Install the toolchain once, then run every gate CI runs:
+
+```
+bun install
+lefthook install
+bun run check
+```
+
+`bun run check` runs Prettier, ESLint with type-aware rules, `tsc`, and the tests with a coverage floor (`bunfig.toml`).
+
 ## License
 
 MIT

@@ -1,0 +1,7 @@
+[install]
+# Never resolve a release younger than 14 days.
+minimumReleaseAge = 1209600
+
+[test]
+coverageThreshold = { lines = 0.95, functions = 0.95 }
+coverageSkipTestFiles = true
