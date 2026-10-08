@@ -29,7 +29,7 @@ Everything listed here is distributed publicly. Additions and changes need appro
 
 ## Development
 
-Scripts are TypeScript run with [Bun](https://bun.sh). Install the toolchain once, then run every gate CI runs:
+Scripts are TypeScript run with [Bun](https://bun.sh), at the version `packageManager` in `package.json` pins. Install the toolchain once, then run every gate CI runs:
 
 ```
 bun install
@@ -37,7 +37,7 @@ lefthook install
 bun run check
 ```
 
-`bun run check` runs Prettier, ESLint with type-aware rules, `tsc`, and the tests with a coverage floor (`bunfig.toml`).
+`bun run check` runs Prettier, ESLint with type-aware rules, `tsc`, the plugin validation (relative links and SKILL.md frontmatter), and the tests with a coverage floor (`bunfig.toml`).
 
 ## License
 

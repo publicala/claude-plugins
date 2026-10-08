@@ -1,5 +1,5 @@
 # CI for a skill repo: Markdown, YAML and JSON, plus the TypeScript scripts
-# that run on Bun (the bonsai page renderer and the plugin checks).
+# that run on Bun (the bonsai page renderer and the plugin validation).
 #
 # Gate jobs feed a single `ci-success` aggregate. Make `ci-success` the required
 # status check in branch protection, so adding or renaming a gate never touches
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: "1"
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - run: bun run format:check
 
@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: "1"
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - run: bun run lint
 
@@ -50,12 +50,12 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: "1"
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
 
   # The renderer runs on the user's machine, usually macOS, so the tests run
-  # there too. bunfig.toml holds the coverage floor.
+  # there too.
   test:
     strategy:
       matrix:
@@ -65,7 +65,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: "1"
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - run: bun test --coverage
 
@@ -75,13 +75,21 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: "1"
+          bun-version-file: package.json
       - name: Every tracked JSON parses
         run: |
-          for json_file in $(git ls-files '*.json'); do
-            bun -e "JSON.parse(await Bun.file('$json_file').text())" \
-              || { echo "::error file=$json_file::invalid JSON"; exit 1; }
-          done
+          git ls-files -z '*.json' | xargs -0 bun -e '
+            let failed = false;
+            for (const file of process.argv.slice(1)) {
+              try {
+                JSON.parse(await Bun.file(file).text());
+              } catch (error) {
+                console.log(`::error file=${file}::${error.message}`);
+                failed = true;
+              }
+            }
+            process.exit(failed ? 1 : 0);
+          '
 
   validate-plugins:
     runs-on: ubuntu-latest
@@ -89,9 +97,10 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: "1"
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
       - name: Relative links resolve and SKILL.md frontmatter is complete
-        run: bun scripts/check-plugins.ts
+        run: bun run validate:plugins
 
   # The single status check branch protection requires on `main`. Runs even when
   # a gate fails or is skipped (if: !cancelled()), but not when the run is

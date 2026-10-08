@@ -20,8 +20,11 @@ export default defineConfig(
     },
     rules: {
       eqeqeq: "error",
-      "no-console": "off",
       "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/restrict-template-expressions": [
+        "error",
+        { allowNumber: true },
+      ],
       "@typescript-eslint/switch-exhaustiveness-check": "error",
     },
   },

@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { chmod, cp, mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { Window } from "happy-dom";
-import { join } from "node:path";
 
 import {
   DATA_PLACEHOLDER,
@@ -74,16 +74,11 @@ function firstEdit(change: FixtureChange): FixtureEdit {
   return edit;
 }
 
-async function buildExample(data: Fixture) {
-  return build(data, EXAMPLE);
-}
-
-async function expectDataError(data: unknown, message: string): Promise<void> {
+function expectDataError(data: unknown, message: string): void {
   const failure = build(data, EXAMPLE);
 
   expect(failure).rejects.toBeInstanceOf(DataError);
   expect(failure).rejects.toThrow(message);
-  await failure.catch(() => undefined);
 }
 
 async function runCli(...args: string[]) {
@@ -111,7 +106,7 @@ async function withExampleCopy(
 
 describe("build", () => {
   test("builds the example", async () => {
-    const page = await buildExample(await exampleData());
+    const page = await build(await exampleData(), EXAMPLE);
 
     expect(page.changes).toHaveLength(9);
     expect(page.files.map((file) => file.path)).toEqual([
@@ -123,7 +118,7 @@ describe("build", () => {
   });
 
   test("quotes the removed lines from disk", async () => {
-    const page = await buildExample(await exampleData());
+    const page = await build(await exampleData(), EXAMPLE);
     const source = (await Bun.file(join(EXAMPLE, "repo", "CLAUDE.md")).text())
       .split("\n")
       .slice(4, 8);
@@ -135,7 +130,7 @@ describe("build", () => {
 
   test("inserts at the end of a new file", async () => {
     const testing = changeIn(
-      (await buildExample(await exampleData())).changes,
+      (await build(await exampleData(), EXAMPLE)).changes,
       "testing",
     );
 
@@ -151,7 +146,7 @@ describe("build", () => {
       { file: "CLAUDE.md", at: 35, write: ["- Added."] },
     ];
 
-    const imports = changeIn((await buildExample(data)).changes, "imports");
+    const imports = changeIn((await build(data, EXAMPLE)).changes, "imports");
 
     expect(imports.edits[0]?.at).toBe(35);
     expect(imports.edits[0]?.href).toMatch(/CLAUDE\.md:34$/);
@@ -164,7 +159,7 @@ describe("build", () => {
     delete data.run.waiting;
     delete data.run.editor;
 
-    const page = await buildExample(data);
+    const page = await build(data, EXAMPLE);
 
     expect(page.run).toMatchObject({ round: 1, rounds: 1, waiting: 0 });
     expect(page.files[0]?.href).toBeNull();
@@ -188,24 +183,23 @@ describe("build", () => {
       },
     };
 
-    expect((await buildExample(data)).run.status).toEqual(data.run.status);
+    expect((await build(data, EXAMPLE)).run.status).toEqual(data.run.status);
   });
 
   test("never reports fewer rounds than the current one", async () => {
     const data = await exampleData();
     data.run.round = 3;
 
-    expect((await buildExample(data)).run.rounds).toBe(3);
+    expect((await build(data, EXAMPLE)).run.rounds).toBe(3);
   });
 
   test("previews only the changed regions of a long file", async () => {
     await withExampleCopy(async (directory) => {
       await Bun.write(
         join(directory, "repo", "CLAUDE.md"),
-        Array.from(
-          { length: 401 },
-          (_, index) => `line ${String(index + 1)}`,
-        ).join("\n"),
+        Array.from({ length: 401 }, (_, index) => `line ${index + 1}`).join(
+          "\n",
+        ),
       );
       const data = await exampleData();
 
@@ -219,7 +213,7 @@ describe("build", () => {
   test("links changes, evidence and kept lines to the editor", async () => {
     const data = await exampleData();
     data.run.editor = "vscode";
-    const page = await buildExample(data);
+    const page = await build(data, EXAMPLE);
     const livewire = changeIn(page.changes, "livewire");
     const stack = changeIn(page.changes, "stack");
 
@@ -240,7 +234,7 @@ describe("build", () => {
       { text: "No link." },
     ];
 
-    const framing = changeIn((await buildExample(data)).changes, "framing");
+    const framing = changeIn((await build(data, EXAMPLE)).changes, "framing");
 
     expect(framing.evidence).toEqual([
       { text: "A thread.", href: "https://example.com/thread" },
@@ -249,7 +243,7 @@ describe("build", () => {
   });
 
   test("resolves a relative root against the data file's directory", async () => {
-    const page = await buildExample(await exampleData());
+    const page = await build(await exampleData(), EXAMPLE);
 
     expect(page.run.root).toBe(
       await Bun.$`realpath ${join(EXAMPLE, "repo")}`
@@ -325,7 +319,7 @@ describe("build", () => {
       { text: "Shared config.", file: "/etc/shared.md", line: 2 },
     ];
 
-    const framing = changeIn((await buildExample(data)).changes, "framing");
+    const framing = changeIn((await build(data, EXAMPLE)).changes, "framing");
 
     expect(framing.evidence[0]?.href).toBe("zed://file/etc/shared.md:2");
   });
@@ -442,21 +436,21 @@ describe("build refuses data that would mislead", () => {
       (data) => {
         changeIn(data.changes, "livewire").id = "constructor";
       },
-      'Every change needs a unique id, got "constructor". An id uses letters, digits',
+      'Every change needs an id, got "constructor". An id uses letters, digits',
     ],
     [
       "a change id with a quote",
       (data) => {
         changeIn(data.changes, "livewire").id = 'fix"quote';
       },
-      'Every change needs a unique id, got "fix\\"quote".',
+      'Every change needs an id, got "fix\\"quote".',
     ],
     [
       "a group id with a space",
       (data) => {
         data.groups.push({ id: "two words", lane: "ready", title: "T" });
       },
-      'Every group needs a unique id, got "two words".',
+      'Every group needs an id, got "two words".',
     ],
     [
       "a question answer for an unknown question",
@@ -538,7 +532,7 @@ describe("build refuses data that would mislead", () => {
       (data) => {
         (data as unknown as Record<string, unknown>).files = "CLAUDE.md";
       },
-      '"files" must be a list of objects.',
+      'The data needs "files" as a list of objects.',
     ],
     [
       "an edit of an unlisted file",
@@ -619,14 +613,14 @@ describe("build refuses data that would mislead", () => {
       (data) => {
         for (const [index, line] of [12, 27].entries()) {
           data.groups.push({
-            id: `g${String(index)}`,
+            id: `g${index}`,
             lane: "ready",
             title: "Group",
           });
           data.changes.push({
-            id: `c${String(index)}`,
+            id: `c${index}`,
             lane: "ready",
-            group: `g${String(index)}`,
+            group: `g${index}`,
             verb: "delete",
             title: "T",
             why: "W",
@@ -662,14 +656,14 @@ describe("build refuses data that would mislead", () => {
       (data) => {
         data.groups.push({ id: "covered", lane: "ready", title: "Again" });
       },
-      'Every group needs a unique id, got "covered".',
+      "The id 'covered' appears twice in \"groups\".",
     ],
     [
       "a group in lane call",
       (data) => {
         data.groups.push({ id: "calls", lane: "call", title: "Calls" });
       },
-      'Group \'calls\' needs lane "ready" or "auto".',
+      "Group 'calls' needs lane ready or auto.",
     ],
     [
       "a group without a title",
@@ -683,7 +677,7 @@ describe("build refuses data that would mislead", () => {
       (data) => {
         changeIn(data.changes, "dev").id = "stack";
       },
-      'Every change needs a unique id, got "stack".',
+      "The id 'stack' appears twice in \"changes\".",
     ],
     [
       "an unknown lane",
@@ -714,6 +708,23 @@ describe("build refuses data that would mislead", () => {
       "Change 'stack' has no edits.",
     ],
     [
+      "edits that are not objects",
+      (data) => {
+        (changeIn(data.changes, "stack") as { edits: unknown }).edits = [
+          "CLAUDE.md",
+        ];
+      },
+      "Change 'stack' needs \"edits\" as a list of objects.",
+    ],
+    [
+      "evidence that is not a list",
+      (data) => {
+        (changeIn(data.changes, "stack") as { evidence: unknown }).evidence =
+          "composer.json";
+      },
+      "Change 'stack' needs \"evidence\" as a list of objects.",
+    ],
+    [
       "no changes",
       (data) => {
         data.changes = [];
@@ -726,7 +737,7 @@ describe("build refuses data that would mislead", () => {
       (data) => {
         changeIn(data.changes, "stack").evidence = [{ file: "composer.json" }];
       },
-      'Every evidence item needs "text".',
+      "Change 'stack' needs \"text\" in every evidence item.",
     ],
     [
       "evidence with a bad line",
@@ -756,7 +767,7 @@ describe("build refuses data that would mislead", () => {
       (data) => {
         data.questions.push({ id: "q2", text: "Q?", options: [null, null] });
       },
-      'Question \'q2\' needs every option as { "id", "label" } with a unique id.',
+      'Question \'q2\' needs every option as { "id", "label" }.',
     ],
     [
       "a question option id used twice",
@@ -770,14 +781,14 @@ describe("build refuses data that would mislead", () => {
           ],
         });
       },
-      'Question \'q2\' needs every option as { "id", "label" } with a unique id.',
+      "The id 'a' appears twice in the options of question 'q2'.",
     ],
     [
       "a question id used twice",
       (data) => {
         data.questions.push({ ...data.questions[0] });
       },
-      "The question id 'search-doc' is used twice.",
+      "The id 'search-doc' appears twice in \"questions\".",
     ],
     [
       "ship that is not an object",
@@ -810,11 +821,24 @@ describe("build refuses data that would mislead", () => {
       '"ship.default" must be the id of one of its options, got "merge".',
     ],
     [
+      "a ship option id used twice",
+      (data) => {
+        (data as unknown as Record<string, unknown>).ship = {
+          default: "pr",
+          options: [
+            { id: "pr", label: "PR" },
+            { id: "pr", label: "Local" },
+          ],
+        };
+      },
+      "The id 'pr' appears twice in \"ship.options\".",
+    ],
+    [
       "next that is not a list",
       (data) => {
         (data as unknown as Record<string, unknown>).next = {};
       },
-      '"next" must be a list of objects.',
+      'The data needs "next" as a list of objects.',
     ],
     [
       "a next item without a title",
@@ -831,7 +855,7 @@ describe("build refuses data that would mislead", () => {
           { id: "bake", title: "Bake again" },
         ];
       },
-      "The next item id 'bake' is used twice.",
+      "The id 'bake' appears twice in \"next\".",
     ],
     [
       "evidence that links to a script",
@@ -875,7 +899,14 @@ describe("build refuses data that would mislead", () => {
       (data) => {
         data.kept.push({ file: "CLAUDE.md", title: "Intro" });
       },
-      'Kept item "Intro" needs "lines" as [first, last].',
+      'Kept item "Intro" needs "lines" in CLAUDE.md as [first, last].',
+    ],
+    [
+      "a kept item outside the file",
+      (data) => {
+        data.kept.push({ file: "CLAUDE.md", lines: [30, 99], title: "Intro" });
+      },
+      'Kept item "Intro" keeps CLAUDE.md lines 30-99, but the file has 34 lines.',
     ],
     [
       "an unknown skill",
@@ -906,6 +937,20 @@ describe("build refuses data that would mislead", () => {
       "run.round and run.rounds must be whole numbers from 1, got 0 and 2.",
     ],
     [
+      "a negative waiting count",
+      (data) => {
+        data.run.waiting = -1;
+      },
+      "run.waiting must be a whole number from 0, got -1.",
+    ],
+    [
+      "a waiting count that is text",
+      (data) => {
+        data.run.waiting = "3";
+      },
+      'run.waiting must be a whole number from 0, got "3".',
+    ],
+    [
       "a run without a root",
       (data) => {
         delete data.run.root;
@@ -925,15 +970,15 @@ describe("build refuses data that would mislead", () => {
     const data = await exampleData();
     mutate(data);
 
-    await expectDataError(data, message);
+    expectDataError(data, message);
   });
 
-  test("data that is not an object", async () => {
-    await expectDataError([], "The data file must hold a JSON object.");
+  test("data that is not an object", () => {
+    expectDataError([], "The data file must hold a JSON object.");
   });
 
-  test("a run that is not an object", async () => {
-    await expectDataError({ run: "audit" }, '"run" must be an object.');
+  test("a run that is not an object", () => {
+    expectDataError({ run: "audit" }, '"run" must be an object.');
   });
 });
 
@@ -965,19 +1010,46 @@ describe("editorLink", () => {
 });
 
 describe("render", () => {
+  test("keeps quoted text from opening a comment inside the data script", async () => {
+    const data = await exampleData();
+    const quoted = "Quotes <!-- <script> from a template.";
+    changeIn(data.changes, "livewire").why = quoted;
+    const html = `${await render(await build(data, EXAMPLE))}<p id="after"></p>`;
+
+    let script = "";
+    let parsesAfter = false;
+    new HTMLRewriter()
+      .on("script", {
+        text(chunk) {
+          script += chunk.text;
+        },
+      })
+      .on("p#after", {
+        element() {
+          parsesAfter = true;
+        },
+      })
+      .transform(html);
+    const payload = /const D = (.+);$/m.exec(script)?.[1] ?? "null";
+    const page = JSON.parse(payload) as Page;
+
+    expect(parsesAfter).toBe(true);
+    expect(changeIn(page.changes, "livewire").why).toBe(quoted);
+  });
+
   test("embeds the data and the escaped title", async () => {
     const data = await exampleData();
     data.run.title = "Audit <script> & $&";
     changeIn(data.changes, "livewire").why = "Ends a script tag: </script> $'";
 
-    const html = await render(await buildExample(data));
+    const html = await render(await build(data, EXAMPLE));
 
     expect(
       html.startsWith("<title>Audit &lt;script&gt; &amp; $&amp;</title>"),
     ).toBe(true);
     expect(html).not.toContain(DATA_PLACEHOLDER);
     expect(html).not.toContain("Ends a script tag: </script>");
-    expect(html).toContain("Ends a script tag: <\\/script> $'");
+    expect(html).toContain("Ends a script tag: \\u003c/script> $'");
   });
 });
 
@@ -1006,7 +1078,7 @@ async function openPage(page: Page) {
 describe("page", () => {
   test("renders the example without errors", async () => {
     const { window, document, errors } = await openPage(
-      await buildExample(await exampleData()),
+      await build(await exampleData(), EXAMPLE),
     );
 
     expect(errors).toEqual([]);
@@ -1029,7 +1101,7 @@ describe("page", () => {
       },
     };
     const { window, document, errors } = await openPage(
-      await buildExample(data),
+      await build(data, EXAMPLE),
     );
 
     expect(errors).toEqual([]);
@@ -1041,7 +1113,7 @@ describe("page", () => {
   });
 
   test("reports a page that throws", async () => {
-    const page = await buildExample(await exampleData());
+    const page = await build(await exampleData(), EXAMPLE);
     const { window, errors } = await openPage({ ...page, next: [null] });
 
     expect(errors).not.toEqual([]);
@@ -1051,7 +1123,7 @@ describe("page", () => {
 
 describe("summary", () => {
   test("counts lanes, questions and resident tokens", async () => {
-    const page = await buildExample(await exampleData());
+    const page = await build(await exampleData(), EXAMPLE);
 
     expect(summary(page)).toBe(
       "9 changes: 4 calls, 4 ready, 1 auto; 1 question; resident est. 361 tokens before",
@@ -1062,24 +1134,23 @@ describe("summary", () => {
     const data = await exampleData();
     data.questions = [];
 
-    expect(summary(await buildExample(data))).toContain("; 0 questions;");
+    expect(summary(await build(data, EXAMPLE))).toContain("; 0 questions;");
   });
 });
 
 describe("command line", () => {
   afterEach(() => {
-    spyOn(console, "log").mockRestore();
-    spyOn(console, "error").mockRestore();
+    mock.restore();
   });
 
   test("runs as an executable", async () => {
-    const process = Bun.spawn(
+    const proc = Bun.spawn(
       ["bun", BUILD_SCRIPT, join(EXAMPLE, "data.json"), "--check"],
       { stdout: "pipe", stderr: "pipe" },
     );
 
-    expect(await process.exited).toBe(0);
-    expect(await new Response(process.stdout).text()).toStartWith("9 changes:");
+    expect(await proc.exited).toBe(0);
+    expect(await proc.stdout.text()).toStartWith("9 changes:");
   });
 
   test("--check validates and writes nothing", async () => {
