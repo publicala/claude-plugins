@@ -1,13 +1,13 @@
 # Decision page renderer
 
-Turn a bonsai run into a page the user can decide from in a few minutes. You write the data, and `build.py` reads the quoted lines from disk, checks the data, and writes one HTML page ready to publish as an artifact.
+Turn a bonsai run into a page the user can decide from in a few minutes. You write the data, and `build.ts` reads the quoted lines from disk, checks the data, and writes one HTML page ready to publish as an artifact.
 
 ```
-python3 build.py data.json -o page.html
-python3 build.py data.json --check
+bun build.ts data.json -o page.html
+bun build.ts data.json --check
 ```
 
-The script needs Python 3.9 or newer and nothing else. It prints a one-line summary on success, and on failure one error that names the change and what to fix.
+The script needs [Bun](https://bun.sh) 1.1.9 or later and nothing else: no install step, no dependencies. It prints a one-line summary on success, and on failure one error that names the change and what to fix.
 
 ## The data file
 
@@ -58,7 +58,7 @@ Text in backticks renders as code everywhere on the page.
 | `heading`, `subject` | The page heading, for example "Acme Books" and "CLAUDE.md". `subject` is optional. |
 | `target` | What the run covers, as the apply message names it. |
 | `date`, `round`, `rounds` | The run date, this round, and how many rounds the run expects. |
-| `waiting` | Changes queued for later rounds, shown in the summary. |
+| `waiting` | Changes queued for later rounds, shown in the summary. A whole number from 0. |
 | `root` | The repository the edits apply to. A relative path resolves against the data file's directory. |
 | `editor` | `zed`, `vscode`, `cursor`, `phpstorm`, or `null`. Builds open-in-editor links. Use `null` in a remote session, where the user's editor cannot reach the path. |
 | `outcome` | One sentence: what the run achieves when every change applies. |
@@ -73,8 +73,8 @@ Every file a change edits. `resident: true` marks files every session loads, and
 
 | Field | Meaning |
 | --- | --- |
-| `id` | Unique, short, readable. It appears in the apply message. |
-| `lane` | `call`, `ready` or `auto`. See the decision-page reference for routing. |
+| `id` | Unique, short, readable: letters, digits, `-` and `_`. It appears in the apply message. |
+| `lane` | `call`, `ready` or `auto`. See the [decision-page reference](../references/decision-artifact.md) for routing. |
 | `group` | Required for `ready` and `auto`: the id of a group in the same lane. |
 | `verb` | `fix`, `delete`, `shorten`, `rewrite`, `move`, `add` or `automate`. |
 | `title` | What changes, in the reader's words. |
@@ -107,8 +107,15 @@ An edit either replaces lines or inserts new ones:
 
 - A call without `skip`, or a `drift` check outside lane `call`
 - More than 5 calls (questions included) or more than 3 ready groups in one round
-- Lines outside the file, overlapping edits, or a file that does not match its `new` flag
+- Edit or `kept` lines outside the file, overlapping edits (in one change or across changes), an insert inside a replaced range, or a file that does not match its `new` flag
+- A `run.round` or `run.rounds` that is not a whole number from 1, or a `run.waiting` that is not a whole number from 0
 - A change in a group of another lane, or an empty group
+- A question or `ship` with fewer than two options, or an option without a unique `id` and a `label`
+- A `ship.default` that names none of its options, or a `next` item without a unique `id` and a `title`
+- A file that is not UTF-8 text
+- Any id (change, group, question, option, next) with characters other than letters, digits, `-` and `_`, one that is a built-in object key such as `constructor`, or one used twice in the same list
+- An evidence `url` or `run.status.link` that is not http or https, or a `run.status` without a `state`
+- `run.status.decisions` that name unknown changes, questions, options or next items, or hold values the page cannot show
 
 ## Record mode
 
@@ -124,10 +131,23 @@ After the apply, set `run.status` and build again:
 }
 ```
 
-The page then shows the outcome and the decisions, with every control disabled.
+The page then shows the outcome and the decisions, with every control disabled. Every key in `decisions` is optional:
+
+| Key | Shape |
+| --- | --- |
+| `d` | Change id to `"apply"`, `"skip"`, `"later"` or `null`. |
+| `q` | Question id to one of its option ids, or `null`. |
+| `note` | Change id, or `"q:"` plus a question id, to the user's note as text. |
+| `custom` | Change id to the user's redrafted wording as text, lines joined with `\n`. |
+| `gnote` | Group id to the user's note on the group as text. |
+| `next` | Next item id to `true` or `false`. |
+| `ship` | One of the `ship` option ids, or `null`. |
 
 ## Tests
 
+From the repository root:
+
 ```
-python3 -m unittest discover -s plugins/bonsai/renderer
+bun install
+bun test plugins/bonsai/renderer
 ```

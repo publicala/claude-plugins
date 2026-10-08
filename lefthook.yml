@@ -1,12 +1,10 @@
 # Local git hooks via lefthook. Mirrors the CI format gate so a commit fixes
-# formatting before it can fail CI. Install once per clone with `lefthook install`.
-#
-# No package.json in this repo, so Prettier is fetched on demand with npx, the
-# same way the CI job runs it.
+# formatting before it can fail CI. Install once per clone with `bun install`
+# and `lefthook install`. Lint, type checks and tests run in CI.
 
 pre-commit:
   commands:
     format:
-      glob: "*.{md,mdx,json,yml,yaml,mjs,js}"
-      run: npx --yes prettier@3 --write {staged_files}
+      glob: "*.{md,mdx,json,yml,yaml,mjs,js,ts}"
+      run: bunx prettier --write {staged_files}
       stage_fixed: true

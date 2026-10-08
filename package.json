@@ -1,0 +1,24 @@
+{
+  "name": "claude-plugins",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "scripts": {
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run validate:plugins && bun test --coverage",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "bun --bun eslint --max-warnings=0 .",
+    "typecheck": "tsc --noEmit",
+    "validate:plugins": "bun scripts/validate-plugins.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "^1.4.2",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "happy-dom": "^20.14.5",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.70.1"
+  }
+}
