@@ -39,6 +39,12 @@ describe("proseFragments", () => {
     expect(proseFragments(text).join("")).toBe("Prose with  and a link.");
   });
 
+  test("skips quotes, which keep their own punctuation", () => {
+    expect(
+      proseFragments("Before.\n\n> They said \u201cyes; now\u201d.\n\nAfter."),
+    ).toEqual(["Before.", "After."]);
+  });
+
   test("skips the text inside inline code, kbd, samp and pre tags", () => {
     expect(
       proseFragments(

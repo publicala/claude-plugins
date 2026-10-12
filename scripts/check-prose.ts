@@ -47,7 +47,8 @@ const RULES: Rule[] = [
 ];
 
 /**
- * Collects the text a reader sees as prose, in document order.
+ * Collects the text a reader sees as prose, in document order. Code and
+ * quotes keep their own conventions, so their text is left out.
  */
 export function proseFragments(markdown: string): string[] {
   const texts: string[] = [];
@@ -57,6 +58,7 @@ export function proseFragments(markdown: string): string[] {
     code: () => "",
     codespan: () => "",
     html: () => "",
+    blockquote: () => "",
   });
 
   const prose: string[] = [];
