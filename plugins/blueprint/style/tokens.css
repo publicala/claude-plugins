@@ -1,0 +1,30 @@
+/*
+ * Blueprint tokens: the colors and the type every Blueprint surface shares.
+ */
+
+:root {
+  color-scheme: light dark;
+  --ink: light-dark(#111111, #e4e4eb);
+  --body: light-dark(#4b5563, #a0a0b0);
+  --muted: light-dark(#8a8f98, #6e6e7e);
+  --hair: light-dark(#e4e4e7, #26262f);
+  --hair-strong: light-dark(#cfcfd4, #3a3a46);
+  --paper: light-dark(#fafafa, #101016);
+  --surface: light-dark(#ffffff, #15151c);
+  --dot: light-dark(#e2e2e6, #22222b);
+  --accent: light-dark(#2563eb, #7aa2ff);
+  --accent-soft: light-dark(#eff4ff, #151d33);
+  --accent-hair: light-dark(#d6e2ff, #2a3a66);
+  --ok: light-dark(#16a34a, #22c55e);
+  --warn: light-dark(#d97706, #f59e0b);
+  --sans: Inter, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
