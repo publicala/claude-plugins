@@ -125,6 +125,8 @@ class Figure {
 
 const width = (box: Box) => box.right - box.left;
 const height = (box: Box) => box.bottom - box.top;
+const lineCount = (element: MeasuredElement) =>
+  Math.round(height(element.box) / element.lineHeight);
 
 function fontProblems({ failedFonts }: Measurement): string[] {
   return failedFonts.length > 0
@@ -156,7 +158,9 @@ function overflowProblems(figure: Figure): string[] {
       box.bottom > bounds.bottom + 0.5;
 
     if (outside) {
-      problems.push(`${figure.describe(index)} sits outside the canvas.`);
+      problems.push(
+        `${figure.describe(index)} sits outside the canvas. Move it back inside, or pick a larger data-size.`,
+      );
     }
   });
 
@@ -170,7 +174,9 @@ function overflowProblems(figure: Figure): string[] {
       element.scrollHeight > element.clientHeight + 1;
 
     if (boxed && spills) {
-      problems.push(`${figure.describe(index)} overflows its box.`);
+      problems.push(
+        `${figure.describe(index)} overflows its box. Shorten the text or give its column more room.`,
+      );
     }
   });
 
@@ -182,21 +188,15 @@ function nodeProblems(figure: Figure): string[] {
   const nodes = figure.indexesWith("node");
 
   for (const index of figure.indexesWith("h")) {
-    const title = figure.at(index);
-
-    if (
-      figure.isWithin(index, "node") &&
-      height(title.box) > title.fontSize * 2
-    ) {
+    if (figure.isWithin(index, "node") && lineCount(figure.at(index)) > 1) {
       problems.push(
-        `The node title ${figure.describe(index)} wraps to a second line.`,
+        `The node title ${figure.describe(index)} wraps to a second line. Shorten it to a few words.`,
       );
     }
   }
 
   for (const index of figure.indexesWith("d")) {
-    const description = figure.at(index);
-    const lines = Math.round(height(description.box) / description.lineHeight);
+    const lines = lineCount(figure.at(index));
 
     if (figure.isWithin(index, "node") && lines > 2) {
       problems.push(
@@ -295,7 +295,7 @@ function overlapProblems(figure: Figure): string[] {
 
       if (across > 1 && down > 1) {
         problems.push(
-          `${figure.describe(first)} overlaps ${figure.describe(second)}.`,
+          `${figure.describe(first)} overlaps ${figure.describe(second)}. Give each its own room, without negative margins or fixed sizes.`,
         );
       }
     }

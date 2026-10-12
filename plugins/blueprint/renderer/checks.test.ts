@@ -105,7 +105,7 @@ describe("findFigureProblems", () => {
       ),
     ).toEqual([
       "The content runs past the canvas by 0px across and 40px down. Shorten it or pick a larger data-size.",
-      '"Too low" sits outside the canvas.',
+      '"Too low" sits outside the canvas. Move it back inside, or pick a larger data-size.',
     ]);
   });
 
@@ -139,9 +139,9 @@ describe("findFigureProblems", () => {
         }),
       ),
     ).toEqual([
-      '"Wide" overflows its box.',
-      '"Cell" overflows its box.',
-      '"Tall" overflows its box.',
+      '"Wide" overflows its box. Shorten the text or give its column more room.',
+      '"Cell" overflows its box. Shorten the text or give its column more room.',
+      '"Tall" overflows its box. Shorten the text or give its column more room.',
     ]);
   });
 
@@ -173,7 +173,7 @@ describe("findFigureProblems", () => {
         }),
       ),
     ).toEqual([
-      'The node title "A long title" wraps to a second line.',
+      'The node title "A long title" wraps to a second line. Shorten it to a few words.',
       'The node description "A long description" takes 3 lines. Keep it to two.',
     ]);
   });
@@ -295,7 +295,9 @@ describe("findFigureProblems", () => {
           ],
         }),
       ),
-    ).toEqual(['"Layer" overlaps "Callout".']);
+    ).toEqual([
+      '"Layer" overlaps "Callout". Give each its own room, without negative margins or fixed sizes.',
+    ]);
   });
 
   test("checks the text a reader sees", () => {
