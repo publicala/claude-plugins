@@ -43,6 +43,26 @@ describe("findChrome", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  test.each([
+    "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+    "chrome-win64/chrome.exe",
+  ])(
+    "finds Playwright's Chrome for Testing at %p in the Windows cache",
+    async (binary) => {
+      const appData = await mkdtemp(join(tmpdir(), "local-app-data-"));
+      const path = join(appData, "ms-playwright/chromium-1200", binary);
+
+      try {
+        await mkdir(join(path, ".."), { recursive: true });
+        await Bun.write(path, "");
+
+        expect(findChrome({ LOCALAPPDATA: appData })).toBe(path);
+      } finally {
+        await rm(appData, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 describe("launchBrowser", () => {

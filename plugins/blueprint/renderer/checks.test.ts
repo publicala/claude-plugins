@@ -135,6 +135,12 @@ describe("findFigureProblems", () => {
               box: row(3),
               scrollHeight: 52,
             }),
+            element({
+              classes: ["callout"],
+              text: "Boxed",
+              box: row(4),
+              scrollHeight: 52,
+            }),
           ],
         }),
       ),
@@ -142,6 +148,7 @@ describe("findFigureProblems", () => {
       '"Wide" overflows its box. Shorten the text or give its column more room.',
       '"Cell" overflows its box. Shorten the text or give its column more room.',
       '"Tall" overflows its box. Shorten the text or give its column more room.',
+      '"Boxed" overflows its box. Shorten the text or give its column more room.',
     ]);
   });
 
@@ -211,22 +218,30 @@ describe("findFigureProblems", () => {
     ]);
   });
 
-  test("asks every wire for a label, and names the wire by what comes before it", () => {
+  test("asks every wire for a label with text, and names the wire by what comes before it", () => {
     expect(
       findFigureProblems(
         measure({
           elements: [
             element({ classes: ["layer"], text: "Clients", box: row(0) }),
             element({ classes: ["wire"], box: row(1) }),
-            element({ parent: 2, classes: ["label"], box: row(1) }),
+            element({
+              parent: 2,
+              classes: ["label"],
+              text: "HTTPS",
+              box: row(1),
+            }),
             element({ classes: ["layer"], text: "Edge", box: row(2) }),
             element({ classes: ["hwire"], box: row(3) }),
             element({ classes: ["flow"], box: { ...row(4), bottom: 300 } }),
             element({ parent: 6, classes: ["hwire"], box: row(4) }),
+            element({ classes: ["wire"], box: row(5) }),
+            element({ parent: 8, classes: ["label"], text: " ", box: row(5) }),
           ],
         }),
       ),
     ).toEqual([
+      'The wire after "flow" has no label. Say what crosses it, for example HTTPS.',
       'The wire after "Edge" has no label. Say what crosses it, for example HTTPS.',
       'The first wire in "flow" has no label. Say what crosses it, for example HTTPS.',
     ]);

@@ -26,10 +26,13 @@ const CHROMIUM_PATHS = [
   "/usr/bin/chromium-browser",
 ];
 
-// Playwright's Chromium builds inside a browsers directory, as in cloud sessions.
+// Playwright's Chromium builds inside a browsers directory, as in cloud
+// sessions. Newer builds ship Chrome for Testing on macOS and Windows.
 const PLAYWRIGHT_CHROMIUM = [
   "chromium-*/chrome-linux*/chrome",
   "chromium-*/chrome-mac*/Chromium.app/Contents/MacOS/Chromium",
+  "chromium-*/chrome-mac*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  "chromium-*/chrome-win*/chrome.exe",
 ];
 
 /**
@@ -50,6 +53,9 @@ export function findChrome(
     ...CHROMIUM_PATHS,
     ...playwrightChromium(join(homedir(), ".cache/ms-playwright")),
     ...playwrightChromium(join(homedir(), "Library/Caches/ms-playwright")),
+    ...playwrightChromium(
+      env.LOCALAPPDATA && join(env.LOCALAPPDATA, "ms-playwright"),
+    ),
   ];
 
   return candidates.find((path) => existsSync(path)) ?? null;

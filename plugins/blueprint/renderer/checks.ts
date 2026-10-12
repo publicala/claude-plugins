@@ -40,7 +40,16 @@ export interface Measurement {
 
 const MAX_NODES = 25;
 
-const MUST_NOT_OVERFLOW = ["node", "label", "tag", "spec", "gutter"];
+const MUST_NOT_OVERFLOW = [
+  "node",
+  "layer",
+  "label",
+  "tag",
+  "spec",
+  "gutter",
+  "callout",
+  "quote",
+];
 const MUST_NOT_OVERLAP = [
   "node",
   "layer",
@@ -241,7 +250,13 @@ function wireProblems(figure: Figure): string[] {
   const wires = [...figure.indexesWith("wire"), ...figure.indexesWith("hwire")];
 
   return wires
-    .filter((wire) => !labels.some((label) => figure.isInside(label, wire)))
+    .filter(
+      (wire) =>
+        !labels.some(
+          (label) =>
+            figure.isInside(label, wire) && figure.at(label).text.trim() !== "",
+        ),
+    )
     .map(
       (wire) =>
         `${describeWire(figure, wire)} has no label. Say what crosses it, for example HTTPS.`,
