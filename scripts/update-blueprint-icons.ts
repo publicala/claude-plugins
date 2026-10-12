@@ -45,7 +45,11 @@ export async function iconsJson(iconsDir = lucideIconsDir()): Promise<string> {
   return `${JSON.stringify(icons, null, 2)}\n`;
 }
 
+export async function main(path = ICONS_JSON): Promise<void> {
+  await Bun.write(path, await iconsJson());
+  console.log(`Wrote ${path}`);
+}
+
 if (import.meta.main) {
-  await Bun.write(ICONS_JSON, await iconsJson());
-  console.log(`Wrote ${ICONS_JSON}`);
+  await main();
 }

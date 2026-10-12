@@ -1,9 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { ICONS_JSON, iconsJson, innerSvg } from "./update-blueprint-icons";
+import {
+  ICONS_JSON,
+  iconsJson,
+  innerSvg,
+  main,
+} from "./update-blueprint-icons";
 
 describe("innerSvg", () => {
   test("keeps the markup inside the svg element on one line", () => {
@@ -42,5 +47,24 @@ describe("iconsJson", () => {
 
   test("the plugin's icons match the installed lucide-static (bun run update:icons)", async () => {
     expect(await Bun.file(ICONS_JSON).text()).toBe(await iconsJson());
+  });
+});
+
+describe("main", () => {
+  test("writes the icons file and says where", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "blueprint-icons-"));
+    const path = join(dir, "icons.json");
+    const log = spyOn(console, "log").mockImplementation(() => undefined);
+
+    try {
+      await main(path);
+      expect(await Bun.file(path).text()).toBe(
+        await Bun.file(ICONS_JSON).text(),
+      );
+      expect(log).toHaveBeenCalledWith(`Wrote ${path}`);
+    } finally {
+      log.mockRestore();
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
