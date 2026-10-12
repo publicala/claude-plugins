@@ -1,4 +1,12 @@
-import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  setDefaultTimeout,
+  spyOn,
+  test,
+} from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,6 +25,9 @@ import {
   parseArguments,
   writeVideo,
 } from "./walkthrough";
+
+// Chrome starts and renders slower on CI's macOS runners than Bun's 5 s default.
+setDefaultTimeout(30_000);
 
 const EXAMPLE = join(
   import.meta.dir,
