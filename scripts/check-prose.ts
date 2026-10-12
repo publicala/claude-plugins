@@ -6,7 +6,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = join(import.meta.dir, "..");
 
 const CODE_OPEN = /^<(?:code|kbd|samp|pre)\b[^>]*>$/i;
 const CODE_CLOSE = /^<\/(?:code|kbd|samp|pre)\s*>$/i;
