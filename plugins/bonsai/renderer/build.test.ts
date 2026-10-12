@@ -15,6 +15,7 @@ import {
   type Page,
   render,
   summary,
+  TOKENS_PLACEHOLDER,
 } from "./build";
 
 const HERE = import.meta.dir;
@@ -1035,6 +1036,15 @@ describe("render", () => {
 
     expect(parsesAfter).toBe(true);
     expect(changeIn(page.changes, "livewire").why).toBe(quoted);
+  });
+
+  test("carries Blueprint's tokens, light and dark, from the blueprint plugin", async () => {
+    const html = await render(await build(await exampleData(), EXAMPLE));
+
+    expect(html).not.toContain(TOKENS_PLACEHOLDER);
+    expect(html).toContain(
+      await Bun.file(join(HERE, "blueprint-tokens.css")).text(),
+    );
   });
 
   test("embeds the data and the escaped title", async () => {

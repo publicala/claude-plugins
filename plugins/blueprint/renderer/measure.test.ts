@@ -77,6 +77,28 @@ describe("measureFigure", () => {
     ]);
   });
 
+  test("leaves out a hidden element and everything inside it", () => {
+    loadPage(
+      '<div class="canvas"><div class="node" style="display: none"><div class="h">Hidden</div></div><div class="node"><div class="h">Shown</div></div></div>',
+    );
+
+    const { elements, texts } = measureFigure();
+
+    expect(
+      elements.slice(1).map(({ parent, classes, text }) => ({
+        parent,
+        classes,
+        text,
+      })),
+    ).toEqual([
+      { parent: 0, classes: ["node"], text: "Shown" },
+      { parent: 1, classes: ["h"], text: "Shown" },
+    ]);
+    expect(texts.map(({ element, text }) => ({ element, text }))).toEqual([
+      { element: 2, text: "Shown" },
+    ]);
+  });
+
   test("names the fonts that failed and reads sizes from the computed style", () => {
     loadPage(
       '<div class="canvas"><div class="d" style="font-size: 10px; line-height: 14px">x</div><div class="d" style="font-size: 10px">y</div></div>',
@@ -88,6 +110,17 @@ describe("measureFigure", () => {
     expect(overflow).toEqual({ x: 0, y: 0 });
     expect(elements[1]?.lineHeight).toBe(14);
     expect(elements[2]?.lineHeight).toBe(12);
+  });
+});
+
+describe("a page without a canvas", () => {
+  test("stops both functions with a clear error", () => {
+    loadPage("<div></div>");
+
+    expect(() => measureFigure()).toThrow("The page has no canvas.");
+    expect(() => {
+      roundCanvasHeight();
+    }).toThrow("The page has no canvas.");
   });
 });
 

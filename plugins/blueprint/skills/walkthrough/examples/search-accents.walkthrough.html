@@ -1,0 +1,218 @@
+<!--
+  A made-up walkthrough for Acme Books. Sources for every number:
+  1,240 and 310: SELECT COUNT(*), COUNT(DISTINCT reader_id) FROM searches WHERE results = 0 AND query <> unaccent(query)
+  18%: share of those readers with no purchase in the next 7 days (orders table)
+  1,198 and 42: replay of the 1,240 queries against the fixed index (replay.ts)
+  312: bun test on the fix branch
+-->
+<div class="canvas" data-size="video">
+  <header class="masthead" data-in="0.1">
+    <div class="brand">
+      <i data-logo></i>
+      <div class="sep"></div>
+      <div>
+        <h1>Acme Books: search missed accented titles</h1>
+        <div class="sub">Example · Walkthrough · Rev. 2026-10</div>
+      </div>
+    </div>
+    <div class="specs">
+      <div class="spec">
+        <div class="k">Fix</div>
+        <div class="v"><span class="status"></span>Ready</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <section class="scene split" data-duration="6" data-title="The bug">
+      <div class="hero">
+        <div class="kicker" data-in="0.2">The bug</div>
+        <h2 data-in="0.4">Searches with an accent found nothing.</h2>
+        <p data-in="0.9">
+          Readers looked for books we sell and got no results.
+        </p>
+      </div>
+      <section class="layer boxed" data-in="1.4">
+        <div class="gutter">
+          <span class="n">SPEC</span><span class="t">At a glance</span>
+        </div>
+        <table class="sheet">
+          <tr>
+            <th>Since</th>
+            <td>March 2026</td>
+          </tr>
+          <tr>
+            <th>Scope</th>
+            <td>1,240 searches</td>
+          </tr>
+          <tr>
+            <th>Fix</th>
+            <td><span class="status"></span> Ready</td>
+          </tr>
+        </table>
+      </section>
+    </section>
+
+    <section class="scene" data-duration="6" data-title="What happened">
+      <div class="stack">
+        <section class="layer" data-in="0.2">
+          <div class="gutter">
+            <span class="n">01</span><span class="t">Query</span>
+          </div>
+          <div class="body">
+            <div class="node">
+              <div class="h">
+                <i data-icon="search"></i><code>café</code> becomes
+                <code>cafe</code>
+              </div>
+            </div>
+          </div>
+        </section>
+        <div class="wire" data-draw="1">
+          <span class="label" data-in="1.2">Accents removed</span>
+        </div>
+        <section class="layer" data-in="1.6">
+          <div class="gutter">
+            <span class="n">02</span><span class="t">Index</span>
+          </div>
+          <div class="body">
+            <div class="node">
+              <div class="h">
+                <i data-icon="database"></i>Titles keep their accents
+              </div>
+            </div>
+          </div>
+        </section>
+        <div class="wire" data-draw="2.6">
+          <span class="label" data-in="2.8">No match</span>
+        </div>
+        <section class="layer" data-in="3.2">
+          <div class="gutter">
+            <span class="n">03</span><span class="t">Result</span>
+          </div>
+          <div class="body">
+            <div class="node">
+              <div class="h"><span class="status warn"></span>No results</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="scene" data-duration="6" data-title="Impact">
+      <div class="row">
+        <section class="layer boxed" data-in="0.2">
+          <div class="gutter">
+            <span class="n">01</span><span class="t">Empty searches</span>
+          </div>
+          <div class="body">
+            <div class="stat">
+              <div class="v" data-count>1,240</div>
+              <div class="d">since March</div>
+            </div>
+          </div>
+        </section>
+        <section class="layer boxed" data-in="0.6">
+          <div class="gutter">
+            <span class="n">02</span><span class="t">Readers</span>
+          </div>
+          <div class="body">
+            <div class="stat">
+              <div class="v" data-count>310</div>
+              <div class="d">hit it at least once</div>
+            </div>
+          </div>
+        </section>
+        <section class="layer boxed" data-in="1">
+          <div class="gutter">
+            <span class="n">03</span><span class="t">No purchase</span>
+          </div>
+          <div class="body">
+            <div class="stat">
+              <div class="v" data-count>18%</div>
+              <div class="d">of them bought nothing</div>
+            </div>
+            <div class="meter" style="--value: 18%"></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="scene" data-duration="6" data-title="The fix">
+      <div class="stack">
+        <section class="layer" data-in="0.2">
+          <div class="gutter">
+            <span class="n">01</span><span class="t">Index</span>
+          </div>
+          <div class="body">
+            <div class="node accent">
+              <div class="h">
+                <i data-icon="wand-sparkles"></i>Titles lose their accents too
+              </div>
+              <div class="d">One function normalizes both sides</div>
+            </div>
+          </div>
+        </section>
+        <div class="wire" data-draw="1.1">
+          <span class="label" data-in="1.3">Same rule</span>
+        </div>
+        <section class="layer" data-in="1.7">
+          <div class="gutter">
+            <span class="n">02</span><span class="t">Result</span>
+          </div>
+          <div class="body">
+            <div class="quote">café → Café Society, Café de los Maestros</div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="scene split" data-duration="7" data-title="Checked">
+      <section class="layer boxed" data-in="0.2">
+        <div class="gutter">
+          <span class="n">REPLAY</span
+          ><span class="t">1,240 real searches</span>
+        </div>
+        <table class="sheet">
+          <tr>
+            <th>Find the book</th>
+            <td>
+              <span data-count>1,198</span>
+              <div class="meter" style="--value: 97%"></div>
+            </td>
+          </tr>
+          <tr>
+            <th>Still empty</th>
+            <td>42<small>not in the catalog</small></td>
+          </tr>
+        </table>
+      </section>
+      <div class="side">
+        <section class="layer boxed" data-in="1">
+          <div class="gutter">
+            <span class="n">CHECKS</span><span class="t">Tests</span>
+          </div>
+          <div class="body">
+            <div class="verdict"><span class="status"></span>312 pass</div>
+          </div>
+        </section>
+        <section class="layer boxed" data-in="1.6">
+          <div class="gutter">
+            <span class="n">NEXT</span><span class="t">Tonight</span>
+          </div>
+          <div class="body">
+            <div class="verdict">
+              <span class="status warn"></span>Reindex the catalog
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="colophon">
+    <span><span class="verbatim">publica.la</span> · Example</span>
+    <span data-fig></span>
+    <i class="progress"></i>
+  </footer>
+</div>

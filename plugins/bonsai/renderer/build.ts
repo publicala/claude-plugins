@@ -14,6 +14,8 @@ import { parseArgs } from "node:util";
 type JsonObject = Record<string, unknown>;
 
 const TEMPLATE = join(import.meta.dir, "template.html");
+const TOKENS = join(import.meta.dir, "blueprint-tokens.css");
+export const TOKENS_PLACEHOLDER = "/*__BLUEPRINT_TOKENS__*/";
 export const DATA_PLACEHOLDER = "/*__DATA__*/ null";
 const TITLE_PLACEHOLDER = "<title>bonsai</title>";
 
@@ -954,7 +956,10 @@ export async function build(
 }
 
 export async function render(page: Page): Promise<string> {
-  const template = await Bun.file(TEMPLATE).text();
+  const [template, tokens] = await Promise.all([
+    Bun.file(TEMPLATE).text(),
+    Bun.file(TOKENS).text(),
+  ]);
 
   // Escaping every "<" keeps the HTML tokenizer out of comment and
   // script states, so only the template's own tag closes the script.
@@ -962,6 +967,7 @@ export async function render(page: Page): Promise<string> {
 
   // Replacer functions keep `$` sequences in the data literal.
   return template
+    .replace(TOKENS_PLACEHOLDER, () => tokens)
     .replace(
       TITLE_PLACEHOLDER,
       () => `<title>${Bun.escapeHTML(page.run.title)}</title>`,

@@ -1,63 +1,11 @@
 /*
- * Figures render in the light colors. The dark ones serve pages that
- * follow the reader's color mode.
+ * The colors and the type live in tokens.css, which the renderer inlines first.
  */
 
 :root {
-  --ink: #111111;
-  --body: #4b5563;
-  --muted: #8a8f98;
-  --hair: #e4e4e7;
-  --hair-strong: #cfcfd4;
-  --paper: #fafafa;
-  --surface: #ffffff;
-  --dot: #e2e2e6;
-  --accent: #2563eb;
-  --accent-soft: #eff4ff;
-  --accent-hair: #d6e2ff;
-  --ok: #16a34a;
-  --warn: #d97706;
-  --sans: Inter, system-ui, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, monospace;
   --edge: 44px;
   --gutter: 150px;
   --hwire: 112px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --ink: #e4e4eb;
-    --body: #a0a0b0;
-    --muted: #6e6e7e;
-    --hair: #26262f;
-    --hair-strong: #3a3a46;
-    --paper: #101016;
-    --surface: #15151c;
-    --dot: #22222b;
-    --accent: #7aa2ff;
-    --accent-soft: #151d33;
-    --accent-hair: #2a3a66;
-    --ok: #22c55e;
-    --warn: #f59e0b;
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme="dark"] {
-  --ink: #e4e4eb;
-  --body: #a0a0b0;
-  --muted: #6e6e7e;
-  --hair: #26262f;
-  --hair-strong: #3a3a46;
-  --paper: #101016;
-  --surface: #15151c;
-  --dot: #22222b;
-  --accent: #7aa2ff;
-  --accent-soft: #151d33;
-  --accent-hair: #2a3a66;
-  --ok: #22c55e;
-  --warn: #f59e0b;
-  color-scheme: dark;
 }
 
 * {
@@ -214,6 +162,7 @@ svg.icon {
 }
 
 .colophon {
+  position: relative;
   display: flex;
   justify-content: space-between;
   font-family: var(--mono);
@@ -460,7 +409,8 @@ svg.icon {
   position: absolute;
   left: 0;
   top: 0;
-  bottom: 0;
+  /* A walkthrough draws the wire by moving --draw from 0 to 1. */
+  bottom: calc((1 - var(--draw, 1)) * 100%);
   border-left: 1.5px dashed var(--ink);
 }
 
@@ -472,6 +422,8 @@ svg.icon {
   border: 4.5px solid transparent;
   border-top: 6px solid var(--ink);
   border-bottom: 0;
+  /* A walkthrough shows the arrowhead once the wire is drawn. */
+  opacity: var(--arrow, 1);
 }
 
 .label {
@@ -516,7 +468,7 @@ svg.icon {
   content: "";
   position: absolute;
   left: 0;
-  right: 0;
+  right: calc((1 - var(--draw, 1)) * 100%);
   top: 50%;
   border-top: 1.5px dashed var(--ink);
 }
@@ -529,6 +481,7 @@ svg.icon {
   border: 4.5px solid transparent;
   border-left: 6px solid var(--ink);
   border-right: 0;
+  opacity: var(--arrow, 1);
 }
 
 .hwire .label {
@@ -715,11 +668,13 @@ svg.icon {
   font-weight: 600;
 }
 
-.node .d code,
-.sheet code,
-.callout code {
+.canvas code {
   font-family: var(--mono);
   font-size: 0.95em;
+}
+
+.node .d code,
+.callout code {
   color: var(--ink);
 }
 
@@ -899,4 +854,34 @@ svg.icon {
 [data-size="video"] .split {
   grid-template-columns: 1fr 440px;
   gap: 32px;
+}
+
+/* Walkthrough: scenes take turns on one stage, driven by a timeline. */
+
+.stage {
+  position: relative;
+  flex: 1;
+}
+
+.scene {
+  position: absolute;
+  inset: 22px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+}
+
+.scene.split {
+  display: grid;
+  align-content: center;
+}
+
+.colophon .progress {
+  position: absolute;
+  left: 0;
+  top: -1px;
+  height: 2px;
+  width: 0;
+  background: var(--accent);
 }

@@ -14,8 +14,13 @@ const FONTS = [
   },
 ];
 
-export function readStylesheet(): Promise<string> {
-  return Bun.file(join(ROOT, "style/blueprint.css")).text();
+export async function readStylesheet(): Promise<string> {
+  const [tokens, components] = await Promise.all([
+    Bun.file(join(ROOT, "style/tokens.css")).text(),
+    Bun.file(join(ROOT, "style/blueprint.css")).text(),
+  ]);
+
+  return tokens + components;
 }
 
 export function readLogoSvg(): Promise<string> {

@@ -30,6 +30,7 @@ Blueprint is publica.la's house style for engineering visuals. The plugin holds 
 | Skill | Role |
 | --- | --- |
 | `/blueprint:diagram` | Renders standalone figures, spec sheets, social cards and 16:9 slides to PNG and PDF from small HTML sources |
+| `/blueprint:walkthrough` | Makes a short, silent video (about 30 s, 1920x1080) that explains a change, scene by scene, with a contact sheet and a player page |
 
 See [plugins/blueprint](plugins/blueprint) for details.
 
