@@ -4,6 +4,7 @@
 // Every run checks each scene like a figure and checks the timing, then
 // writes a contact sheet with one frame per scene. --video adds the mp4,
 // --player a self-contained page that plays it, and --at a still.
+import { availableParallelism } from "node:os";
 import { relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { Browser, Page } from "puppeteer-core";
@@ -28,6 +29,10 @@ const WIDTH = 1280;
 const HEIGHT = 720;
 const SCALE = 1.5;
 const FPS = 30;
+// A screenshot keeps a core busy, so more browsers split the frames between
+// them. ffmpeg needs a core too, and on four cores three browsers did about as
+// well as four.
+const CAPTURE_BROWSERS = Math.min(4, Math.max(1, availableParallelism() - 1));
 
 const MAX_WORDS_PER_SECOND = 5;
 const MAX_DURATION_SECONDS = 45;
@@ -119,20 +124,19 @@ export function judgeTiming({ duration, scenes }: Timing): {
 interface OpenWalkthrough {
   page: Page;
   timing: Timing;
+  html: string;
 }
+
+const VIEWPORT = { width: WIDTH, height: HEIGHT, scale: SCALE };
 
 export async function openWalkthrough(
   browser: Browser,
   sourcePath: string,
 ): Promise<OpenWalkthrough> {
   const html = await buildWalkthroughPage(await Bun.file(sourcePath).text());
-  const page = await openPage(browser, html, {
-    width: WIDTH,
-    height: HEIGHT,
-    scale: SCALE,
-  });
+  const page = await openPage(browser, html, VIEWPORT);
 
-  return { page, timing: await page.evaluate(readTiming) };
+  return { page, timing: await page.evaluate(readTiming), html };
 }
 
 function lastFullFrameAt(scene: SceneTiming): number {
@@ -182,12 +186,15 @@ async function findSceneProblems({
   return problems;
 }
 
+// optimizeForSpeed compresses the PNG less, which makes the capture about a
+// quarter faster and the file about twice as big, with the same pixels.
 async function frameAt(page: Page, t: number): Promise<Uint8Array> {
   await page.evaluate(renderFrame, t);
 
   return page.screenshot({
     type: "png",
     clip: { x: 0, y: 0, width: WIDTH, height: HEIGHT },
+    optimizeForSpeed: true,
   });
 }
 
@@ -224,9 +231,13 @@ async function writeContactSheet(
     .toFile(path);
 }
 
+// The walkthrough's own page captures too, and each extra browser opens the
+// same page. Extra tabs in one browser would stall, since Chrome doesn't paint
+// a tab in the background.
 export async function writeVideo(
-  { page, timing }: OpenWalkthrough,
+  { page, timing, html }: OpenWalkthrough,
   path: string,
+  browsers = CAPTURE_BROWSERS,
 ): Promise<number> {
   const ffmpeg = Bun.which("ffmpeg");
 
@@ -236,29 +247,72 @@ export async function writeVideo(
     );
   }
 
-  const encoder = Bun.spawn(
-    [
-      [ffmpeg, "-y", "-loglevel", "error"],
-      ["-f", "image2pipe", "-framerate", String(FPS), "-i", "-"],
-      ["-c:v", "libx264", "-preset", "slow", "-crf", "16"],
-      ["-pix_fmt", "yuv420p", "-movflags", "+faststart", path],
-    ].flat(),
-    { stdin: "pipe", stdout: "inherit", stderr: "inherit" },
+  // allSettled waits for every launch, so one that fails can't leave the
+  // others running.
+  const launches = await Promise.allSettled(
+    Array.from({ length: browsers - 1 }, () => launchBrowser()),
   );
-  const frames = Math.round(timing.duration * FPS);
+  const extraBrowsers = launches
+    .filter((launch) => launch.status === "fulfilled")
+    .map(({ value }) => value);
 
-  for (let frame = 0; frame < frames; frame++) {
-    await encoder.stdin.write(await frameAt(page, frame / FPS));
-    await encoder.stdin.flush();
+  try {
+    for (const launch of launches) {
+      if (launch.status === "rejected") {
+        throw launch.reason;
+      }
+    }
+
+    const pages = [
+      page,
+      ...(await Promise.all(
+        extraBrowsers.map((browser) => openPage(browser, html, VIEWPORT)),
+      )),
+    ];
+    // At the same quality as slow, medium encodes 40% faster, and slow would
+    // keep the browsers waiting.
+    const encoder = Bun.spawn(
+      [
+        [ffmpeg, "-y", "-loglevel", "error"],
+        ["-f", "image2pipe", "-framerate", String(FPS), "-i", "-"],
+        ["-c:v", "libx264", "-preset", "medium", "-crf", "16"],
+        ["-pix_fmt", "yuv420p", "-movflags", "+faststart", path],
+      ].flat(),
+      { stdin: "pipe", stdout: "inherit", stderr: "inherit" },
+    );
+    const frames = Math.round(timing.duration * FPS);
+    const captured = Array.from({ length: frames }, () =>
+      Promise.withResolvers<Uint8Array>(),
+    );
+    // Each page takes every nth frame, so the pages move through the video
+    // together and the encoder seldom waits for the next frame.
+    const capturing = Promise.all(
+      pages.map(async (capturer, first) => {
+        for (let frame = first; frame < frames; frame += pages.length) {
+          captured[frame]?.resolve(await frameAt(capturer, frame / FPS));
+        }
+      }),
+    );
+
+    for (const { promise } of captured) {
+      // A failed capture leaves its frame unresolved, so the race ends the
+      // wait with the capture's error.
+      await encoder.stdin.write(
+        await Promise.race([promise, capturing.then(() => promise)]),
+      );
+      await encoder.stdin.flush();
+    }
+
+    await encoder.stdin.end();
+
+    if ((await encoder.exited) !== 0) {
+      throw new Error(`ffmpeg could not encode ${path}. Its errors are above.`);
+    }
+
+    return frames;
+  } finally {
+    await Promise.all(extraBrowsers.map((browser) => browser.close()));
   }
-
-  await encoder.stdin.end();
-
-  if ((await encoder.exited) !== 0) {
-    throw new Error(`ffmpeg could not encode ${path}. Its errors are above.`);
-  }
-
-  return frames;
 }
 
 interface Options {
