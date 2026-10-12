@@ -224,7 +224,9 @@ describe.skipIf(!findChrome())("in Chrome", () => {
       expect(await read(".controls output", "textContent")).toBe("0:05 / 0:31");
 
       await page.click(".controls button");
-      await Bun.sleep(300);
+      await page.waitForFunction(
+        "document.querySelector('.controls output').textContent.startsWith('0:00')",
+      );
       expect(await read(".controls button", "getAttribute('aria-label')")).toBe(
         "Pause",
       );

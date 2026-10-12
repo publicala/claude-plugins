@@ -4,7 +4,6 @@
 // Every run checks each scene like a figure and checks the timing, then
 // writes a contact sheet with one frame per scene. --video adds the mp4,
 // --player a self-contained page that plays it, and --at a still.
-import { spawn } from "node:child_process";
 import { relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { Browser, Page } from "puppeteer-core";
@@ -30,9 +29,8 @@ const HEIGHT = 720;
 const SCALE = 1.5;
 const FPS = 30;
 
-// A heuristic: viewers read about 4 words a second, and labels go faster.
-const WORDS_PER_SECOND = 5;
-const LONGEST = 45;
+const MAX_WORDS_PER_SECOND = 5;
+const MAX_DURATION_SECONDS = 45;
 
 const TIMELINE = `<script>(${installTimeline.toString()})();</script>`;
 const PLAYER_STYLE = /<style>[\s\S]*?<\/style>\s*/;
@@ -101,7 +99,7 @@ export function judgeTiming({ duration, scenes }: Timing): {
         );
       }
 
-      if (pace > WORDS_PER_SECOND) {
+      if (pace > MAX_WORDS_PER_SECOND) {
         warnings.push(
           `${name} has ${words} words for ${length} s (${pace.toFixed(1)} a second). Viewers read about 4 a second: cut words or give it more time.`,
         );
@@ -109,7 +107,7 @@ export function judgeTiming({ duration, scenes }: Timing): {
     },
   );
 
-  if (duration > LONGEST) {
+  if (duration > MAX_DURATION_SECONDS) {
     warnings.push(
       `The walkthrough runs ${duration} s. Aim for 25 to 40 s, or make two.`,
     );
@@ -217,30 +215,25 @@ export async function writeVideo(
     );
   }
 
-  const encoder = spawn(
-    ffmpeg,
+  const encoder = Bun.spawn(
     [
-      ["-y", "-loglevel", "error"],
+      [ffmpeg, "-y", "-loglevel", "error"],
       ["-f", "image2pipe", "-framerate", String(FPS), "-i", "-"],
       ["-c:v", "libx264", "-preset", "slow", "-crf", "16"],
       ["-pix_fmt", "yuv420p", "-movflags", "+faststart", path],
     ].flat(),
-    { stdio: ["pipe", "inherit", "inherit"] },
-  );
-  const finished = new Promise<number | null>((resolve) =>
-    encoder.on("close", resolve),
+    { stdin: "pipe", stdout: "inherit", stderr: "inherit" },
   );
   const frames = Math.round(timing.duration * FPS);
 
   for (let frame = 0; frame < frames; frame++) {
-    if (!encoder.stdin.write(await frameAt(page, frame / FPS))) {
-      await new Promise((resolve) => encoder.stdin.once("drain", resolve));
-    }
+    await encoder.stdin.write(await frameAt(page, frame / FPS));
+    await encoder.stdin.flush();
   }
 
-  encoder.stdin.end();
+  await encoder.stdin.end();
 
-  if ((await finished) !== 0) {
+  if ((await encoder.exited) !== 0) {
     throw new Error(`ffmpeg could not encode ${path}. Its errors are above.`);
   }
 
@@ -311,7 +304,7 @@ export async function main(args: string[]): Promise<number> {
     return 1;
   }
 
-  const name = (path: string) => relative(process.cwd(), path);
+  const displayPath = (path: string) => relative(process.cwd(), path);
   const browser = await launchBrowser();
 
   try {
@@ -326,7 +319,7 @@ export async function main(args: string[]): Promise<number> {
 
     if (problems.length > 0) {
       console.error(
-        `${name(options.source)} did not render:\n${problems.map((problem) => `  - ${problem}`).join("\n")}`,
+        `${displayPath(options.source)} did not render:\n${problems.map((problem) => `  - ${problem}`).join("\n")}`,
       );
 
       return 1;
@@ -341,13 +334,13 @@ export async function main(args: string[]): Promise<number> {
 
     console.log(`${scenes.length} scenes, ${duration} s`);
     await writeContactSheet(walkthrough, contact);
-    console.log(name(contact));
+    console.log(displayPath(contact));
 
     for (const t of options.stills) {
       const still = outputPathFor(options.source, SOURCE_SUFFIX, `.${t}s.png`);
 
       await Bun.write(still, await frameAt(walkthrough.page, t));
-      console.log(name(still));
+      console.log(displayPath(still));
     }
 
     if (options.player) {
@@ -361,20 +354,22 @@ export async function main(args: string[]): Promise<number> {
         player,
         await buildPlayerPage(await Bun.file(options.source).text()),
       );
-      console.log(name(player));
+      console.log(displayPath(player));
     }
 
     if (options.video) {
       const video = outputPathFor(options.source, SOURCE_SUFFIX, ".mp4");
       const frames = await writeVideo(walkthrough, video);
 
-      console.log(`${name(video)} (${frames} frames, 1920x1080, ${FPS} fps)`);
+      console.log(
+        `${displayPath(video)} (${frames} frames, ${WIDTH * SCALE}x${HEIGHT * SCALE}, ${FPS} fps)`,
+      );
     }
 
     return 0;
   } catch (error) {
     console.error(
-      `${name(options.source)} did not render:\n${(error as Error).message}`,
+      `${displayPath(options.source)} did not render:\n${(error as Error).message}`,
     );
 
     return 1;

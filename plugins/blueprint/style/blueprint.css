@@ -214,6 +214,7 @@ svg.icon {
 }
 
 .colophon {
+  position: relative;
   display: flex;
   justify-content: space-between;
   font-family: var(--mono);
@@ -460,7 +461,8 @@ svg.icon {
   position: absolute;
   left: 0;
   top: 0;
-  bottom: 0;
+  /* A walkthrough draws the wire by moving --draw from 0 to 1. */
+  bottom: calc((1 - var(--draw, 1)) * 100%);
   border-left: 1.5px dashed var(--ink);
 }
 
@@ -472,6 +474,8 @@ svg.icon {
   border: 4.5px solid transparent;
   border-top: 6px solid var(--ink);
   border-bottom: 0;
+  /* A walkthrough shows the arrowhead once the wire is drawn. */
+  opacity: var(--arrow, 1);
 }
 
 .label {
@@ -516,7 +520,7 @@ svg.icon {
   content: "";
   position: absolute;
   left: 0;
-  right: 0;
+  right: calc((1 - var(--draw, 1)) * 100%);
   top: 50%;
   border-top: 1.5px dashed var(--ink);
 }
@@ -529,6 +533,7 @@ svg.icon {
   border: 4.5px solid transparent;
   border-left: 6px solid var(--ink);
   border-right: 0;
+  opacity: var(--arrow, 1);
 }
 
 .hwire .label {
@@ -921,13 +926,7 @@ svg.icon {
 
 .scene.split {
   display: grid;
-  grid-template-columns: 1fr 440px;
-  gap: 32px;
   align-content: center;
-}
-
-.colophon {
-  position: relative;
 }
 
 .colophon .progress {
@@ -937,19 +936,4 @@ svg.icon {
   height: 2px;
   width: 0;
   background: var(--accent);
-}
-
-/* The timeline draws wires by moving --draw from 0 to 1. The arrowhead lands last. */
-
-.wire::before {
-  bottom: calc((1 - var(--draw, 1)) * 100%);
-}
-
-.hwire::before {
-  right: calc((1 - var(--draw, 1)) * 100%);
-}
-
-.wire::after,
-.hwire::after {
-  opacity: var(--arrow, 1);
 }

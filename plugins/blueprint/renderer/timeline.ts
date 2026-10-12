@@ -1,7 +1,7 @@
 // The walkthrough timeline. It runs inside the page, so it stays
-// self-contained: no imports and no references to module scope. It sets
-// window.walkthrough, whose render(t) draws the frame at t seconds, the same
-// way every time.
+// self-contained: no runtime imports and no references to module scope.
+// It sets window.walkthrough, whose render(t) draws the frame at t
+// seconds, the same way every time.
 import type { PageDocument, PageElement } from "./page-globals";
 
 export interface SceneTiming {
@@ -30,6 +30,7 @@ declare const window: { walkthrough: Walkthrough };
 
 export function installTimeline(): void {
   const FADE = 0.4;
+  const DEFAULT_DURATION = 5;
   const REVEAL = 0.55;
   const DRAW = 0.5;
   const COUNT = 1.2;
@@ -40,22 +41,21 @@ export function installTimeline(): void {
   const seconds = (value: string | undefined) =>
     Number.parseFloat(value ?? "0") || 0;
 
-  // A scene lasts 5 s when it sets no duration, or one the checks refuse.
   let cursor = 0;
   const scenes = [...document.querySelectorAll(".scene")].map((element) => {
     const start = cursor;
     const written = element.dataset.duration;
-    const length = written === undefined ? 5 : Number(written);
-    const valid = Number.isFinite(length) && length > 0;
+    const length = written === undefined ? DEFAULT_DURATION : Number(written);
+    const isValid = Number.isFinite(length) && length > 0;
 
-    cursor += valid ? length : 5;
+    cursor += isValid ? length : DEFAULT_DURATION;
 
     return {
       element,
       title: element.dataset.title ?? "",
       start,
       end: cursor,
-      invalidDuration: valid ? null : (written ?? null),
+      invalidDuration: isValid ? null : (written ?? null),
     };
   });
   const duration = cursor;
@@ -106,7 +106,8 @@ export function installTimeline(): void {
 
       return {
         element,
-        value: seconds(element.style.getPropertyValue("--value")),
+        value:
+          Number.parseFloat(element.style.getPropertyValue("--value")) || 0,
         offset,
         at: sceneStart(element) + offset,
         length: FILL,
@@ -119,17 +120,17 @@ export function installTimeline(): void {
 
   const render = (t: number) => {
     scenes.forEach((scene, index) => {
-      const last = index === scenes.length - 1;
-      const on = t >= scene.start && (t < scene.end || last);
-      const fadeOut = last ? 1 : clamp((scene.end - t) / FADE);
-      const opacity = on
+      const isLast = index === scenes.length - 1;
+      const isOnScreen = t >= scene.start && (t < scene.end || isLast);
+      const fadeOut = isLast ? 1 : clamp((scene.end - t) / FADE);
+      const opacity = isOnScreen
         ? Math.min(clamp((t - scene.start) / FADE), fadeOut)
         : 0;
 
       scene.element.style.opacity = String(opacity);
       scene.element.style.visibility = opacity > 0 ? "visible" : "hidden";
 
-      if (on && fig) {
+      if (isOnScreen && fig) {
         fig.textContent = `Fig. ${index + 1} · ${scene.title}`;
       }
     });
