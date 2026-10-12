@@ -61,8 +61,6 @@ describe("findProseProblems", () => {
     ["One thing – another.", 'uses "–" as a separator'],
     ["One thing; another.", "has a semicolon"],
     ["It’s curly.", "has the curly quote ’"],
-    ["¿Qué pasa?", "opens with ¿"],
-    ["¡Listo!", "opens with ¡"],
     ["It's worth noting that it works.", 'says "It\'s worth noting"'],
     ["We leverage the cache.", 'says "leverage"'],
     ["Utilization is high.", 'says "Utilization"'],

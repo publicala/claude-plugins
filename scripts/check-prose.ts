@@ -36,10 +36,6 @@ const RULES: Rule[] = [
       `has the curly quote ${match}. Use straight quotes (' and ").`,
   },
   {
-    pattern: /[¿¡]/g,
-    message: (match) => `opens with ${match}. Drop the opening mark.`,
-  },
-  {
     pattern:
       /\b(?:it's worth noting|in this article|comprehensive guide|step-by-step|important to understand|leverag(?:e|es|ed|ing)|utiliz(?:e|es|ed|ing|ation))\b/gi,
     message: (match) => `says "${match}". Say it plainly or cut it.`,
