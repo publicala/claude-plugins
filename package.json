@@ -22,7 +22,7 @@
     "happy-dom": "^20.14.5",
     "lucide-static": "^1.48.0",
     "prettier": "^3.9.9",
-    "typescript": "~7.0",
+    "typescript": "~6.0",
     "typescript-eslint": "^8.70.1"
   }
 }
