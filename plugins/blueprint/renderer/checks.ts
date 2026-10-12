@@ -17,6 +17,8 @@ export interface MeasuredElement {
   box: Box;
   scrollWidth: number;
   clientWidth: number;
+  scrollHeight: number;
+  clientHeight: number;
   fontSize: number;
   lineHeight: number;
 }
@@ -163,7 +165,11 @@ function overflowProblems(figure: Figure): string[] {
       BOXED.some((className) => element.classes.includes(className)) ||
       (["td", "th"].includes(element.tag) && figure.isWithin(index, "sheet"));
 
-    if (boxed && element.scrollWidth > element.clientWidth + 1) {
+    const spills =
+      element.scrollWidth > element.clientWidth + 1 ||
+      element.scrollHeight > element.clientHeight + 1;
+
+    if (boxed && spills) {
       problems.push(`${figure.describe(index)} overflows its box.`);
     }
   });
@@ -289,9 +295,11 @@ function textProblems(figure: Figure): string[] {
     const where = figure.describe(element);
     const problems: string[] = [];
 
-    if (/publica\.la/i.test(text) && uppercase) {
+    const brand = /publica\.la/i.exec(text)?.[0];
+
+    if (brand !== undefined && (uppercase || brand === brand.toUpperCase())) {
       problems.push(
-        `"publica.la" renders in uppercase in ${where}. Wrap it in <span class="verbatim">.`,
+        `"publica.la" renders in uppercase in ${where}. Write it in lowercase, and wrap it in <span class="verbatim"> inside a label.`,
       );
     }
 

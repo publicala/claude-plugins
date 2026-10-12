@@ -81,6 +81,8 @@ export function measureFigure(): Measurement {
         box: { left, top, right, bottom },
         scrollWidth: element.scrollWidth,
         clientWidth: element.clientWidth,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
         fontSize,
         lineHeight: Number.parseFloat(style.lineHeight) || fontSize * 1.2,
       };

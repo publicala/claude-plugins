@@ -21,6 +21,8 @@ function element(
     box: { left: 10, top: 10, right: 110, bottom: 40 },
     scrollWidth: 100,
     clientWidth: 100,
+    scrollHeight: 30,
+    clientHeight: 30,
     fontSize: 13.5,
     lineHeight: 16,
     ...overrides,
@@ -107,7 +109,7 @@ describe("findFigureProblems", () => {
     ]);
   });
 
-  test("reports text that overflows a box, and sheet cells too", () => {
+  test("reports text that overflows a box across or down, and sheet cells too", () => {
     expect(
       findFigureProblems(
         measure({
@@ -127,10 +129,20 @@ describe("findFigureProblems", () => {
               box: row(2),
               scrollWidth: 130,
             }),
+            element({
+              classes: ["node"],
+              text: "Tall",
+              box: row(3),
+              scrollHeight: 52,
+            }),
           ],
         }),
       ),
-    ).toEqual(['"Wide" overflows its box.', '"Cell" overflows its box.']);
+    ).toEqual([
+      '"Wide" overflows its box.',
+      '"Cell" overflows its box.',
+      '"Tall" overflows its box.',
+    ]);
   });
 
   test("reports a node title that wraps and a description past two lines", () => {
@@ -286,6 +298,7 @@ describe("findFigureProblems", () => {
           elements: [element({ classes: ["label"], text: "Label" })],
           texts: [
             text({ element: 1, text: "publica.la", uppercase: true }),
+            text({ element: 1, text: "By PUBLICA.LA" }),
             text({ element: 1, text: "One — two" }),
             text({ element: 1, text: "One; two" }),
             text({ element: 1, text: "It’s" }),
@@ -293,7 +306,8 @@ describe("findFigureProblems", () => {
         }),
       ),
     ).toEqual([
-      '"publica.la" renders in uppercase in "Label". Wrap it in <span class="verbatim">.',
+      '"publica.la" renders in uppercase in "Label". Write it in lowercase, and wrap it in <span class="verbatim"> inside a label.',
+      '"publica.la" renders in uppercase in "Label". Write it in lowercase, and wrap it in <span class="verbatim"> inside a label.',
       '"Label" has an em dash. Use parentheses or split the sentence.',
       '"Label" has a semicolon. Split it into two sentences.',
       '"Label" has a curly quote. Use straight quotes.',
@@ -311,7 +325,7 @@ describe("findFigureProblems", () => {
         }),
       ),
     ).toEqual([
-      '"publica.la" renders in uppercase in "canvas". Wrap it in <span class="verbatim">.',
+      '"publica.la" renders in uppercase in "canvas". Write it in lowercase, and wrap it in <span class="verbatim"> inside a label.',
     ]);
   });
 

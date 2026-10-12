@@ -108,6 +108,21 @@ describe.skipIf(!findChrome())("renderFigure", () => {
     expect(await Bun.file(join(workDir, "broken.png")).exists()).toBe(false);
   });
 
+  test("catches text spilling below its box, and the brand typed in capitals", async () => {
+    const source = figure(
+      '<div class="row"><div class="node" style="height: 24px"><div class="h">Short box</div><div class="d">A description that needs a line of its own</div></div>' +
+        '<div class="node"><div class="h">By PUBLICA.LA</div></div></div>',
+    );
+    const error = (await render("spill", source).catch(
+      (caught: unknown) => caught,
+    )) as Error;
+
+    expect(error.message).toMatch(/"Short box[^"]*" overflows its box\./);
+    expect(error.message).toContain(
+      '"publica.la" renders in uppercase in "By PUBLICA.LA".',
+    );
+  });
+
   test("refuses content taller than a fixed-size card", async () => {
     const tall = '<div class="callout" style="height: 900px">Tall</div>';
     const error = (await render("tall", figure(tall, ' data-size="og"')).catch(
