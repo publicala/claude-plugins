@@ -40,14 +40,22 @@ export interface Measurement {
 
 const MAX_NODES = 25;
 
-const BOXED = ["node", "label", "tag", "spec", "gutter"];
-const SOLID = ["node", "layer", "label", "tag", "callout", "spec", "stat"];
+const MUST_NOT_OVERFLOW = ["node", "label", "tag", "spec", "gutter"];
+const MUST_NOT_OVERLAP = [
+  "node",
+  "layer",
+  "label",
+  "tag",
+  "callout",
+  "spec",
+  "stat",
+];
 
 export function findFigureProblems(measurement: Measurement): string[] {
   const figure = new Figure(measurement);
 
   return [
-    ...fontProblems(measurement),
+    ...fontProblems(figure),
     ...overflowProblems(figure),
     ...nodeProblems(figure),
     ...wireProblems(figure),
@@ -58,11 +66,13 @@ export function findFigureProblems(measurement: Measurement): string[] {
 }
 
 class Figure {
+  readonly failedFonts: string[];
   readonly elements: MeasuredElement[];
   readonly texts: MeasuredText[];
   readonly overflow: { x: number; y: number };
 
   constructor(measurement: Measurement) {
+    this.failedFonts = measurement.failedFonts;
     this.elements = measurement.elements;
     this.texts = measurement.texts;
     this.overflow = measurement.overflow;
@@ -89,31 +99,27 @@ class Figure {
   }
 
   isInside(index: number, ancestor: number): boolean {
-    for (
-      let parent = this.at(index).parent;
-      parent !== -1;
-      parent = this.at(parent).parent
-    ) {
-      if (parent === ancestor) {
-        return true;
-      }
-    }
-
-    return false;
+    return this.ancestorsOf(index).includes(ancestor);
   }
 
-  isWithin(index: number, className: string): boolean {
+  isInsideClass(index: number, className: string): boolean {
+    return this.ancestorsOf(index).some((parent) =>
+      this.at(parent).classes.includes(className),
+    );
+  }
+
+  private ancestorsOf(index: number): number[] {
+    const ancestors: number[] = [];
+
     for (
       let parent = this.at(index).parent;
       parent !== -1;
       parent = this.at(parent).parent
     ) {
-      if (this.at(parent).classes.includes(className)) {
-        return true;
-      }
+      ancestors.push(parent);
     }
 
-    return false;
+    return ancestors;
   }
 
   describe(index: number): string {
@@ -128,7 +134,7 @@ const height = (box: Box) => box.bottom - box.top;
 const lineCount = (element: MeasuredElement) =>
   Math.round(height(element.box) / element.lineHeight);
 
-function fontProblems({ failedFonts }: Measurement): string[] {
+function fontProblems({ failedFonts }: Figure): string[] {
   return failedFonts.length > 0
     ? [`Fonts failed to load: ${failedFonts.join(", ")}.`]
     : [];
@@ -165,15 +171,18 @@ function overflowProblems(figure: Figure): string[] {
   });
 
   figure.elements.forEach((element, index) => {
-    const boxed =
-      BOXED.some((className) => element.classes.includes(className)) ||
-      (["td", "th"].includes(element.tag) && figure.isWithin(index, "sheet"));
+    const mustNotOverflow =
+      MUST_NOT_OVERFLOW.some((className) =>
+        element.classes.includes(className),
+      ) ||
+      (["td", "th"].includes(element.tag) &&
+        figure.isInsideClass(index, "sheet"));
 
     const spills =
       element.scrollWidth > element.clientWidth + 1 ||
       element.scrollHeight > element.clientHeight + 1;
 
-    if (boxed && spills) {
+    if (mustNotOverflow && spills) {
       problems.push(
         `${figure.describe(index)} overflows its box. Shorten the text or give its column more room.`,
       );
@@ -188,7 +197,10 @@ function nodeProblems(figure: Figure): string[] {
   const nodes = figure.indexesWith("node");
 
   for (const index of figure.indexesWith("h")) {
-    if (figure.isWithin(index, "node") && lineCount(figure.at(index)) > 1) {
+    if (
+      figure.isInsideClass(index, "node") &&
+      lineCount(figure.at(index)) > 1
+    ) {
       problems.push(
         `The node title ${figure.describe(index)} wraps to a second line. Shorten it to a few words.`,
       );
@@ -198,7 +210,7 @@ function nodeProblems(figure: Figure): string[] {
   for (const index of figure.indexesWith("d")) {
     const lines = lineCount(figure.at(index));
 
-    if (figure.isWithin(index, "node") && lines > 2) {
+    if (figure.isInsideClass(index, "node") && lines > 2) {
       problems.push(
         `The node description ${figure.describe(index)} takes ${lines} lines. Keep it to two.`,
       );
@@ -275,15 +287,15 @@ function splitProblems(figure: Figure): string[] {
 }
 
 function overlapProblems(figure: Figure): string[] {
-  const solids = figure.elements.flatMap((element, index) =>
-    SOLID.some((className) => element.classes.includes(className))
+  const mustNotOverlap = figure.elements.flatMap((element, index) =>
+    MUST_NOT_OVERLAP.some((className) => element.classes.includes(className))
       ? [index]
       : [],
   );
   const problems: string[] = [];
 
-  solids.forEach((first, position) => {
-    for (const second of solids.slice(position + 1)) {
+  mustNotOverlap.forEach((first, position) => {
+    for (const second of mustNotOverlap.slice(position + 1)) {
       if (figure.isInside(second, first) || figure.isInside(first, second)) {
         continue;
       }

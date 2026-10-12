@@ -3,9 +3,10 @@ import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Browser } from "puppeteer-core";
+import sharp from "sharp";
 
 import { main } from "./render";
-import { findChrome, launchBrowser, renderFigure } from "./renderer";
+import { findChrome, launchBrowser, openPage, renderFigure } from "./renderer";
 
 const EXAMPLES = join(import.meta.dir, "../skills/diagram/examples");
 const EXAMPLE_SOURCES = (await readdir(EXAMPLES)).filter((file) =>
@@ -64,6 +65,23 @@ describe("launchBrowser", () => {
   });
 });
 
+describe.skipIf(!findChrome())("openPage", () => {
+  test("closes the page when its setup fails", async () => {
+    const browser = await launchBrowser();
+
+    try {
+      const pages = (await browser.pages()).length;
+
+      expect(
+        openPage(browser, "<p></p>", { width: -1, height: 1, scale: 1 }),
+      ).rejects.toThrow("Width and height values must be positive");
+      expect(await browser.pages()).toHaveLength(pages);
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
 describe.skipIf(!findChrome())("renderFigure", () => {
   let browser: Browser;
   let workDir: string;
@@ -95,11 +113,11 @@ describe.skipIf(!findChrome())("renderFigure", () => {
       true,
     );
 
-    const png = Buffer.from(await Bun.file(join(workDir, "valid.png")).bytes());
+    const png = await sharp(join(workDir, "valid.png")).metadata();
     const pdf = await Bun.file(join(workDir, "valid.pdf")).text();
 
-    expect(written[0]?.size).toMatch(/^3200x\d+$/);
-    expect(png.readUInt32BE(16)).toBe(3200);
+    expect(written[0]?.dimensions).toMatch(/^3200x\d+$/);
+    expect(png.width).toBe(3200);
     expect(pdf.match(/\/Type\s*\/Page\b/g)).toHaveLength(1);
   });
 
@@ -115,48 +133,40 @@ describe.skipIf(!findChrome())("renderFigure", () => {
       'class="stack" style="text-transform: uppercase"',
     );
 
-    const error = (await render("broken", source).catch(
-      (caught: unknown) => caught,
-    )) as Error;
+    const rendering = render("broken", source);
 
-    expect(error.message).toContain("2 nodes are accented");
-    expect(error.message).toContain(
+    expect(rendering).rejects.toThrow("2 nodes are accented");
+    expect(rendering).rejects.toThrow(
       'The wire after "OneDetailTwoDetail" has no label',
     );
-    expect(error.message).toContain("wraps to a second line");
-    expect(error.message).toContain('"publica.la" renders in uppercase');
-    expect(error.message).toContain("has an em dash");
-    expect(error.message).toContain("has a semicolon");
+    expect(rendering).rejects.toThrow("wraps to a second line");
+    expect(rendering).rejects.toThrow('"publica.la" renders in uppercase');
+    expect(rendering).rejects.toThrow("has an em dash");
+    expect(rendering).rejects.toThrow("has a semicolon");
     expect(await Bun.file(join(workDir, "broken.png")).exists()).toBe(false);
   });
 
-  test("catches text spilling below its box, and the brand typed in capitals", async () => {
+  test("catches text spilling below its box, and the brand typed in capitals", () => {
     const source = figure(
       '<div class="row"><div class="node" style="height: 24px"><div class="h">Short box</div><div class="d">A description that needs a line of its own</div></div>' +
         '<div class="node"><div class="h">By PUBLICA.LA</div></div></div>',
     );
-    const error = (await render("spill", source).catch(
-      (caught: unknown) => caught,
-    )) as Error;
+    const rendering = render("spill", source);
 
-    expect(error.message).toMatch(/"Short box[^"]*" overflows its box\./);
-    expect(error.message).toContain(
+    expect(rendering).rejects.toThrow(/"Short box[^"]*" overflows its box\./);
+    expect(rendering).rejects.toThrow(
       '"publica.la" renders in uppercase in "By PUBLICA.LA".',
     );
   });
 
-  test("refuses content taller than a fixed-size card", async () => {
+  test("refuses content taller than a fixed-size card", () => {
     const tall = '<div class="callout" style="height: 900px">Tall</div>';
-    const error = (await render("tall", figure(tall, ' data-size="og"')).catch(
-      (caught: unknown) => caught,
-    )) as Error;
-
-    expect(error.message).toMatch(
+    expect(render("tall", figure(tall, ' data-size="og"'))).rejects.toThrow(
       /runs past the canvas by 0px across and \d+px down/,
     );
   });
 
-  test("measures split columns and overlaps in the page", async () => {
+  test("measures split columns and overlaps in the page", () => {
     const layer = (height: number) =>
       `<section class="layer"><div class="gutter"><span class="t">L</span></div><div class="body"><div style="height: ${height}px"></div></div></section>`;
     const source = figure(
@@ -164,12 +174,10 @@ describe.skipIf(!findChrome())("renderFigure", () => {
         `<div class="callout" style="margin-top: -60px">Over</div>`,
     );
 
-    const error = (await render("split", source).catch(
-      (caught: unknown) => caught,
-    )) as Error;
+    const rendering = render("split", source);
 
-    expect(error.message).toContain("The columns of a split end 100px apart");
-    expect(error.message).toContain('overlaps "Over"');
+    expect(rendering).rejects.toThrow("The columns of a split end 100px apart");
+    expect(rendering).rejects.toThrow('overlaps "Over"');
   });
 
   test.each(EXAMPLE_SOURCES)(

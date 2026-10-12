@@ -14,17 +14,15 @@ const FONTS = [
   },
 ];
 
-const ICON_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-export function stylesheet(): Promise<string> {
+export function readStylesheet(): Promise<string> {
   return Bun.file(join(ROOT, "style/blueprint.css")).text();
 }
 
-export function logoSvg(): Promise<string> {
+export function readLogoSvg(): Promise<string> {
   return Bun.file(join(ROOT, "assets/wordmark.svg")).text();
 }
 
-export async function fontFaceCss(): Promise<string> {
+export async function readFontFaceCss(): Promise<string> {
   const faces = await Promise.all(
     FONTS.flatMap(({ family, file, weights }) =>
       weights.map(async (weight) => {
@@ -40,32 +38,14 @@ export async function fontFaceCss(): Promise<string> {
   return faces.join("");
 }
 
-export interface Icons {
-  load: (name: string) => string | null;
-  similar: (name: string) => string[];
-}
-
 /**
- * Lucide icons by name, from the map scripts/update-blueprint-icons.ts
- * writes. An unknown name gets suggestions that share a word with it.
+ * Lucide icons by name, from the map written
+ * by scripts/update-blueprint-icons.ts.
  */
-export async function lucideIcons(): Promise<Icons> {
+export async function readLucideIcons(): Promise<Map<string, string>> {
   const icons = (await Bun.file(
     join(ROOT, "assets/icons.json"),
   ).json()) as Record<string, string>;
-  const names = Object.keys(icons);
 
-  return {
-    load: (name) =>
-      ICON_NAME.test(name) && Object.hasOwn(icons, name)
-        ? (icons[name] ?? null)
-        : null,
-    similar: (name) => {
-      const words = name.split("-").filter((word) => word.length > 2);
-
-      return names
-        .filter((candidate) => words.some((word) => candidate.includes(word)))
-        .slice(0, 8);
-    },
-  };
+  return new Map(Object.entries(icons));
 }

@@ -2,11 +2,16 @@ import { describe, expect, test } from "bun:test";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-import { fontFaceCss, logoSvg, lucideIcons, stylesheet } from "./assets";
+import {
+  readFontFaceCss,
+  readLogoSvg,
+  readLucideIcons,
+  readStylesheet,
+} from "./assets";
 import { buildPage, expandIcons, expandLogo, outputPathFor } from "./page";
 
-const icons = await lucideIcons();
-const database = icons.load("database") ?? "";
+const icons = await readLucideIcons();
+const database = icons.get("database") ?? "";
 
 const EXAMPLES = join(import.meta.dir, "../skills/diagram/examples");
 const EXAMPLE_FILES = await readdir(EXAMPLES);
@@ -14,26 +19,15 @@ const EXAMPLE_SOURCES = EXAMPLE_FILES.filter((file) =>
   file.endsWith(".diagram.html"),
 );
 
-describe("lucideIcons", () => {
+describe("readLucideIcons", () => {
   test("returns the inner markup of a Lucide icon", () => {
     expect(database).toMatch(/^<ellipse[^\n]*<\/?path/);
-  });
-
-  test("returns null for an unknown or unsafe name", () => {
-    expect(icons.load("unicorn-rocket-ship")).toBeNull();
-    expect(icons.load("../package")).toBeNull();
-    expect(icons.load("constructor")).toBeNull();
-  });
-
-  test("suggests names that share a word", () => {
-    expect(icons.similar("databse-zap")).toContain("zap");
-    expect(icons.similar("databse-zap").length).toBeLessThanOrEqual(8);
   });
 });
 
 describe("assets", () => {
   test("embed both families in every weight, with no network", async () => {
-    const css = await fontFaceCss();
+    const css = await readFontFaceCss();
 
     expect(css.match(/@font-face/g)).toHaveLength(7);
     expect(css).toContain(
@@ -43,8 +37,8 @@ describe("assets", () => {
   });
 
   test("read the stylesheet and the logo", async () => {
-    expect(await stylesheet()).toContain("--accent: #2563eb;");
-    expect(await logoSvg()).toMatch(/^<svg\b/);
+    expect(await readStylesheet()).toContain("--accent: #2563eb;");
+    expect(await readLogoSvg()).toMatch(/^<svg\b/);
   });
 });
 
@@ -77,6 +71,12 @@ describe("expandIcons", () => {
     );
   });
 
+  test("suggests eight similar names at most", () => {
+    expect(() => expandIcons('<i data-icon="arrow-thing"></i>', icons)).toThrow(
+      /Similar names: (?:[a-z0-9-]+, ){7}[a-z0-9-]+\.$/,
+    );
+  });
+
   test("names the unknown icon alone when nothing is similar", () => {
     expect(() => expandIcons('<i data-icon="qq"></i>', icons)).toThrow(
       'Unknown icon "qq". Use a name from lucide.dev/icons.',
@@ -96,8 +96,8 @@ describe("buildPage", () => {
   const page = (source: string) =>
     buildPage({
       source,
-      css: ".canvas{}",
-      fontCss: "@font-face{}",
+      stylesheet: ".canvas{}",
+      fontFaceCss: "@font-face{}",
       logoSvg: '<svg id="logo"></svg>',
       icons,
     });
@@ -137,15 +137,15 @@ describe("buildPage", () => {
 
 describe("outputPathFor", () => {
   test("swaps the source suffix for the output extension", () => {
-    expect(outputPathFor("img/overview.diagram.html", ".png")).toBe(
-      "img/overview.png",
-    );
+    expect(
+      outputPathFor("img/overview.diagram.html", ".diagram.html", ".png"),
+    ).toBe("img/overview.png");
   });
 
   test("refuses a file that is not a figure source", () => {
-    expect(() => outputPathFor("img/overview.html", ".png")).toThrow(
-      /\.diagram\.html/,
-    );
+    expect(() =>
+      outputPathFor("img/overview.html", ".diagram.html", ".png"),
+    ).toThrow("Sources end in .diagram.html, got: img/overview.html");
   });
 });
 
@@ -158,13 +158,15 @@ describe("skill examples", () => {
       expect(() =>
         buildPage({
           source,
-          css: "",
-          fontCss: "",
+          stylesheet: "",
+          fontFaceCss: "",
           logoSvg: "<svg></svg>",
           icons,
         }),
       ).not.toThrow();
-      expect(EXAMPLE_FILES).toContain(outputPathFor(file, ".png"));
+      expect(EXAMPLE_FILES).toContain(
+        outputPathFor(file, ".diagram.html", ".png"),
+      );
     },
   );
 });

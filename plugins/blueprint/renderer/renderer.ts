@@ -4,14 +4,20 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import puppeteer, { type Browser } from "puppeteer-core";
+import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import sharp from "sharp";
 
-import { fontFaceCss, logoSvg, lucideIcons, stylesheet } from "./assets";
+import {
+  readFontFaceCss,
+  readLogoSvg,
+  readLucideIcons,
+  readStylesheet,
+} from "./assets";
 import { findFigureProblems } from "./checks";
 import { measureFigure, roundCanvasHeight } from "./measure";
 import { buildPage, outputPathFor } from "./page";
 
+const SOURCE_SUFFIX = ".diagram.html";
 const SCALE = 2;
 
 const CHROMIUM_PATHS = [
@@ -100,19 +106,46 @@ export async function launchBrowser(): Promise<Browser> {
 }
 
 export async function buildFigurePage(source: string): Promise<string> {
-  const [css, fontCss, logo, icons] = await Promise.all([
-    stylesheet(),
-    fontFaceCss(),
-    logoSvg(),
-    lucideIcons(),
+  const [stylesheet, fontFaceCss, logoSvg, icons] = await Promise.all([
+    readStylesheet(),
+    readFontFaceCss(),
+    readLogoSvg(),
+    readLucideIcons(),
   ]);
 
-  return buildPage({ source, css, fontCss, logoSvg: logo, icons });
+  return buildPage({ source, stylesheet, fontFaceCss, logoSvg, icons });
 }
 
-export interface WrittenFile {
+/**
+ * Opens a page set up the way the checks expect it: the light
+ * colors, the content loaded and every font ready.
+ */
+export async function openPage(
+  browser: Browser,
+  html: string,
+  { width, height, scale }: { width: number; height: number; scale: number },
+): Promise<Page> {
+  const page = await browser.newPage();
+
+  try {
+    await page.setViewport({ width, height, deviceScaleFactor: scale });
+    await page.emulateMediaFeatures([
+      { name: "prefers-color-scheme", value: "light" },
+    ]);
+    await page.setContent(html);
+    await page.evaluate("document.fonts.ready");
+
+    return page;
+  } catch (error) {
+    await page.close();
+
+    throw error;
+  }
+}
+
+interface WrittenFile {
   path: string;
-  size: string;
+  dimensions: string;
 }
 
 /**
@@ -127,20 +160,13 @@ export async function renderFigure(
   { pdf = false }: { pdf?: boolean } = {},
 ): Promise<WrittenFile[]> {
   const html = await buildFigurePage(await Bun.file(sourcePath).text());
-  const page = await browser.newPage();
+  const page = await openPage(browser, html, {
+    width: 2400,
+    height: 1200,
+    scale: SCALE,
+  });
 
   try {
-    await page.setViewport({
-      width: 2400,
-      height: 1200,
-      deviceScaleFactor: SCALE,
-    });
-    await page.emulateMediaFeatures([
-      { name: "prefers-color-scheme", value: "light" },
-    ]);
-    await page.setContent(html, { waitUntil: "load" });
-    await page.evaluate("document.fonts.ready");
-
     const problems = findFigureProblems(await page.evaluate(measureFigure));
 
     if (problems.length > 0) {
@@ -158,19 +184,19 @@ export async function renderFigure(
       );
     }
 
-    const pngPath = outputPathFor(sourcePath, ".png");
+    const pngPath = outputPathFor(sourcePath, SOURCE_SUFFIX, ".png");
 
-    await Bun.write(
-      pngPath,
-      await optimizePng(await canvas.screenshot({ type: "png" })),
-    );
+    // Figures use a few dozen colors, so a 256-color palette keeps them sharp at about half the size.
+    const png = await sharp(await canvas.screenshot({ type: "png" }))
+      .png({ palette: true, quality: 95, effort: 10, compressionLevel: 9 })
+      .toFile(pngPath);
 
     const written = [
-      { path: pngPath, size: `${box.width * SCALE}x${box.height * SCALE}` },
+      { path: pngPath, dimensions: `${png.width}x${png.height}` },
     ];
 
     if (pdf) {
-      const pdfPath = outputPathFor(sourcePath, ".pdf");
+      const pdfPath = outputPathFor(sourcePath, SOURCE_SUFFIX, ".pdf");
 
       await page.pdf({
         path: pdfPath,
@@ -181,7 +207,7 @@ export async function renderFigure(
       });
       written.push({
         path: pdfPath,
-        size: `${box.width}x${box.height}px page`,
+        dimensions: `${box.width}x${box.height}px page`,
       });
     }
 
@@ -189,11 +215,4 @@ export async function renderFigure(
   } finally {
     await page.close();
   }
-}
-
-// Figures use a few dozen colors, so a 256-color palette keeps them sharp at about half the size.
-function optimizePng(buffer: Uint8Array): Promise<Buffer> {
-  return sharp(buffer)
-    .png({ palette: true, quality: 95, effort: 10, compressionLevel: 9 })
-    .toBuffer();
 }

@@ -1,9 +1,6 @@
 // Turns a figure source into a complete, self-contained HTML page. A source
 // is the markup of one `.canvas` element. The page carries the stylesheet,
 // the fonts, the logo and every icon inline.
-import type { Icons } from "./assets";
-
-const SOURCE_SUFFIX = ".diagram.html";
 
 const COMMENT = /<!--[\s\S]*?-->/g;
 const ICON_TAG =
@@ -13,12 +10,15 @@ const LEFTOVER_PLACEHOLDER = /<[^>]*\bdata-(?:icon|logo)\b[^>]*>/;
 const CANVAS_ELEMENT =
   /<[a-z][a-z0-9-]*\b[^>]*?\bclass\s*=\s*(["'])(?:[^"']*\s)?canvas(?:\s[^"']*)?\1/gi;
 
-export function expandIcons(markup: string, icons: Icons): string {
+export function expandIcons(
+  markup: string,
+  icons: ReadonlyMap<string, string>,
+): string {
   return markup.replace(ICON_TAG, (_tag, _quote, name: string) => {
-    const icon = icons.load(name);
+    const icon = icons.get(name);
 
-    if (icon === null) {
-      const suggestions = icons.similar(name);
+    if (icon === undefined) {
+      const suggestions = similarIcons(name, icons);
       const hint = suggestions.length
         ? ` Similar names: ${suggestions.join(", ")}.`
         : "";
@@ -32,6 +32,17 @@ export function expandIcons(markup: string, icons: Icons): string {
   });
 }
 
+function similarIcons(
+  name: string,
+  icons: ReadonlyMap<string, string>,
+): string[] {
+  const words = name.split("-").filter((word) => word.length > 2);
+
+  return [...icons.keys()]
+    .filter((candidate) => words.some((word) => candidate.includes(word)))
+    .slice(0, 8);
+}
+
 export function expandLogo(markup: string, logoSvg: string): string {
   return markup.replace(
     LOGO_TAG,
@@ -39,18 +50,18 @@ export function expandLogo(markup: string, logoSvg: string): string {
   );
 }
 
-export interface PageParts {
+interface PageParts {
   source: string;
-  css: string;
-  fontCss: string;
+  stylesheet: string;
+  fontFaceCss: string;
   logoSvg: string;
-  icons: Icons;
+  icons: ReadonlyMap<string, string>;
 }
 
 export function buildPage({
   source,
-  css,
-  fontCss,
+  stylesheet,
+  fontFaceCss,
   logoSvg,
   icons,
 }: PageParts): string {
@@ -74,17 +85,19 @@ export function buildPage({
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Figure</title>
-<style>${fontCss}${css}</style></head>
+<style>${fontFaceCss}${stylesheet}</style></head>
 <body>${body}</body></html>
 `;
 }
 
-export function outputPathFor(sourcePath: string, extension: string): string {
-  if (!sourcePath.endsWith(SOURCE_SUFFIX)) {
-    throw new Error(
-      `Figure sources end in ${SOURCE_SUFFIX}, got: ${sourcePath}`,
-    );
+export function outputPathFor(
+  sourcePath: string,
+  sourceSuffix: string,
+  outputSuffix: string,
+): string {
+  if (!sourcePath.endsWith(sourceSuffix)) {
+    throw new Error(`Sources end in ${sourceSuffix}, got: ${sourcePath}`);
   }
 
-  return sourcePath.slice(0, -SOURCE_SUFFIX.length) + extension;
+  return sourcePath.slice(0, -sourceSuffix.length) + outputSuffix;
 }

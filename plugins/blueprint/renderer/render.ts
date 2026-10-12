@@ -51,7 +51,9 @@ export async function main(args: string[]): Promise<number> {
         });
 
         for (const file of written) {
-          console.log(`${relative(process.cwd(), file.path)} (${file.size})`);
+          console.log(
+            `${relative(process.cwd(), file.path)} (${file.dimensions})`,
+          );
         }
       } catch (error) {
         console.error(
