@@ -91,7 +91,9 @@ export async function validatePlugins(root: string): Promise<{
     await Array.fromAsync(
       new Bun.Glob("plugins/**/*.md").scan({ cwd: root, dot: true }),
     )
-  ).toSorted();
+  )
+    .filter((path) => !path.includes("node_modules/"))
+    .toSorted();
 
   const errors = await Promise.all(
     paths.map(async (path) => {

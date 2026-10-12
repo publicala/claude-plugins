@@ -15,6 +15,20 @@ updates:
       npm:
         patterns: ["*"]
 
+  - package-ecosystem: npm
+    directory: /plugins/blueprint
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      blueprint:
+        patterns: ["*"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

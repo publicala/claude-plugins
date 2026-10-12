@@ -1,0 +1,8 @@
+{
+  "name": "blueprint",
+  "description": "Blueprint, publica.la's house style for engineering visuals: diagram renders standalone figures, spec sheets, social cards and slides to PNG and PDF from small HTML sources, with checks that refuse a broken figure.",
+  "author": { "name": "Publica.la" },
+  "repository": "https://github.com/publicala/claude-plugins",
+  "license": "MIT",
+  "keywords": ["diagrams", "figures", "design-system", "documentation"]
+}

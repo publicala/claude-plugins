@@ -124,13 +124,21 @@ describe("validatePlugins", () => {
     expect(result.checked).toBeGreaterThan(0);
   });
 
-  test("reports problems with the repo-relative path", async () => {
+  test("reports problems with the repo-relative path, never in node_modules", async () => {
     const root = await mkdtemp(join(tmpdir(), "validate-plugins-"));
 
     try {
       const skill = join(root, "plugins", "demo", "skills", "audit");
       await mkdir(skill, { recursive: true });
       await Bun.write(join(skill, "SKILL.md"), "[a](gone.md)\n");
+
+      await mkdir(join(root, "plugins", "demo", "node_modules", "dep"), {
+        recursive: true,
+      });
+      await Bun.write(
+        join(root, "plugins", "demo", "node_modules", "dep", "README.md"),
+        "[a](gone.md)\n",
+      );
 
       expect((await validatePlugins(root)).errors).toEqual([
         "plugins/demo/skills/audit/SKILL.md: link target not found: gone.md",

@@ -1,0 +1,170 @@
+import { describe, expect, test } from "bun:test";
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
+
+import { fontFaceCss, logoSvg, lucideIcons, stylesheet } from "./assets";
+import { buildPage, expandIcons, expandLogo, outputPathFor } from "./page";
+
+const icons = await lucideIcons();
+const database = icons.load("database") ?? "";
+
+const EXAMPLES = join(import.meta.dir, "../skills/diagram/examples");
+const EXAMPLE_FILES = await readdir(EXAMPLES);
+const EXAMPLE_SOURCES = EXAMPLE_FILES.filter((file) =>
+  file.endsWith(".diagram.html"),
+);
+
+describe("lucideIcons", () => {
+  test("returns the inner markup of a Lucide icon", () => {
+    expect(database).toMatch(/^<ellipse[^\n]*<\/?path/);
+  });
+
+  test("returns null for an unknown or unsafe name", () => {
+    expect(icons.load("unicorn-rocket-ship")).toBeNull();
+    expect(icons.load("../package")).toBeNull();
+    expect(icons.load("constructor")).toBeNull();
+  });
+
+  test("suggests names that share a word", () => {
+    expect(icons.similar("databse-zap")).toContain("zap");
+    expect(icons.similar("databse-zap").length).toBeLessThanOrEqual(8);
+  });
+});
+
+describe("assets", () => {
+  test("embed both families in every weight, with no network", async () => {
+    const css = await fontFaceCss();
+
+    expect(css.match(/@font-face/g)).toHaveLength(7);
+    expect(css).toContain(
+      "font-family:'JetBrains Mono';font-style:normal;font-weight:600",
+    );
+    expect(css).not.toContain("https://");
+  });
+
+  test("read the stylesheet and the logo", async () => {
+    expect(await stylesheet()).toContain("--accent: #2563eb;");
+    expect(await logoSvg()).toMatch(/^<svg\b/);
+  });
+});
+
+describe("expandIcons", () => {
+  test("replaces an icon placeholder with its inline SVG", () => {
+    const html = expandIcons(
+      '<div><i data-icon="database"></i>DB</div>',
+      icons,
+    );
+
+    expect(html).toBe(
+      `<div><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${database}</svg>DB</div>`,
+    );
+  });
+
+  test.each([
+    ["wrapped by Prettier", '<i data-icon="database"></i\n>'],
+    ["in single quotes", "<i data-icon='database'></i>"],
+    ["with another attribute", '<i class="big" data-icon="database"></i>'],
+    ["self-closing", '<i data-icon="database" />'],
+  ])("expands a placeholder %s", (_, placeholder) => {
+    expect(expandIcons(`<div>${placeholder}</div>`, icons)).toBe(
+      `<div><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${database}</svg></div>`,
+    );
+  });
+
+  test("names the unknown icon and suggests similar ones", () => {
+    expect(() => expandIcons('<i data-icon="databse-zap"></i>', icons)).toThrow(
+      /Unknown icon "databse-zap".*lucide\.dev.*Similar names: .*zap/,
+    );
+  });
+
+  test("names the unknown icon alone when nothing is similar", () => {
+    expect(() => expandIcons('<i data-icon="qq"></i>', icons)).toThrow(
+      'Unknown icon "qq". Use a name from lucide.dev/icons.',
+    );
+  });
+});
+
+describe("expandLogo", () => {
+  test("inlines the logo with an accessible label", () => {
+    expect(expandLogo("<i data-logo></i>", '<svg id="logo"></svg>\n')).toBe(
+      '<span class="logo" role="img" aria-label="publica.la"><svg id="logo"></svg></span>',
+    );
+  });
+});
+
+describe("buildPage", () => {
+  const page = (source: string) =>
+    buildPage({
+      source,
+      css: ".canvas{}",
+      fontCss: "@font-face{}",
+      logoSvg: '<svg id="logo"></svg>',
+      icons,
+    });
+
+  test("wraps the source with the fonts, the stylesheet and the logo", () => {
+    const html = page('<div class="canvas"><i data-logo></i></div>');
+
+    expect(html).toMatch(/^<!doctype html>/);
+    expect(html).toContain("<style>@font-face{}.canvas{}</style>");
+    expect(html).toContain('<svg id="logo"></svg>');
+  });
+
+  test("accepts a canvas with more classes", () => {
+    expect(() => page("<div class='figure canvas'></div>")).not.toThrow();
+  });
+
+  test.each([
+    ["no canvas", "<div></div>", 0],
+    [
+      "a canvas only in a comment",
+      '<!-- <div class="canvas"> --><div></div>',
+      0,
+    ],
+    ["two canvases", '<div class="canvas"></div><div class="canvas"></div>', 2],
+  ])("refuses a source with %s", (_, source, found) => {
+    expect(() => page(source)).toThrow(
+      `exactly one element with the canvas class, found ${found}`,
+    );
+  });
+
+  test("refuses a placeholder it cannot expand", () => {
+    expect(() =>
+      page('<div class="canvas"><span data-icon="user"></span></div>'),
+    ).toThrow(/Unable to expand <span data-icon="user">/);
+  });
+});
+
+describe("outputPathFor", () => {
+  test("swaps the source suffix for the output extension", () => {
+    expect(outputPathFor("img/overview.diagram.html", ".png")).toBe(
+      "img/overview.png",
+    );
+  });
+
+  test("refuses a file that is not a figure source", () => {
+    expect(() => outputPathFor("img/overview.html", ".png")).toThrow(
+      /\.diagram\.html/,
+    );
+  });
+});
+
+describe("skill examples", () => {
+  test.each(EXAMPLE_SOURCES)(
+    "%s builds with known icons and has a rendered PNG",
+    async (file) => {
+      const source = await Bun.file(join(EXAMPLES, file)).text();
+
+      expect(() =>
+        buildPage({
+          source,
+          css: "",
+          fontCss: "",
+          logoSvg: "<svg></svg>",
+          icons,
+        }),
+      ).not.toThrow();
+      expect(EXAMPLE_FILES).toContain(outputPathFor(file, ".png"));
+    },
+  );
+});

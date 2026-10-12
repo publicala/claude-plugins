@@ -12,6 +12,12 @@
       "description": "Keeps CLAUDE.md files deliberately small and shaped: intake records verified evidence from PR reviews, feed grows rules from observed patterns, bake converts them into automated checks, audit prunes with evidence, split moves rules to the scope that reads them.",
       "source": "./plugins/bonsai",
       "homepage": "https://github.com/publicala/claude-plugins/tree/main/plugins/bonsai"
+    },
+    {
+      "name": "blueprint",
+      "description": "Blueprint, publica.la's house style for engineering visuals: diagram renders standalone figures, spec sheets, social cards and slides to PNG and PDF from small HTML sources, with checks that refuse a broken figure.",
+      "source": "./plugins/blueprint",
+      "homepage": "https://github.com/publicala/claude-plugins/tree/main/plugins/blueprint"
     }
   ]
 }
