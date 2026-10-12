@@ -1,4 +1,12 @@
-import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  setDefaultTimeout,
+  spyOn,
+  test,
+} from "bun:test";
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +15,9 @@ import sharp from "sharp";
 
 import { main } from "./render";
 import { findChrome, launchBrowser, openPage, renderFigure } from "./renderer";
+
+// Chrome starts and renders slower on CI's macOS runners than Bun's 5 s default.
+setDefaultTimeout(30_000);
 
 const EXAMPLES = join(import.meta.dir, "../skills/diagram/examples");
 const EXAMPLE_SOURCES = (await readdir(EXAMPLES)).filter((file) =>
@@ -47,22 +58,39 @@ describe("findChrome", () => {
   test.each([
     "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
     "chrome-win64/chrome.exe",
-  ])(
-    "finds Playwright's Chrome for Testing at %p in the Windows cache",
-    async (binary) => {
-      const appData = await mkdtemp(join(tmpdir(), "local-app-data-"));
-      const path = join(appData, "ms-playwright/chromium-1200", binary);
+  ])("finds Playwright's Chrome for Testing at %p", async (binary) => {
+    const dir = await mkdtemp(join(tmpdir(), "playwright-"));
+    const path = join(dir, "chromium-1200", binary);
 
-      try {
-        await mkdir(join(path, ".."), { recursive: true });
-        await Bun.write(path, "");
+    try {
+      await mkdir(join(path, ".."), { recursive: true });
+      await Bun.write(path, "");
 
-        expect(findChrome({ LOCALAPPDATA: appData })).toBe(path);
-      } finally {
-        await rm(appData, { recursive: true, force: true });
-      }
-    },
-  );
+      expect(findChrome({ PLAYWRIGHT_BROWSERS_PATH: dir })).toBe(path);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("looks in Playwright's Windows cache after every other place", async () => {
+    const appData = await mkdtemp(join(tmpdir(), "local-app-data-"));
+    const path = join(
+      appData,
+      "ms-playwright/chromium-1200/chrome-win64/chrome.exe",
+    );
+
+    try {
+      await mkdir(join(path, ".."), { recursive: true });
+      await Bun.write(path, "");
+
+      // A machine with Chrome installed finds that one first.
+      expect(findChrome({ LOCALAPPDATA: appData })).toBe(
+        findChrome({}) ?? path,
+      );
+    } finally {
+      await rm(appData, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("launchBrowser", () => {
