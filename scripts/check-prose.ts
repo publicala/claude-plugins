@@ -47,11 +47,7 @@ const RULES: Rule[] = [
 ];
 
 /**
- * Collects the text a reader sees as prose, in document order. Each text
- * node renders as a numbered marker, and code, code spans and HTML blocks
- * drop the markers of the text inside them. Inline HTML tags arrive as
- * text, so the text between an inline code tag and its closing tag drops
- * here.
+ * Collects the text a reader sees as prose, in document order.
  */
 export function proseFragments(markdown: string): string[] {
   const texts: string[] = [];
@@ -64,16 +60,17 @@ export function proseFragments(markdown: string): string[] {
   });
 
   const prose: string[] = [];
-  let insideCode = 0;
+  let codeDepth = 0;
 
   for (const [, index] of rendered.matchAll(/\uE000(\d+)\uE001/g)) {
     const text = texts[Number(index)] ?? "";
 
+    // Inline HTML tags arrive as text nodes, so code tags are tracked here.
     if (CODE_OPEN.test(text)) {
-      insideCode++;
+      codeDepth++;
     } else if (CODE_CLOSE.test(text)) {
-      insideCode = Math.max(0, insideCode - 1);
-    } else if (insideCode === 0) {
+      codeDepth = Math.max(0, codeDepth - 1);
+    } else if (codeDepth === 0) {
       prose.push(text);
     }
   }

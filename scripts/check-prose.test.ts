@@ -91,7 +91,7 @@ describe("findProseProblems", () => {
     ]);
   });
 
-  test("catches a character written as an entity, on the line before it", () => {
+  test("reports a character written as an entity on the line where the text before it ends", () => {
     expect(findProseProblems("First line.\n\nSee &#8212; here.")).toEqual([
       "line 3 has an em dash. Use parentheses or split the sentence.",
     ]);
