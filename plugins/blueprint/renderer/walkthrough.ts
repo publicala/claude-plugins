@@ -81,24 +81,33 @@ export function findTimingProblems({ duration, fade, scenes }: Timing): {
   const problems: string[] = [];
   const warnings: string[] = [];
 
-  scenes.forEach(({ title, start, end, settled, words }, index) => {
-    const name = `Scene ${index + 1} ("${title}")`;
-    const length = end - start;
-    const still = index === scenes.length - 1 ? length : length - fade;
-    const pace = words / length;
+  scenes.forEach(
+    ({ title, start, end, settled, words, invalidDuration }, index) => {
+      const name = `Scene ${index + 1} ("${title}")`;
 
-    if (settled > still) {
-      problems.push(
-        `${name} is still moving at ${settled.toFixed(2)} s, after it starts fading out at ${still.toFixed(2)} s. Bring the reveals forward or lengthen the scene.`,
-      );
-    }
+      if (invalidDuration !== null) {
+        problems.push(
+          `${name} has data-duration="${invalidDuration}". Write a number of seconds above zero, such as 6.`,
+        );
+      }
 
-    if (pace > WORDS_PER_SECOND) {
-      warnings.push(
-        `${name} has ${words} words for ${length} s (${pace.toFixed(1)} a second). Viewers read about 4 a second: cut words or give it more time.`,
-      );
-    }
-  });
+      const length = end - start;
+      const still = index === scenes.length - 1 ? length : length - fade;
+      const pace = words / length;
+
+      if (settled > still) {
+        problems.push(
+          `${name} is still moving at ${settled.toFixed(2)} s, after it starts fading out at ${still.toFixed(2)} s. Bring the reveals forward or lengthen the scene.`,
+        );
+      }
+
+      if (pace > WORDS_PER_SECOND) {
+        warnings.push(
+          `${name} has ${words} words for ${length} s (${pace.toFixed(1)} a second). Viewers read about 4 a second: cut words or give it more time.`,
+        );
+      }
+    },
+  );
 
   if (duration > LONGEST) {
     warnings.push(

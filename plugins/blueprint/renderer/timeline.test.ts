@@ -86,6 +86,39 @@ describe("installTimeline", () => {
   });
 });
 
+describe("scene durations", () => {
+  test("fall back to five seconds, and name what they refuse", () => {
+    window.document.body.innerHTML = [
+      "Infinity",
+      "-2",
+      "6s",
+      "",
+      "1e309",
+      "2.5",
+    ]
+      .map(
+        (written) =>
+          `<section class="scene" data-duration="${written}"></section>`,
+      )
+      .join("");
+    installTimeline();
+
+    expect(
+      walkthrough().scenes.map(({ end, invalidDuration }) => ({
+        end,
+        invalidDuration,
+      })),
+    ).toEqual([
+      { end: 5, invalidDuration: "Infinity" },
+      { end: 10, invalidDuration: "-2" },
+      { end: 15, invalidDuration: "6s" },
+      { end: 20, invalidDuration: "" },
+      { end: 25, invalidDuration: "1e309" },
+      { end: 27.5, invalidDuration: null },
+    ]);
+  });
+});
+
 describe("render", () => {
   test("fades scenes in and out and names the one on screen", () => {
     walkthrough().render(0.2);

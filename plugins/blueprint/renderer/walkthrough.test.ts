@@ -29,6 +29,7 @@ const scene = (overrides: Partial<SceneTiming> = {}): SceneTiming => ({
   end: 5,
   settled: 2,
   words: 10,
+  invalidDuration: null,
   ...overrides,
 });
 
@@ -64,6 +65,18 @@ describe("findTimingProblems", () => {
     expect(
       findTimingProblems({ duration: 0, fade: 0.4, scenes: [] }).problems[0],
     ).toStartWith("The walkthrough has no scenes.");
+  });
+
+  test("refuses a duration that is not a number of seconds above zero", () => {
+    expect(
+      findTimingProblems({
+        duration: 5,
+        fade: 0.4,
+        scenes: [scene({ title: "Forever", invalidDuration: "Infinity" })],
+      }).problems,
+    ).toEqual([
+      'Scene 1 ("Forever") has data-duration="Infinity". Write a number of seconds above zero, such as 6.',
+    ]);
   });
 
   test("refuses a scene still moving once it fades, and warns about pace and length", () => {

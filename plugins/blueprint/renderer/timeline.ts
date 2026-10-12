@@ -11,6 +11,8 @@ export interface SceneTiming {
   /** Seconds after the scene starts when its last element is in place. */
   settled: number;
   words: number;
+  /** A data-duration that is not a number of seconds above zero, as written. */
+  invalidDuration: string | null;
 }
 
 export interface Walkthrough {
@@ -35,13 +37,23 @@ export function installTimeline(): void {
   const seconds = (value: string | undefined) =>
     Number.parseFloat(value ?? "0") || 0;
 
+  // A scene lasts 5 s when it sets no duration, or one the checks refuse.
   let cursor = 0;
   const scenes = [...document.querySelectorAll(".scene")].map((element) => {
     const start = cursor;
+    const written = element.dataset.duration;
+    const length = written === undefined ? 5 : Number(written);
+    const valid = Number.isFinite(length) && length > 0;
 
-    cursor += seconds(element.dataset.duration) || 5;
+    cursor += valid ? length : 5;
 
-    return { element, title: element.dataset.title ?? "", start, end: cursor };
+    return {
+      element,
+      title: element.dataset.title ?? "",
+      start,
+      end: cursor,
+      invalidDuration: valid ? null : (written ?? null),
+    };
   });
   const duration = cursor;
 
@@ -169,10 +181,11 @@ export function installTimeline(): void {
   window.walkthrough = {
     duration,
     fade: FADE,
-    scenes: scenes.map(({ element, title, start, end }) => ({
+    scenes: scenes.map(({ element, title, start, end, invalidDuration }) => ({
       title,
       start,
       end,
+      invalidDuration,
       settled: Math.max(
         0,
         ...motions
