@@ -10,7 +10,7 @@ import {
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Browser } from "puppeteer-core";
+import puppeteer, { type Browser } from "puppeteer-core";
 import sharp from "sharp";
 
 import { main } from "./render";
@@ -68,6 +68,25 @@ describe("findChrome", () => {
 
       expect(findChrome({ PLAYWRIGHT_BROWSERS_PATH: dir })).toBe(path);
     } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("goes on to the other places when puppeteer finds no Google Chrome", async () => {
+    const lookup = spyOn(puppeteer, "executablePath").mockImplementation(() => {
+      throw new Error("Could not find Chrome");
+    });
+    const dir = await mkdtemp(join(tmpdir(), "playwright-"));
+    const path = join(dir, "chromium-1200/chrome-linux/chrome");
+
+    try {
+      await mkdir(join(path, ".."), { recursive: true });
+      await Bun.write(path, "");
+
+      expect(findChrome({ PLAYWRIGHT_BROWSERS_PATH: dir })).toBe(path);
+      expect(lookup).toHaveBeenCalledWith("chrome");
+    } finally {
+      lookup.mockRestore();
       await rm(dir, { recursive: true, force: true });
     }
   });
