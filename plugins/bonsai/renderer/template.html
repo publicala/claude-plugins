@@ -10,40 +10,16 @@
   /*__BLUEPRINT_TOKENS__*/
   :root {
     --sunk: color-mix(in srgb, var(--hair) 60%, var(--surface));
-    --accent-ink: #ffffff;
-    --del-bg: #fbe8e5;
-    --del-ink: #8a2a1e;
-    --del-mark: #f3bfb5;
-    --ins-bg: #e2f1e6;
-    --ins-ink: #1b5631;
-    --ins-mark: #acdab9;
-    --call: #8a5600;
-    --call-bg: #fcf0d6;
+    --accent-ink: light-dark(#ffffff, #0e1424);
+    --del-bg: light-dark(#fbe8e5, #371c19);
+    --del-ink: light-dark(#8a2a1e, #f1b2a7);
+    --del-mark: light-dark(#f3bfb5, #6a2a21);
+    --ins-bg: light-dark(#e2f1e6, #142c1d);
+    --ins-ink: light-dark(#1b5631, #a8dcb6);
+    --ins-mark: light-dark(#acdab9, #2a5c3a);
+    --call: light-dark(#8a5600, #f0c46b);
+    --call-bg: light-dark(#fcf0d6, #30260f);
     --dock-h: 76px;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --accent-ink: #0e1424;
-      --del-bg: #371c19;
-      --del-ink: #f1b2a7;
-      --del-mark: #6a2a21;
-      --ins-bg: #142c1d;
-      --ins-ink: #a8dcb6;
-      --ins-mark: #2a5c3a;
-      --call: #f0c46b;
-      --call-bg: #30260f;
-    }
-  }
-  :root[data-theme="dark"] {
-    --accent-ink: #0e1424;
-    --del-bg: #371c19;
-    --del-ink: #f1b2a7;
-    --del-mark: #6a2a21;
-    --ins-bg: #142c1d;
-    --ins-ink: #a8dcb6;
-    --ins-mark: #2a5c3a;
-    --call: #f0c46b;
-    --call-bg: #30260f;
   }
 
   * {
