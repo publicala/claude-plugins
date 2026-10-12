@@ -266,6 +266,22 @@ describe.skipIf(!findChrome())("in Chrome", () => {
     }
   });
 
+  test("checks each scene without the others", async () => {
+    const accents = await write(
+      "accents",
+      walkthrough(
+        '<section class="scene" data-title="One"><div class="node accent"><div class="h">One</div></div></section><section class="scene" data-title="Two"><div class="node accent"><div class="h">Two</div></div></section>',
+      ),
+    );
+    const log = spyOn(console, "log").mockImplementation(() => undefined);
+
+    try {
+      expect(await main([accents])).toBe(0);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   test("names a broken source", async () => {
     const broken = await write("broken", "<div>No canvas</div>");
     const error = spyOn(console, "error").mockImplementation(() => undefined);

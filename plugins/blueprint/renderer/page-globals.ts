@@ -40,20 +40,24 @@ export interface PageElement {
   contains(other: PageElement): boolean;
 }
 
+export type PageText = Pick<PageElement, "parentElement" | "textContent">;
+
 export interface PageDocument {
   querySelector(selectors: string): PageElement | null;
   querySelectorAll(selectors: string): Iterable<PageElement>;
-  createTreeWalker(
+  createTreeWalker<Node extends PageText>(
     root: PageElement,
     whatToShow: number,
+    filter?: (node: Node) => number,
   ): {
-    nextNode(): unknown;
-    readonly currentNode: Pick<PageElement, "parentElement" | "textContent">;
+    nextNode(): Node | null;
+    readonly currentNode: Node;
   };
   readonly fonts: Iterable<{ status: string; family: string; weight: string }>;
 }
 
 export interface ComputedStyle {
+  display: string;
   textTransform: string;
   fontSize: string;
   lineHeight: string;

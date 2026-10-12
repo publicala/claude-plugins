@@ -2,10 +2,20 @@
 // one into the page, so they stay self-contained: no runtime imports and
 // no references to module scope.
 import type { Measurement } from "./checks";
-import type { ComputedStyle, PageDocument, PageElement } from "./page-globals";
+import type {
+  ComputedStyle,
+  PageDocument,
+  PageElement,
+  PageText,
+} from "./page-globals";
 
 declare const document: PageDocument;
-declare const NodeFilter: { readonly SHOW_TEXT: number };
+declare const NodeFilter: {
+  readonly SHOW_ELEMENT: number;
+  readonly SHOW_TEXT: number;
+  readonly FILTER_ACCEPT: number;
+  readonly FILTER_REJECT: number;
+};
 declare function getComputedStyle(element: PageElement): ComputedStyle;
 
 export function measureFigure(): Measurement {
@@ -15,17 +25,40 @@ export function measureFigure(): Measurement {
     throw new Error("The page has no canvas.");
   }
 
-  const elements = [canvas, ...canvas.querySelectorAll("*")];
+  // A hidden element leaves out everything inside it, so the checks judge
+  // only what shows, such as the one scene a walkthrough isolates.
+  const rendered = document.createTreeWalker<PageElement>(
+    canvas,
+    NodeFilter.SHOW_ELEMENT,
+    (element) =>
+      getComputedStyle(element).display === "none"
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT,
+  );
+  const elements = [canvas];
+
+  while (rendered.nextNode()) {
+    elements.push(rendered.currentNode);
+  }
+
   const indexOf = new Map(elements.map((element, index) => [element, index]));
 
   const texts: Measurement["texts"] = [];
-  const walker = document.createTreeWalker(canvas, NodeFilter.SHOW_TEXT);
+  const walker = document.createTreeWalker<PageText>(
+    canvas,
+    NodeFilter.SHOW_TEXT,
+  );
 
   while (walker.nextNode()) {
     const parent = walker.currentNode.parentElement ?? canvas;
+    const element = indexOf.get(parent);
+
+    if (element === undefined) {
+      continue;
+    }
 
     texts.push({
-      element: indexOf.get(parent) ?? 0,
+      element,
       text: walker.currentNode.textContent ?? "",
       uppercase: getComputedStyle(parent).textTransform === "uppercase",
       quoted: parent.closest("code, .quote") !== null,
