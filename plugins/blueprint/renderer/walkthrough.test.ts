@@ -7,7 +7,7 @@ import {
   spyOn,
   test,
 } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Browser } from "puppeteer-core";
@@ -354,6 +354,42 @@ describe.skipIf(!findChrome())("in Chrome", () => {
       );
     } finally {
       log.mockRestore();
+    }
+  });
+
+  test("pipes every frame to ffmpeg, and names an encoder that fails", async () => {
+    const short = await write(
+      "piped",
+      walkthrough(
+        '<section class="scene" data-duration="0.5" data-title="Short"><div class="callout">Short</div></section>',
+      ),
+    );
+    // A stand-in for ffmpeg, so the encoding path runs where ffmpeg is missing.
+    const encoder = join(workDir, "ffmpeg");
+    const which = spyOn(Bun, "which").mockReturnValue(encoder);
+    const log = spyOn(console, "log").mockImplementation(() => undefined);
+    const error = spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      await Bun.write(
+        encoder,
+        '#!/bin/sh\ncat > /dev/null\nfor last; do :; done\n: > "$last"\n',
+      );
+      await chmod(encoder, 0o755);
+      expect(await main([short, "--video"])).toBe(0);
+      expect(log.mock.calls.flat().join("\n")).toContain(
+        "piped.mp4 (15 frames, 1920x1080, 30 fps)",
+      );
+
+      await Bun.write(encoder, "#!/bin/sh\ncat > /dev/null\nexit 1\n");
+      expect(await main([short, "--video"])).toBe(1);
+      expect(String(error.mock.calls.at(-1)?.[0])).toContain(
+        "ffmpeg could not encode",
+      );
+    } finally {
+      which.mockRestore();
+      log.mockRestore();
+      error.mockRestore();
     }
   });
 
