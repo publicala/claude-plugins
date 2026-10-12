@@ -6,12 +6,14 @@
 // --player a self-contained page that plays it, and --at a still.
 import { spawn } from "node:child_process";
 import { relative, resolve } from "node:path";
+import { parseArgs } from "node:util";
 import type { Browser, Page } from "puppeteer-core";
 import sharp from "sharp";
 
 import { findFigureProblems } from "./checks";
 import { measureFigure } from "./measure";
-import { buildFigurePage, launchBrowser } from "./renderer";
+import { outputPathFor } from "./page";
+import { buildFigurePage, launchBrowser, openPage } from "./renderer";
 import { installTimeline, isolateScene, type SceneTiming } from "./timeline";
 
 const SOURCE_SUFFIX = ".walkthrough.html";
@@ -30,16 +32,6 @@ const USAGE =
 export interface Timing {
   duration: number;
   scenes: SceneTiming[];
-}
-
-export function outputPathFor(sourcePath: string, suffix: string): string {
-  if (!sourcePath.endsWith(SOURCE_SUFFIX)) {
-    throw new Error(
-      `Walkthrough sources end in ${SOURCE_SUFFIX}, got: ${sourcePath}`,
-    );
-  }
-
-  return sourcePath.slice(0, -SOURCE_SUFFIX.length) + suffix;
 }
 
 export async function buildWalkthroughPage(
@@ -119,7 +111,7 @@ export function findTimingProblems({ duration, scenes }: Timing): {
   return { problems, warnings };
 }
 
-export interface OpenWalkthrough {
+interface OpenWalkthrough {
   page: Page;
   timing: Timing;
 }
@@ -129,18 +121,11 @@ export async function openWalkthrough(
   sourcePath: string,
 ): Promise<OpenWalkthrough> {
   const html = await buildWalkthroughPage(await Bun.file(sourcePath).text());
-  const page = await browser.newPage();
-
-  await page.setViewport({
+  const page = await openPage(browser, html, {
     width: WIDTH,
     height: HEIGHT,
-    deviceScaleFactor: SCALE,
+    scale: SCALE,
   });
-  await page.emulateMediaFeatures([
-    { name: "prefers-color-scheme", value: "light" },
-  ]);
-  await page.setContent(html, { waitUntil: "load" });
-  await page.evaluate("document.fonts.ready");
 
   const timing = (await page.evaluate(
     "({ duration: walkthrough.duration, scenes: walkthrough.scenes })",
@@ -153,7 +138,7 @@ function lastFullFrameAt(scene: SceneTiming): number {
   return scene.fadesOutAt - 0.01;
 }
 
-export async function findSceneProblems({
+async function findSceneProblems({
   page,
   timing,
 }: OpenWalkthrough): Promise<string[]> {
@@ -188,7 +173,7 @@ async function frameAt(page: Page, t: number): Promise<Uint8Array> {
   });
 }
 
-export async function writeContactSheet(
+async function writeContactSheet(
   { page, timing }: OpenWalkthrough,
   path: string,
 ): Promise<void> {
@@ -219,14 +204,6 @@ export async function writeContactSheet(
     .composite(tiles)
     .png()
     .toFile(path);
-}
-
-export async function writeStill(
-  { page }: OpenWalkthrough,
-  t: number,
-  path: string,
-): Promise<void> {
-  await Bun.write(path, await frameAt(page, t));
 }
 
 export async function writeVideo(
@@ -278,37 +255,52 @@ interface Options {
   stills: number[];
 }
 
+function parseCommandLine(args: string[]) {
+  try {
+    return parseArgs({
+      args,
+      allowPositionals: true,
+      options: {
+        video: { type: "boolean", default: false },
+        player: { type: "boolean", default: false },
+        at: { type: "string", multiple: true, default: [] },
+      },
+    });
+  } catch (error) {
+    return `${(error as Error).message}\n${USAGE}`;
+  }
+}
+
 export function parseArguments(args: string[]): Options | string {
-  const options: Options = {
-    source: "",
-    video: false,
-    player: false,
-    stills: [],
-  };
+  const commandLine = parseCommandLine(args);
 
-  for (let index = 0; index < args.length; index++) {
-    const arg = args[index] ?? "";
-
-    if (arg === "--video" || arg === "--player") {
-      options[arg === "--video" ? "video" : "player"] = true;
-    } else if (arg === "--at") {
-      const seconds = Number(args[++index]);
-
-      if (!Number.isFinite(seconds) || seconds < 0) {
-        return `--at takes a time in seconds, such as --at 12.5.\n${USAGE}`;
-      }
-
-      options.stills.push(seconds);
-    } else if (arg.startsWith("--")) {
-      return `Unknown option ${arg}.\n${USAGE}`;
-    } else if (options.source === "") {
-      options.source = resolve(arg);
-    } else {
-      return `Render one walkthrough at a time.\n${USAGE}`;
-    }
+  if (typeof commandLine === "string") {
+    return commandLine;
   }
 
-  return options.source === "" ? USAGE : options;
+  const { values, positionals } = commandLine;
+  const stills = values.at.map(Number);
+
+  if (stills.some((seconds) => !Number.isFinite(seconds) || seconds < 0)) {
+    return `--at takes a time in seconds, such as --at 12.5.\n${USAGE}`;
+  }
+
+  if (positionals.length > 1) {
+    return `Render one walkthrough at a time.\n${USAGE}`;
+  }
+
+  const [source] = positionals;
+
+  if (source === undefined) {
+    return USAGE;
+  }
+
+  return {
+    source: resolve(source),
+    video: values.video,
+    player: values.player,
+    stills,
+  };
 }
 
 export async function main(args: string[]): Promise<number> {
@@ -342,21 +334,29 @@ export async function main(args: string[]): Promise<number> {
     }
 
     const { scenes, duration } = walkthrough.timing;
-    const contact = outputPathFor(options.source, ".contact.png");
+    const contact = outputPathFor(
+      options.source,
+      SOURCE_SUFFIX,
+      ".contact.png",
+    );
 
     console.log(`${scenes.length} scenes, ${duration} s`);
     await writeContactSheet(walkthrough, contact);
     console.log(name(contact));
 
     for (const t of options.stills) {
-      const still = outputPathFor(options.source, `.${t}s.png`);
+      const still = outputPathFor(options.source, SOURCE_SUFFIX, `.${t}s.png`);
 
-      await writeStill(walkthrough, t, still);
+      await Bun.write(still, await frameAt(walkthrough.page, t));
       console.log(name(still));
     }
 
     if (options.player) {
-      const player = outputPathFor(options.source, ".player.html");
+      const player = outputPathFor(
+        options.source,
+        SOURCE_SUFFIX,
+        ".player.html",
+      );
 
       await Bun.write(
         player,
@@ -368,7 +368,7 @@ export async function main(args: string[]): Promise<number> {
     }
 
     if (options.video) {
-      const video = outputPathFor(options.source, ".mp4");
+      const video = outputPathFor(options.source, SOURCE_SUFFIX, ".mp4");
       const frames = await writeVideo(walkthrough, video);
 
       console.log(`${name(video)} (${frames} frames, 1920x1080, ${FPS} fps)`);

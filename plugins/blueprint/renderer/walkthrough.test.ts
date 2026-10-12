@@ -12,7 +12,6 @@ import {
   findTimingProblems,
   main,
   openWalkthrough,
-  outputPathFor,
   parseArguments,
   writeVideo,
 } from "./walkthrough";
@@ -35,20 +34,6 @@ const scene = (overrides: Partial<SceneTiming> = {}): SceneTiming => ({
 
 const walkthrough = (scenes: string) =>
   `<div class="canvas" data-size="video"><main class="stage">${scenes}</main><footer class="colophon"><span data-fig></span><i class="progress"></i></footer></div>`;
-
-describe("outputPathFor", () => {
-  test("swaps the source suffix", () => {
-    expect(outputPathFor("talk/fix.walkthrough.html", ".mp4")).toBe(
-      "talk/fix.mp4",
-    );
-  });
-
-  test("refuses a file that is not a walkthrough source", () => {
-    expect(() => outputPathFor("talk/fix.html", ".mp4")).toThrow(
-      /\.walkthrough\.html/,
-    );
-  });
-});
 
 describe("findTimingProblems", () => {
   test("passes scenes that settle before they fade and read at a calm pace", () => {
@@ -131,7 +116,8 @@ describe("parseArguments", () => {
   test.each([
     [[], /^Usage/],
     [["a.walkthrough.html", "--at", "soon"], /^--at takes a time in seconds/],
-    [["a.walkthrough.html", "--gif"], /^Unknown option --gif\./],
+    [["a.walkthrough.html", "--gif"], /^Unknown option '--gif'\./],
+    [["a.walkthrough.html", "--at"], /^Option '--at <value>' argument missing/],
     [
       ["a.walkthrough.html", "b.walkthrough.html"],
       /^Render one walkthrough at a time\./,
@@ -146,7 +132,7 @@ describe("parseArguments", () => {
     try {
       expect(await main(["--gif"])).toBe(1);
       expect(String(error.mock.calls[0]?.[0])).toStartWith(
-        "Unknown option --gif.",
+        "Unknown option '--gif'.",
       );
     } finally {
       error.mockRestore();
@@ -320,11 +306,9 @@ describe.skipIf(!findChrome())("in Chrome", () => {
     const opened = await openWalkthrough(browser, EXAMPLE);
 
     try {
-      const error = (await writeVideo(opened, join(workDir, "none.mp4")).catch(
-        (caught: unknown) => caught,
-      )) as Error;
-
-      expect(error.message).toStartWith("Unable to find ffmpeg");
+      expect(writeVideo(opened, join(workDir, "none.mp4"))).rejects.toThrow(
+        "Unable to find ffmpeg",
+      );
     } finally {
       which.mockRestore();
       await opened.page.close();
