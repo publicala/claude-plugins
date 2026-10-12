@@ -110,6 +110,15 @@ describe("buildPage", () => {
     expect(html).toContain('<svg id="logo"></svg>');
   });
 
+  test("drops every comment, also one that removing another would rebuild", () => {
+    const html = page(
+      '<!-- sources --><div class="canvas"><!<!-- x -->-- y --></div>',
+    );
+
+    expect(html).not.toContain("sources");
+    expect(html).toContain('<div class="canvas">-- y --></div>');
+  });
+
   test("accepts a canvas with more classes", () => {
     expect(() => page("<div class='figure canvas'></div>")).not.toThrow();
   });

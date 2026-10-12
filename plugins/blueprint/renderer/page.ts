@@ -2,7 +2,6 @@
 // is the markup of one `.canvas` element. The page carries the stylesheet,
 // the fonts, the logo and every icon inline.
 
-const COMMENT = /<!--[\s\S]*?-->/g;
 const ICON_TAG =
   /<i\b[^>]*?\bdata-icon\s*=\s*(["'])([^"']*)\1[^>]*?\/?>(?:\s*<\/i\s*>)?/g;
 const LOGO_TAG = /<i\b[^>]*?\bdata-logo\b[^>]*?\/?>(?:\s*<\/i\s*>)?/g;
@@ -58,6 +57,18 @@ interface PageParts {
   icons: ReadonlyMap<string, string>;
 }
 
+// The HTML parser removes each comment whole. Stripping them with a pattern
+// can join two halves into a new one.
+function withoutComments(source: string): string {
+  return new HTMLRewriter()
+    .onDocument({
+      comments: (comment) => {
+        comment.remove();
+      },
+    })
+    .transform(source);
+}
+
 export function buildPage({
   source,
   stylesheet,
@@ -65,7 +76,7 @@ export function buildPage({
   logoSvg,
   icons,
 }: PageParts): string {
-  const markup = source.replace(COMMENT, "");
+  const markup = withoutComments(source);
   const canvases = markup.match(CANVAS_ELEMENT) ?? [];
 
   if (canvases.length !== 1) {
