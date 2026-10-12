@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
-// Fails when the prose in a Markdown file breaks a writing rule from
-// CLAUDE.md that a pattern can catch. Code, code spans, HTML and link
-// destinations are not prose, so they never count.
+// Fails when the prose in a Markdown file breaks a writing rule that a
+// pattern can catch. Code, code spans, HTML and link destinations are
+// not prose, so they never count.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 

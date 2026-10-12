@@ -1,6 +1,5 @@
 # CI for a skill repo: Markdown, YAML and JSON, plus the TypeScript scripts
-# that run on Bun (the bonsai page renderer, the plugin validation and the
-# prose check).
+# that run on Bun.
 #
 # Gate jobs feed a single `ci-success` aggregate. Make `ci-success` the required
 # status check in branch protection, so adding or renaming a gate never touches

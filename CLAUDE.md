@@ -12,7 +12,7 @@ Publica.la's public marketplace of Claude Code plugins. Anyone can install what 
 
 ## Writing
 
-For every Markdown file here. `bun run check:prose` catches the mechanical rules (em dashes, semicolons, curly quotes, stock phrases) and names the fix. These need judgment:
+For every Markdown file here. `bun run check:prose` catches the mechanical rules and names the fix. These need judgment:
 
 - Direct, practical, concise. Start from the problem or the constraint, state the tradeoff and the opinion, and let code, facts and numbers carry the detail.
 - Cut what reads like vendor docs or an AI tutorial: concepts the reader already knows, a tutorial where the fix is enough, generic best practices, hedging.
