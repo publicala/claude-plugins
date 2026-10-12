@@ -72,9 +72,18 @@ describe("findChrome", () => {
     }
   });
 
-  test("goes on to the other places when Google Chrome is not where puppeteer expects it", async () => {
-    const lookup = spyOn(puppeteer, "executablePath").mockResolvedValue(
-      "/nowhere/google-chrome",
+  test.each([
+    [
+      "Google Chrome is not where puppeteer expects it",
+      () => Promise.resolve("/nowhere/google-chrome"),
+    ],
+    [
+      "puppeteer cannot name a path",
+      () => Promise.reject(new Error("Unsupported platform")),
+    ],
+  ])("goes on to the other places when %s", async (_, lookupResult) => {
+    const lookup = spyOn(puppeteer, "executablePath").mockImplementation(
+      lookupResult,
     );
     const dir = await mkdtemp(join(tmpdir(), "playwright-"));
     const path = join(dir, "chromium-1200/chrome-linux/chrome");
