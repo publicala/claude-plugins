@@ -9,18 +9,20 @@ const ROOT = join(import.meta.dir, "..");
 
 export const ICONS_JSON = join(ROOT, "plugins/blueprint/assets/icons.json");
 
-export function lucideIconsDir(): string {
+function lucideIconsDir(): string {
   return join(
     dirname(Bun.resolveSync("lucide-static/package.json", ROOT)),
     "icons",
   );
 }
 
-export function innerSvg(svg: string): string {
+export function innerSvg(svg: string, file: string): string {
   const inner = /<svg\b[^>]*>([\s\S]*)<\/svg>/.exec(svg)?.[1];
 
   if (inner === undefined) {
-    throw new Error("Unable to read the icon: the file has no <svg> element.");
+    throw new Error(
+      `Unable to read the icon ${file}: it has no <svg> element.`,
+    );
   }
 
   return inner.replace(/\s*\n\s*/g, "");
@@ -36,6 +38,7 @@ export async function iconsJson(iconsDir = lucideIconsDir()): Promise<string> {
   for (const file of files) {
     icons[file.slice(0, -".svg".length)] = innerSvg(
       await Bun.file(join(iconsDir, file)).text(),
+      file,
     );
   }
 

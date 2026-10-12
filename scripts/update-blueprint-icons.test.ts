@@ -10,12 +10,15 @@ describe("innerSvg", () => {
     expect(
       innerSvg(
         '<svg viewBox="0 0 24 24">\n  <path d="M1 1" />\n  <circle r="2" />\n</svg>\n',
+        "dot.svg",
       ),
     ).toBe('<path d="M1 1" /><circle r="2" />');
   });
 
-  test("refuses a file without an svg element", () => {
-    expect(() => innerSvg('<path d="M0 0"/>')).toThrow(/no <svg> element/);
+  test("refuses a file without an svg element, and names it", () => {
+    expect(() => innerSvg('<path d="M0 0"/>', "broken.svg")).toThrow(
+      "Unable to read the icon broken.svg: it has no <svg> element.",
+    );
   });
 });
 
