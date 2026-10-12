@@ -221,7 +221,7 @@ describe.skipIf(!findChrome())("command line", () => {
 
 describe("command line arguments", () => {
   test.each([
-    [["--png"], "Unknown option --png. The only option is --pdf."],
+    [["--png"], "Unknown option '--png'."],
     [
       [],
       "Usage: bun render.ts <figure.diagram.html> [more.diagram.html] [--pdf]",
@@ -231,7 +231,7 @@ describe("command line arguments", () => {
 
     try {
       expect(await main(args)).toBe(1);
-      expect(error.mock.calls[0]?.[0]).toBe(message);
+      expect(error.mock.calls[0]?.[0]).toStartWith(message);
     } finally {
       error.mockRestore();
     }

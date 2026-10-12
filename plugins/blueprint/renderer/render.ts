@@ -4,27 +4,37 @@
 // lands next to its source at 2x, cropped to the canvas. Set CHROME_PATH
 // when Chrome is not in a standard location.
 import { relative, resolve } from "node:path";
+import { parseArgs } from "node:util";
 
 import { launchBrowser, renderFigure } from "./renderer";
 
 const USAGE =
   "Usage: bun render.ts <figure.diagram.html> [more.diagram.html] [--pdf]";
 
+function parseCommandLine(args: string[]) {
+  try {
+    return parseArgs({
+      args,
+      allowPositionals: true,
+      options: { pdf: { type: "boolean", default: false } },
+    });
+  } catch (error) {
+    console.error(`${(error as Error).message}\n${USAGE}`);
+
+    return null;
+  }
+}
+
 export async function main(args: string[]): Promise<number> {
-  const options = args.filter((arg) => arg.startsWith("--"));
-  const sources = args
-    .filter((arg) => !arg.startsWith("--"))
-    .map((arg) => resolve(arg));
-  const unknownOption = options.find((option) => option !== "--pdf");
+  const commandLine = parseCommandLine(args);
 
-  if (unknownOption) {
-    console.error(`Unknown option ${unknownOption}. The only option is --pdf.`);
-    console.error(USAGE);
-
+  if (commandLine === null) {
     return 1;
   }
 
-  if (sources.length === 0) {
+  const { values, positionals } = commandLine;
+
+  if (positionals.length === 0) {
     console.error(USAGE);
 
     return 1;
@@ -34,10 +44,10 @@ export async function main(args: string[]): Promise<number> {
   let exitCode = 0;
 
   try {
-    for (const sourcePath of sources) {
+    for (const sourcePath of positionals.map((source) => resolve(source))) {
       try {
         const written = await renderFigure(browser, sourcePath, {
-          pdf: options.includes("--pdf"),
+          pdf: values.pdf,
         });
 
         for (const file of written) {

@@ -14,11 +14,8 @@ import { buildPage, outputPathFor } from "./page";
 
 const SCALE = 2;
 
-const CHROME_PATHS = [
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+const CHROMIUM_PATHS = [
   "/Applications/Chromium.app/Contents/MacOS/Chromium",
-  "/usr/bin/google-chrome",
-  "/usr/bin/google-chrome-stable",
   "/usr/bin/chromium",
   "/usr/bin/chromium-browser",
 ];
@@ -30,8 +27,9 @@ const PLAYWRIGHT_CHROMIUM = [
 ];
 
 /**
- * The Chrome binary to render with. An explicit CHROME_PATH or
- * PLAYWRIGHT_BROWSERS_PATH wins over the usual install locations.
+ * The Chrome binary to render with. CHROME_PATH, when set, is the only
+ * candidate. Otherwise PLAYWRIGHT_BROWSERS_PATH comes first, then the
+ * usual install locations, then Playwright's default caches.
  */
 export function findChrome(
   env: Record<string, string | undefined> = process.env,
@@ -42,12 +40,22 @@ export function findChrome(
 
   const candidates = [
     ...playwrightChromium(env.PLAYWRIGHT_BROWSERS_PATH),
-    ...CHROME_PATHS,
+    ...googleChrome(),
+    ...CHROMIUM_PATHS,
     ...playwrightChromium(join(homedir(), ".cache/ms-playwright")),
     ...playwrightChromium(join(homedir(), "Library/Caches/ms-playwright")),
   ];
 
   return candidates.find((path) => existsSync(path)) ?? null;
+}
+
+// Puppeteer knows where Google Chrome installs on each system, and throws when it is not there.
+function googleChrome(): string[] {
+  try {
+    return [puppeteer.executablePath("chrome")];
+  } catch {
+    return [];
+  }
 }
 
 function playwrightChromium(dir: string | undefined): string[] {
