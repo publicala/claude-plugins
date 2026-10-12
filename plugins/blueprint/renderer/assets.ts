@@ -1,0 +1,51 @@
+// The files every figure inlines: the stylesheet, the fonts, the logo and
+// the icons. All of them ship with the plugin, so a render needs no network
+// and every machine draws the same glyphs.
+import { join } from "node:path";
+
+const ROOT = join(import.meta.dir, "..");
+
+const FONTS = [
+  { family: "Inter", file: "inter", weights: [400, 500, 600, 700] },
+  {
+    family: "JetBrains Mono",
+    file: "jetbrains-mono",
+    weights: [400, 500, 600],
+  },
+];
+
+export function readStylesheet(): Promise<string> {
+  return Bun.file(join(ROOT, "style/blueprint.css")).text();
+}
+
+export function readLogoSvg(): Promise<string> {
+  return Bun.file(join(ROOT, "assets/wordmark.svg")).text();
+}
+
+export async function readFontFaceCss(): Promise<string> {
+  const faces = await Promise.all(
+    FONTS.flatMap(({ family, file, weights }) =>
+      weights.map(async (weight) => {
+        const font = await Bun.file(
+          join(ROOT, `assets/fonts/${file}-latin-${weight}-normal.woff2`),
+        ).bytes();
+
+        return `@font-face{font-family:'${family}';font-style:normal;font-weight:${weight};font-display:block;src:url(data:font/woff2;base64,${Buffer.from(font).toString("base64")}) format('woff2')}`;
+      }),
+    ),
+  );
+
+  return faces.join("");
+}
+
+/**
+ * Lucide icons by name, from the map written
+ * by scripts/update-blueprint-icons.ts.
+ */
+export async function readLucideIcons(): Promise<Map<string, string>> {
+  const icons = (await Bun.file(
+    join(ROOT, "assets/icons.json"),
+  ).json()) as Record<string, string>;
+
+  return new Map(Object.entries(icons));
+}

@@ -1,0 +1,902 @@
+/*
+ * Figures render in the light colors. The dark ones serve pages that
+ * follow the reader's color mode.
+ */
+
+:root {
+  --ink: #111111;
+  --body: #4b5563;
+  --muted: #8a8f98;
+  --hair: #e4e4e7;
+  --hair-strong: #cfcfd4;
+  --paper: #fafafa;
+  --surface: #ffffff;
+  --dot: #e2e2e6;
+  --accent: #2563eb;
+  --accent-soft: #eff4ff;
+  --accent-hair: #d6e2ff;
+  --ok: #16a34a;
+  --warn: #d97706;
+  --sans: Inter, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --edge: 44px;
+  --gutter: 150px;
+  --hwire: 112px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #e4e4eb;
+    --body: #a0a0b0;
+    --muted: #6e6e7e;
+    --hair: #26262f;
+    --hair-strong: #3a3a46;
+    --paper: #101016;
+    --surface: #15151c;
+    --dot: #22222b;
+    --accent: #7aa2ff;
+    --accent-soft: #151d33;
+    --accent-hair: #2a3a66;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #e4e4eb;
+  --body: #a0a0b0;
+  --muted: #6e6e7e;
+  --hair: #26262f;
+  --hair-strong: #3a3a46;
+  --paper: #101016;
+  --surface: #15151c;
+  --dot: #22222b;
+  --accent: #7aa2ff;
+  --accent-soft: #151d33;
+  --accent-hair: #2a3a66;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  font-family: var(--sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+svg.icon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Canvas: the figure's outer frame. data-size picks the format. */
+
+.canvas {
+  width: 1600px;
+  padding-inline: var(--edge);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background-color: var(--surface);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: 10px 10px;
+}
+
+.canvas[data-size="narrow"] {
+  width: 1200px;
+}
+
+.canvas[data-size="og"] {
+  width: 1200px;
+  height: 630px;
+}
+
+.canvas[data-size="square"] {
+  width: 1080px;
+  height: 1080px;
+}
+
+.canvas[data-size="video"] {
+  --gutter: 200px;
+  width: 1280px;
+  height: 720px;
+}
+
+/* Masthead and colophon: full-bleed white bands at the top and bottom. */
+
+.masthead,
+.colophon {
+  background: var(--surface);
+  margin-inline: calc(-1 * var(--edge));
+  padding-inline: var(--edge);
+}
+
+.masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--hair-strong);
+  padding-block: 28px 16px;
+}
+
+.masthead .brand {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.masthead .logo svg {
+  height: 30px;
+  width: auto;
+  display: block;
+}
+
+.masthead .sep {
+  width: 1px;
+  height: 34px;
+  background: var(--hair-strong);
+}
+
+.masthead h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.masthead .sub {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.specs {
+  display: flex;
+  border: 1px solid var(--hair-strong);
+  background: var(--surface);
+  font-family: var(--mono);
+}
+
+.spec {
+  padding: 7px 14px;
+  border-left: 1px solid var(--hair);
+}
+
+.spec:first-child {
+  border-left: 0;
+}
+
+.spec .k {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.spec .v {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--ok);
+}
+
+.status.warn {
+  background: var(--warn);
+}
+
+.colophon {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-top: 1px solid var(--hair-strong);
+  padding-block: 9px 14px;
+}
+
+/* Keeps a name such as publica.la in its own case inside an uppercase label. */
+.verbatim {
+  text-transform: none;
+}
+
+/* Layouts. */
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 352px;
+  gap: 28px;
+}
+
+.canvas[data-size="og"] .split,
+.canvas[data-size="square"] .split {
+  grid-template-columns: 1fr 440px;
+  align-items: center;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.grow {
+  flex: 1;
+}
+
+.center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+}
+
+/* Layer: a numbered band with a gutter label and corner ticks. */
+
+.layer {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--hair-strong);
+  display: grid;
+  grid-template-columns: var(--gutter) 1fr;
+}
+
+.layer::before,
+.layer::after {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-color: var(--ink);
+  border-style: solid;
+}
+
+.layer::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.layer::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+.layer.boxed,
+.flow > .layer {
+  grid-template-columns: 1fr;
+  align-content: start;
+}
+
+.side .layer {
+  flex: 1;
+}
+
+.gutter {
+  border-right: 1px solid var(--hair);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--paper);
+}
+
+.layer.boxed .gutter,
+.flow > .layer .gutter {
+  border-right: 0;
+  border-bottom: 1px solid var(--hair);
+}
+
+.layer.boxed .gutter {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.layer.boxed .gutter .p {
+  margin-left: auto;
+  font-family: var(--mono);
+}
+
+.gutter .n {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.gutter .t {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.gutter .p {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.layer.boxed .body {
+  gap: 8px;
+}
+
+/* Row */
+
+.row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 8px;
+}
+
+/* Node */
+
+.node {
+  border: 1px solid var(--hair);
+  padding: 9px 11px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.node .h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.node .d {
+  font-size: 11.5px;
+  color: var(--body);
+  line-height: 1.4;
+}
+
+.node.accent {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.node.planned {
+  border-style: dashed;
+  border-color: var(--hair-strong);
+  background: var(--paper);
+}
+
+.node.planned .h::after {
+  content: "Planned";
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--hair-strong);
+  padding: 1px 5px;
+}
+
+/* Tags */
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-hair);
+  padding: 3px 7px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Wires: labeled connections. A vertical wire sits between stacked layers. */
+
+.wire {
+  height: 30px;
+  margin-left: calc(var(--gutter) / 2);
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.wire::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-left: 1.5px dashed var(--ink);
+}
+
+.wire::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  bottom: -1px;
+  border: 4.5px solid transparent;
+  border-top: 6px solid var(--ink);
+  border-bottom: 0;
+}
+
+.label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--surface);
+  border: 1px solid var(--hair-strong);
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.wire .label {
+  margin-left: 14px;
+}
+
+/* Flow: steps left to right, joined by horizontal wires. */
+
+.flow {
+  display: flex;
+  align-items: stretch;
+}
+
+.flow > .layer {
+  flex: 1;
+}
+
+.hwire {
+  flex: none;
+  width: var(--hwire);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.hwire::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1.5px dashed var(--ink);
+}
+
+.hwire::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: calc(50% - 4px);
+  border: 4.5px solid transparent;
+  border-left: 6px solid var(--ink);
+  border-right: 0;
+}
+
+.hwire .label {
+  position: relative;
+  z-index: 1;
+  white-space: normal;
+  text-align: center;
+  max-width: calc(var(--hwire) - 12px);
+}
+
+/* Spec sheet: key and value rows for facts and figures. */
+
+.sheet {
+  border-collapse: collapse;
+  width: 100%;
+  background: var(--surface);
+}
+
+.sheet th,
+.sheet td {
+  border-top: 1px solid var(--hair);
+  padding: 9px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.sheet tr:first-child th,
+.sheet tr:first-child td {
+  border-top: 0;
+}
+
+.sheet th {
+  width: 34%;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sheet td {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sheet td small {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--body);
+  margin-top: 2px;
+}
+
+/* Callout */
+
+.callout {
+  border: 1px solid var(--hair-strong);
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--body);
+  line-height: 1.5;
+}
+
+.callout b {
+  color: var(--ink);
+}
+
+/* Hero */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hero .kicker {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hero h2 {
+  margin: 0;
+  font-size: 46px;
+  line-height: 1.08;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.hero p {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--body);
+  max-width: 60ch;
+}
+
+/* Stat */
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat .v {
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat .d {
+  font-size: 12.5px;
+  color: var(--body);
+  line-height: 1.4;
+}
+
+/* Quote */
+
+.quote {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  padding: 10px 12px;
+}
+
+/* Meter: a share of a whole. The element sets --value, such as 82%. */
+
+.meter {
+  position: relative;
+  height: 4px;
+  margin-top: 6px;
+  background: var(--hair);
+}
+
+.meter::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--value, 0%);
+  background: var(--accent);
+}
+
+.meter.muted::after {
+  background: var(--hair-strong);
+}
+
+/* Kicker, caption and verdict */
+
+.kicker {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.caption {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.node .d code,
+.sheet code,
+.callout code {
+  font-family: var(--mono);
+  font-size: 0.95em;
+  color: var(--ink);
+}
+
+/* Video: 16:9 for players and slides. Type grows so it reads at a glance. */
+
+[data-size="video"] .masthead {
+  padding-block: 20px 14px;
+}
+
+[data-size="video"] .masthead h1 {
+  font-size: 22px;
+}
+
+[data-size="video"] .masthead .sub {
+  font-size: 12.5px;
+  margin-top: 5px;
+}
+
+[data-size="video"] .spec {
+  padding: 8px 16px;
+}
+
+[data-size="video"] .spec .k {
+  font-size: 11px;
+}
+
+[data-size="video"] .spec .v {
+  font-size: 15px;
+  gap: 8px;
+}
+
+[data-size="video"] .status {
+  width: 9px;
+  height: 9px;
+  flex: none;
+}
+
+[data-size="video"] .colophon {
+  font-size: 12px;
+  padding-block: 10px 14px;
+}
+
+[data-size="video"] .layer::before,
+[data-size="video"] .layer::after {
+  width: 11px;
+  height: 11px;
+}
+
+[data-size="video"] .gutter {
+  padding: 14px 18px;
+  gap: 6px;
+}
+
+[data-size="video"] .gutter .n {
+  font-size: 13px;
+}
+
+[data-size="video"] .gutter .t {
+  font-size: 16px;
+}
+
+[data-size="video"] .gutter .p {
+  font-size: 14px;
+}
+
+[data-size="video"] .layer.boxed .gutter .p {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+[data-size="video"] .body {
+  padding: 14px 18px;
+  gap: 12px;
+}
+
+[data-size="video"] .row {
+  gap: 12px;
+}
+
+[data-size="video"] .node {
+  padding: 12px 14px;
+  gap: 6px;
+}
+
+[data-size="video"] .node .h {
+  font-size: 19px;
+  gap: 10px;
+}
+
+[data-size="video"] .node .d {
+  font-size: 15.5px;
+}
+
+[data-size="video"] svg.icon {
+  width: 19px;
+  height: 19px;
+}
+
+[data-size="video"] .tag,
+[data-size="video"] .label {
+  font-size: 12.5px;
+  padding: 3px 9px;
+}
+
+[data-size="video"] .wire {
+  height: 42px;
+}
+
+[data-size="video"] .wire .label {
+  margin-left: 18px;
+}
+
+[data-size="video"] .sheet th {
+  font-size: 12.5px;
+  padding: 13px 18px;
+}
+
+[data-size="video"] .sheet td {
+  font-size: 20px;
+  padding: 10px 18px;
+}
+
+[data-size="video"] .sheet td small {
+  font-size: 14.5px;
+  margin-top: 3px;
+}
+
+[data-size="video"] .callout {
+  font-size: 17px;
+  padding: 13px 18px;
+}
+
+[data-size="video"] .hero {
+  gap: 18px;
+}
+
+[data-size="video"] .hero .kicker,
+[data-size="video"] .kicker {
+  font-size: 15px;
+}
+
+[data-size="video"] .hero h2 {
+  font-size: 50px;
+}
+
+[data-size="video"] .hero p {
+  font-size: 21px;
+}
+
+[data-size="video"] .stat .v {
+  font-size: 76px;
+}
+
+[data-size="video"] .stat .d {
+  font-size: 17px;
+}
+
+[data-size="video"] .quote {
+  font-size: 15px;
+  padding: 14px 16px;
+}
+
+[data-size="video"] .meter {
+  height: 6px;
+  margin-top: 8px;
+}
+
+[data-size="video"] .caption {
+  font-size: 12px;
+}
+
+[data-size="video"] .verdict {
+  font-size: 17px;
+  gap: 10px;
+}
+
+[data-size="video"] .split {
+  grid-template-columns: 1fr 440px;
+  gap: 32px;
+}

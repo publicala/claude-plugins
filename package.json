@@ -4,13 +4,15 @@
   "type": "module",
   "packageManager": "bun@1.4.2",
   "scripts": {
+    "postinstall": "bun install --cwd plugins/blueprint --frozen-lockfile",
     "check": "bun run format:check && bun run lint && bun run typecheck && bun run validate:plugins && bun run check:prose && bun test --coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "bun --bun eslint --max-warnings=0 .",
     "typecheck": "tsc --noEmit",
     "validate:plugins": "bun scripts/validate-plugins.ts",
-    "check:prose": "bun scripts/check-prose.ts"
+    "check:prose": "bun scripts/check-prose.ts",
+    "update:icons": "bun scripts/update-blueprint-icons.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -18,6 +20,7 @@
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "happy-dom": "^20.14.5",
+    "lucide-static": "^1.47.0",
     "prettier": "^3.9.9",
     "typescript": "~6.0",
     "typescript-eslint": "^8.70.1"

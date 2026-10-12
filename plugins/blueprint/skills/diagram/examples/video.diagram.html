@@ -1,0 +1,84 @@
+<!--
+  A made-up slide for Acme Books. Sources for every number:
+  180 ms and 1.2 s: p95 search latency the week after and the week before the rebuild (search dashboard)
+  4% and 31%: SELECT AVG(results = 0) FROM searches, for the same two weeks
+  1,500: queries sampled from the search log and replayed against the new index (replay.ts)
+-->
+<div class="canvas" data-size="video">
+  <header class="masthead">
+    <div class="brand">
+      <i data-logo></i>
+      <div class="sep"></div>
+      <div>
+        <h1>Search after the index rebuild</h1>
+        <div class="sub">Example · Video figure · Rev. 2026-10</div>
+      </div>
+    </div>
+    <div class="specs">
+      <div class="spec">
+        <div class="k">Status</div>
+        <div class="v"><span class="status"></span>Live</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="center">
+    <div class="kicker">Before and after</div>
+
+    <div class="row">
+      <section class="layer boxed">
+        <div class="gutter">
+          <span class="n">01</span><span class="t">p95 latency</span>
+        </div>
+        <div class="body">
+          <div class="stat">
+            <div class="v">180 ms</div>
+            <div class="d">Down from 1.2 s</div>
+          </div>
+        </div>
+      </section>
+      <section class="layer boxed">
+        <div class="gutter">
+          <span class="n">02</span><span class="t">Empty results</span>
+        </div>
+        <div class="body">
+          <div class="stat">
+            <div class="v">4%</div>
+            <div class="d">Down from 31% of queries</div>
+          </div>
+          <div class="meter" style="--value: 4%"></div>
+        </div>
+      </section>
+      <section class="layer boxed">
+        <div class="gutter">
+          <span class="n">03</span><span class="t">Checked</span>
+        </div>
+        <div class="body">
+          <div class="stat">
+            <div class="v">1,500</div>
+            <div class="d">Real queries, replayed</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="layer boxed">
+      <div class="gutter">
+        <span class="n">LOG</span><span class="t">What readers saw</span
+        ><span class="p">Before</span>
+      </div>
+      <div class="body">
+        <div class="quote">No results for "the midnight library".</div>
+        <div class="verdict">
+          <span class="status"></span>Every one of these queries now finds the
+          book
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="colophon">
+    <span><span class="verbatim">publica.la</span> · Example</span
+    ><span>Fig. 4 · Video figure</span>
+  </footer>
+</div>

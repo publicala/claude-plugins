@@ -1,7 +1,7 @@
 version: 2
 
 updates:
-  - package-ecosystem: npm
+  - package-ecosystem: bun
     directory: /
     schedule:
       interval: monthly
@@ -13,6 +13,20 @@ updates:
       include: scope
     groups:
       npm:
+        patterns: ["*"]
+
+  - package-ecosystem: bun
+    directory: /plugins/blueprint
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      blueprint:
         patterns: ["*"]
 
   - package-ecosystem: github-actions

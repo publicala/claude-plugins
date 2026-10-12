@@ -6,6 +6,7 @@ Publica.la's public marketplace of Claude Code plugins. Anyone can install what 
 
 - Install copies each plugin to a cache on its own, so nothing in a plugin reads a path above its root. To share a file between plugins, commit a symlink: install copies the target in its place.
 - A SKILL.md names bundled files with `${CLAUDE_SKILL_DIR}` (its own directory) or `${CLAUDE_PLUGIN_ROOT}`. Claude Code substitutes both when it loads the skill. Bash's environment has neither.
+- A plugin that needs npm packages keeps its own `package.json` and `bun.lock` at its root: Claude Code installs them with the plugin. Add it to the root `postinstall` so `bun install` covers it too.
 - `plugin.json` carries no `version`, so every merge reaches users. A `version` would pin them until someone bumps it.
 - Install ships only the plugin's directory, so a skill that has Claude write for people (pages, figures, messages) carries its own writing rules.
 - Everything here is public: no internal service names, hostnames, customer names or private repository paths. Examples use a made-up company (Acme Books).

@@ -1,0 +1,74 @@
+<div class="canvas">
+  <header class="masthead">
+    <div class="brand">
+      <i data-logo></i>
+      <div class="sep"></div>
+      <div>
+        <h1>Request lifecycle</h1>
+        <div class="sub">Example · Flow figure · Rev. 2026-10</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="flow">
+    <section class="layer">
+      <div class="gutter">
+        <span class="n">01</span><span class="t">Client</span>
+      </div>
+      <div class="body">
+        <div class="node">
+          <div class="h"><i data-icon="user"></i>Reader</div>
+          <div class="d">Opens a book</div>
+        </div>
+      </div>
+    </section>
+    <div class="hwire"><span class="label">HTTPS</span></div>
+    <section class="layer">
+      <div class="gutter">
+        <span class="n">02</span><span class="t">Edge</span>
+      </div>
+      <div class="body">
+        <div class="tags">
+          <span class="tag">WAF</span><span class="tag">Cache</span>
+        </div>
+        <div class="node">
+          <div class="h"><i data-icon="shield"></i>Filter</div>
+          <div class="d">Blocks abusive traffic</div>
+        </div>
+      </div>
+    </section>
+    <div class="hwire"><span class="label">Filtered</span></div>
+    <section class="layer">
+      <div class="gutter">
+        <span class="n">03</span><span class="t">Application</span>
+      </div>
+      <div class="body">
+        <div class="node accent">
+          <div class="h"><i data-icon="key"></i>Authorize</div>
+          <div class="d">Checks access to the title</div>
+        </div>
+      </div>
+    </section>
+    <div class="hwire"><span class="label">Signed URL</span></div>
+    <section class="layer">
+      <div class="gutter">
+        <span class="n">04</span><span class="t">Storage</span>
+      </div>
+      <div class="body">
+        <div class="node">
+          <div class="h"><i data-icon="download"></i>Deliver</div>
+          <div class="d">Streams the file</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="callout">
+    <b>Note.</b> Use one callout at most, for the fact the reader must not miss.
+  </div>
+
+  <footer class="colophon">
+    <span><span class="verbatim">publica.la</span> · Example</span
+    ><span>Fig. 2 · Flow</span>
+  </footer>
+</div>
