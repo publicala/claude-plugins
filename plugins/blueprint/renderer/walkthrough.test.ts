@@ -210,7 +210,7 @@ describe("building the pages", () => {
   });
 });
 
-describe.skipIf(!findChrome())("in Chrome", () => {
+describe.skipIf(!(await findChrome()))("in Chrome", () => {
   let browser: Browser;
   let workDir: string;
 

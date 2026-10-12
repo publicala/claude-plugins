@@ -40,16 +40,16 @@ const PLAYWRIGHT_CHROMIUM = [
  * candidate. Otherwise PLAYWRIGHT_BROWSERS_PATH comes first, then the
  * usual install locations, then Playwright's default caches.
  */
-export function findChrome(
+export async function findChrome(
   env: Record<string, string | undefined> = process.env,
-): string | null {
+): Promise<string | null> {
   if (env.CHROME_PATH) {
     return existsSync(env.CHROME_PATH) ? env.CHROME_PATH : null;
   }
 
   const candidates = [
     ...playwrightChromium(env.PLAYWRIGHT_BROWSERS_PATH),
-    ...googleChrome(),
+    ...(await googleChrome()),
     ...CHROMIUM_PATHS,
     ...playwrightChromium(join(homedir(), ".cache/ms-playwright")),
     ...playwrightChromium(join(homedir(), "Library/Caches/ms-playwright")),
@@ -61,10 +61,11 @@ export function findChrome(
   return candidates.find((path) => existsSync(path)) ?? null;
 }
 
-// Puppeteer knows where Google Chrome installs on each system, and throws when it is not there.
-function googleChrome(): string[] {
+// Puppeteer knows where Google Chrome installs on each system. The path may not
+// exist, so it goes through the same existence check as every other candidate.
+async function googleChrome(): Promise<string[]> {
   try {
-    return [puppeteer.executablePath("chrome")];
+    return [await puppeteer.executablePath("chrome")];
   } catch {
     return [];
   }
@@ -93,7 +94,7 @@ export async function launchBrowser(): Promise<Browser> {
     );
   }
 
-  const executablePath = findChrome();
+  const executablePath = await findChrome();
 
   if (!executablePath) {
     throw new Error(
