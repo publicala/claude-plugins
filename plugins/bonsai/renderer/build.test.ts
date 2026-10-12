@@ -1037,6 +1037,14 @@ describe("render", () => {
     expect(changeIn(page.changes, "livewire").why).toBe(quoted);
   });
 
+  test("carries Blueprint's tokens, light and dark, from the blueprint plugin", async () => {
+    const html = await render(await build(await exampleData(), EXAMPLE));
+
+    expect(html).not.toContain("/*__BLUEPRINT_TOKENS__*/");
+    expect(html).toContain("--accent: #2563eb;");
+    expect(html).toContain(':root[data-theme="dark"]');
+  });
+
   test("embeds the data and the escaped title", async () => {
     const data = await exampleData();
     data.run.title = "Audit <script> & $&";
