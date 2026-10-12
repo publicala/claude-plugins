@@ -4,7 +4,7 @@ Shared contract for `/bonsai:intake` (writer), `/bonsai:feed` and `/bonsai:bake`
 
 ## Repository key
 
-The key is the canonical GitHub name of the target repository, `owner/repo`: run `gh repo view <target> --json nameWithOwner,parent` and take `parent.nameWithOwner` when it is set, else `nameWithOwner`. Inside a clone, `gh repo view` prefers the `upstream` remote over `origin`, and the `parent` field covers a fork clone that has no `upstream` remote, so both resolve to the canonical name. Every skill derives the key this way and no other. A reader that finds no directory under the key reports "no intake entries under `<path>`" rather than skipping silently, so a key mismatch is visible.
+The key is the canonical GitHub name of the target repository, `owner/repo`: run `gh repo view <target> --json nameWithOwner,parent` and take `parent.nameWithOwner` when it is set, else `nameWithOwner`. Inside a clone, `gh repo view` prefers the `upstream` remote over `origin`, and the `parent` field covers a fork clone that has no `upstream` remote, so both resolve to the canonical name. Every skill derives the key this way and no other. A reader that finds no directory under the key reports "no intake entries under `<path>`", so a key mismatch is visible.
 
 ## Files
 
@@ -91,4 +91,4 @@ verified_on: 3f2a9c1
 
 ## Recurrence
 
-Recurrence is computed, never stored: the number of distinct `source_pr` values whose candidates carry the same slug under one key, local and exported entries combined. Feed and bake read `open` and `watch` candidates and act at two or more, or on any candidate the user names. When a slug is encoded or baked, the writer marks that status on every entry carrying the slug, so no copy stays `open` behind the rule.
+Recurrence is computed on every read: the number of distinct `source_pr` values whose candidates carry the same slug under one key, local and exported entries combined. Feed and bake read `open` and `watch` candidates and act at two or more, or on any candidate the user names. When a slug is encoded or baked, the writer marks that status on every entry carrying the slug, so no copy stays `open` behind the rule.

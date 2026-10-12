@@ -1,6 +1,6 @@
 # Load model
 
-What a session pays for a CLAUDE.md line depends on how the file reaches the context, not on what the file is called. Classify every in-scope file before judging or placing its lines.
+What a session pays for a CLAUDE.md line depends only on how the file reaches the context. Classify every in-scope file before judging or placing its lines.
 
 ## Four classes
 
@@ -9,7 +9,7 @@ What a session pays for a CLAUDE.md line depends on how the file reaches the con
 - **Path-scoped rule** (`.claude/rules/<topic>.md` with `paths` globs in the frontmatter): loads when the session reads a file matching a glob. The only class that scopes by file pattern across directories.
 - **Deferred**: a plain markdown pointer loads nothing until an agent chooses to read the target. The only class where content is close to free.
 
-Nested files and path-scoped rules are the two scope-triggered classes. Judge their lines against a fresh session working in their scope, not against every session.
+Nested files and path-scoped rules are the two scope-triggered classes. Judge their lines against a fresh session working in their scope, the only sessions that load them.
 
 ## The trigger is a read
 

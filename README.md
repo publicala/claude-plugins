@@ -25,7 +25,7 @@ See [plugins/bonsai](plugins/bonsai) for details.
 
 ## Contributing
 
-Everything listed here is distributed publicly. Additions and changes need approval from `@publicala/public-repo-owners` (enforced by a repository ruleset). Plugins live in this repo under `plugins/`, and shared content inside a plugin lives once in its `references/` directory rather than duplicated per skill.
+Everything listed here is distributed publicly. Additions and changes need approval from `@publicala/public-repo-owners` (enforced by a repository ruleset). Plugins live in this repo under `plugins/`, and shared content inside a plugin lives once, in its `references/` directory, for every skill to link.
 
 ## Development
 

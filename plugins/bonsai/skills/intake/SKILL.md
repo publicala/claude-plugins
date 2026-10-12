@@ -36,7 +36,7 @@ Classify every thread, one row each, with its outcome:
 
 - **regression**: the PR introduced or worsened the defect
 - **pre-existing**: the PR exposed a defect it did not cause
-- **scope**: the reviewer disputed what the PR should do, not how
+- **scope**: the reviewer disputed the PR's goal
 - **preference**: valid code either way, the reviewer prefers one shape
 - **incorrect**: the finding rests on a false premise (a cited rule that does not exist, a misread diff, a wrong claim about the framework)
 - **withdrawn**: the reviewer retracted the request
@@ -47,14 +47,14 @@ The outcome column holds either the slug of the candidate the thread feeds or th
 
 Keep the threads where the fix would be a CLAUDE.md line or an automated check in some repository. Drop the rest with the reason in the ledger:
 
-- Findings about how the review itself was done (a reviewer cited a rule that does not exist, mislabeled a pre-existing defect as a regression, or kept requesting a withdrawn change) describe the review tooling, not the codebase. They are visible in the thread when they happen.
+- Findings about how the review itself was done (a reviewer cited a rule that does not exist, mislabeled a pre-existing defect as a regression, or kept requesting a withdrawn change) describe the review tooling. They are visible in the thread when they happen.
 - Findings about scope belong to the issue tracker.
 
 A preference the codebase seems to teach already is not dropped: the loaded session's guess about what a fresh session derives is not evidence, and a wrongly skipped rule is gone for good. It becomes a `watch` candidate, and feed's probe decides.
 
 ### 5. Verify against the default branch
 
-Verification runs against the target repository's default branch at a recorded commit, never against the PR branch. The PR may not merge, and a rule that cites code only the PR adds teaches a symbol that does not exist.
+Verification runs against the target repository's default branch at a recorded commit, because the PR may not merge, and a rule that cites code only the PR adds teaches a symbol that does not exist.
 
 For each surviving finding, record:
 
@@ -75,17 +75,17 @@ Status, in precedence order (the first that applies wins):
 
 1. **frozen-until: \<PR URL\>**: a symbol exists only in an unmerged PR.
 2. **watch**: the reviewer's request was declined or is still disputed, or the finding is a preference the codebase seems to teach. Feed reads `watch` and runs its probe.
-3. **open**: everything else. A rule the default branch contradicts is `open` when the author fixed the instance and the PR merged: the code teaches the wrong pattern, so the line is the only corrective, and the recorded ratio shows feed how wrong. A contradicted rule whose fix was declined is `watch`, because the disagreement is a design decision the proposal must surface, not a convention.
+3. **open**: everything else. A rule the default branch contradicts is `open` when the author fixed the instance and the PR merged: the code teaches the wrong pattern, so the line is the only corrective, and the recorded ratio shows feed how wrong. A contradicted rule whose fix was declined is `watch`, because the disagreement is a design decision the proposal must surface.
 
 Feed and bake later write `encoded`, `baked`, or `rejected`. Intake writes `rejected` only from the sweep, and never overwrites a status feed or bake set.
 
 ### 7. Slug
 
-The slug names the mistake a session makes, not the mechanism the reviewer saw: `bridge-import-outside-facade`, not `store-imports-comlink-directly`. Two findings share a slug when a fresh session would make both by ignoring the same rule, even when file, symptom, and reviewer differ. Read the slugs already present under the target key and reuse one before minting another. Recurrence is never stored: feed and bake count entries carrying the slug when they read.
+The slug names the mistake a session makes, such as `bridge-import-outside-facade`. The mechanism the reviewer saw (`store-imports-comlink-directly`) stays out of it. Two findings share a slug when a fresh session would make both by ignoring the same rule, even when file, symptom, and reviewer differ. Read the slugs already present under the target key and reuse one before minting another. Recurrence is never stored: feed and bake count entries carrying the slug when they read.
 
 ### 8. Write the rule text now
 
-Write each candidate's rule text or check shape in final form, following [../../references/rule-writing.md](../../references/rule-writing.md) (relative to this skill's directory). Feed copies this text into its proposal, so it must already be a CLAUDE.md line, not a paragraph. Never record the reviewer's wording as the rule: the correction is evidence, not phrasing.
+Write each candidate's rule text or check shape in final form, following [../../references/rule-writing.md](../../references/rule-writing.md) (relative to this skill's directory). Feed copies this text into its proposal, so it must already be a CLAUDE.md line. Never record the reviewer's wording as the rule: the correction is evidence.
 
 ### 9. Report
 

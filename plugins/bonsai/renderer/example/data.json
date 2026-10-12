@@ -51,7 +51,7 @@
           "file": "CLAUDE.md",
           "lines": [26, 26],
           "write": [
-            "- Pages are class-based Livewire components, never single-file components (the `make:livewire` default)."
+            "- Pages are class-based Livewire components, and `make:livewire` makes single-file ones by default."
           ]
         }
       ],

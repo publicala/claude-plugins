@@ -10,7 +10,7 @@ Judge every rule of every in-scope CLAUDE.md against one question: **which sessi
 
 Throughout, "demote" and "promote" mean recording a verdict in the report. No file changes before approval, no exceptions.
 
-This skill decides where rules live, never whether they live. A rule that looks cuttable gets deferred to `/bonsai:audit`, not moved. Run split after an audit, so placement work is spent only on lines that earned their keep.
+This skill decides where rules live. Whether they live is `/bonsai:audit`'s call: a rule that looks cuttable goes there and stays put. Run split after an audit, so placement work is spent only on lines that earned their keep.
 
 ## Scope
 
@@ -54,7 +54,7 @@ A demotion only works if the scoped file is loaded by the time the rule matters.
 
 For each rule already in a scoped file, run step 2's grep from that file's viewpoint. Governed paths outside the file's subtree or globs mean the rule outgrew its home: promote it to the smallest target that covers every governed path (a wider glob, an ancestor directory's CLAUDE.md, or root). Promotions pass through "Never demote" in reverse trivially: widening a rule's audience is always load-safe.
 
-Flag orphans while there: a nested CLAUDE.md whose directory no longer holds first-party files, or a path-scoped rule whose globs match nothing. Deletion verdicts belong to `/bonsai:audit`, so record orphans as flags, not cuts.
+Flag orphans while there: a nested CLAUDE.md whose directory no longer holds first-party files, or a path-scoped rule whose globs match nothing. Deletion verdicts belong to `/bonsai:audit`, so record orphans as flags.
 
 ### 5. Approval and apply
 
@@ -62,7 +62,7 @@ Read [../../references/decision-memory.md](../../references/decision-memory.md) 
 
 - A demotion the edit rule or a load-path probe settled, and every promotion: **ready**, one group per destination file.
 - A move that drops a scope qualifier the destination expresses gets a meaning check (`references/probe.md`) on that edit. A drift makes it a **call**.
-- A rule that stays resident: `kept`, with the reason. Flags and skill candidates: questions or `kept` items, never moves.
+- A rule that stays resident: `kept`, with the reason. Flags and skill candidates: questions or `kept` items.
 
 Present each round in full before editing anything, in rounds as [../../references/rounds.md](../../references/rounds.md) (relative to this skill's directory) prescribes. Per rule: the verdict (demote, promote, keep, flag), the destination, and the evidence (governed paths, load-path result). Only edit after approval, and apply as `references/rounds.md` prescribes: one commit per destination file. Close with est. resident tokens per session before and after, listing separately what every session pays and what only in-scope sessions pay.
 
@@ -76,4 +76,4 @@ A demotion leaves nothing behind. The scoped file loads automatically, so a poin
 
 ## Skill candidates
 
-Content shaped as a procedure (a numbered workflow, a deploy guide, a checklist walked start to finish) belongs in a skill body, not in any CLAUDE.md. Flag it with a proposed skill name and stop there. Writing skills is a different job with its own standards.
+Content shaped as a procedure (a numbered workflow, a deploy guide, a checklist walked start to finish) belongs in a skill body. Flag it with a proposed skill name and stop there. Writing skills is a different job with its own standards.

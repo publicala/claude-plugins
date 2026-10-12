@@ -4,7 +4,7 @@ Fixture (scaffold_script): tiny repo with a default branch, plus a recorded pull
 
 - regression the author fixed, with a rule-shaped remedy → expect a `prose` candidate with verified symbols
 - convention a linter in the repo can express → expect a `bake` candidate naming the tool
-- finding that cites a symbol only the PR adds → expect `frozen-until` the PR, never a paraphrase
+- finding that cites a symbol only the PR adds → expect `frozen-until` the PR
 - rule the default branch contradicts, fixed by the author and merged → expect `open` with the grep ratio recorded
 - rule the default branch contradicts, fix declined by the author → expect `watch`
 - reviewer citing a workspace rule that does not exist → expect a ledger row with the reason, no candidate
