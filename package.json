@@ -4,12 +4,13 @@
   "type": "module",
   "packageManager": "bun@1.4.2",
   "scripts": {
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run validate:plugins && bun test --coverage",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run validate:plugins && bun run check:prose && bun test --coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "bun --bun eslint --max-warnings=0 .",
     "typecheck": "tsc --noEmit",
-    "validate:plugins": "bun scripts/validate-plugins.ts"
+    "validate:plugins": "bun scripts/validate-plugins.ts",
+    "check:prose": "bun scripts/check-prose.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

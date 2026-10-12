@@ -39,7 +39,7 @@ The script needs [Bun](https://bun.sh) 1.1.9 or later and nothing else: no insta
       "title": "Name the Livewire default that causes the mistake",
       "why": "The real trap is `make:livewire`: in Livewire 4 it makes single-file components by default.",
       "skip": "A session runs `make:livewire` and gets a single-file component.",
-      "edits": [{ "file": "CLAUDE.md", "lines": [26, 26], "write": ["- Pages are class-based Livewire components, never single-file components."] }],
+      "edits": [{ "file": "CLAUDE.md", "lines": [26, 26], "write": ["- Pages are class-based Livewire components, and `make:livewire` makes single-file ones by default."] }],
       "evidence": [{ "text": "All 41 components in `app/Livewire` are class-based." }],
       "check": { "verdict": "same", "summary": "Both lines cover every page component." }
     }

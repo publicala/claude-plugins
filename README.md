@@ -25,7 +25,7 @@ See [plugins/bonsai](plugins/bonsai) for details.
 
 ## Contributing
 
-Everything listed here is distributed publicly. Additions and changes need approval from `@publicala/public-repo-owners` (enforced by a repository ruleset). Plugins live in this repo under `plugins/`, and shared content inside a plugin lives once in its `references/` directory rather than duplicated per skill.
+Everything listed here is distributed publicly. Additions and changes need approval from `@publicala/public-repo-owners` (enforced by a repository ruleset). Plugins live in this repo under `plugins/`, and shared content inside a plugin lives once, in its `references/` directory, for every skill to link.
 
 ## Development
 
@@ -37,7 +37,7 @@ lefthook install
 bun run check
 ```
 
-`bun run check` runs Prettier, ESLint with type-aware rules, `tsc`, the plugin validation (relative links and SKILL.md frontmatter), and the tests with a coverage floor (`bunfig.toml`).
+`bun run check` runs Prettier, ESLint with type-aware rules, `tsc`, the plugin validation (relative links and SKILL.md frontmatter), the prose check (the mechanical writing rules in [CLAUDE.md](CLAUDE.md)), and the tests with a coverage floor (`bunfig.toml`).
 
 ## License
 

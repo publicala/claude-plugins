@@ -33,15 +33,15 @@ Read the sources in priority order. Explicit intent outranks inference:
 2. **Intake entries**: a reviewer's correction the author accepted, with symbols verified and a compliance ratio measured. See "Intake entries" below.
 3. **Recent commit diffs**: the same kind of change recurring (parameter ordering, error-handling shape, test layout, commit-message style).
 4. **Auto-memory feedback files**: `feedback*.md`, and any file with `type: feedback` in its frontmatter, under `~/.claude/projects/*/memory/`, in both the user-home-encoded and the project-cwd-encoded directories when present. Prior corrections at lower confidence: they may be stale. Skip silently when none exist.
-5. **Existing CLAUDE.md files**: for deduplication and for picking a rule's home, never as a source of rules.
+5. **Existing CLAUDE.md files**: for deduplication and for picking a rule's home only.
 
 ### 2. Cluster
 
-Group what recurs into candidate rules: the same correction asked for twice, the same edit across commits, the same nit, the same naming or style choice, the same architectural decision applied repeatedly. One candidate per class of mistake, not per incident.
+Group what recurs into candidate rules: the same correction asked for twice, the same edit across commits, the same nit, the same naming or style choice, the same architectural decision applied repeatedly. One candidate per class of mistake, however many incidents show it.
 
 ### 3. Route
 
-For each candidate, decide whether a tool could enforce it instead (lint, static analysis, architecture test, CI, hook). If so, the proposal is a deferral to `/bonsai:bake`, not prose. `Class: bake` intake candidates always route there.
+For each candidate, decide whether a tool could enforce it instead (lint, static analysis, architecture test, CI, hook). If so, the proposal is a deferral to `/bonsai:bake`. `Class: bake` intake candidates always route there.
 
 ### 4. Place
 
@@ -62,7 +62,7 @@ Write each proposal in final form, following [../../references/rule-writing.md](
 
 `/bonsai:intake` records verified evidence from PR reviews under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the key, the format, and how recurrence is counted. Then:
 
-- Read every candidate with `Status: open` or `Status: watch` under this project's key. Report "no intake entries under `<path>`" when the directory is missing, never skip silently.
+- Read every candidate with `Status: open` or `Status: watch` under this project's key. Report "no intake entries under `<path>`" when the directory is missing.
 - Propose a candidate when its slug appears in two or more source PRs, or when the user names it. One PR is an incident, two are a pattern. A `watch` candidate goes through the derivability probe (see "Never propose") before it is proposed or skipped.
 - After writing an approved rule, set `encoded: <rule path> (<PR URL or commit>)` on every entry carrying that slug and append a dated `History` line to each.
 

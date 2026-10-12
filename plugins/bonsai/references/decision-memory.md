@@ -22,7 +22,7 @@ A class names the cause of a change, the same way in every run and every reposit
 
 Before the first round, read both settings files and every log for this skill across all keys.
 
-- **Standing preferences** are settings, never questions. When a preference is missing, ask it once, in the first round that needs it, and store the answer. Show the stored ship choice on the page with `remembered: true`.
+- **Standing preferences** are settings. When a preference is missing, ask it once, in the first round that needs it, and store the answer. Show the stored ship choice on the page with `remembered: true`.
 - **A skipped change stays skipped.** Do not propose a change whose class and removed text match a `skip` in this key's log. It comes back only when its evidence changed: the removed text changed, or a new fact contradicts the reason the user gave in the note.
 - **Earned autonomy.** A class moves to lane `auto` when the logs hold at least 20 decisions for it, at least 95% of them `apply`, and no `skip` among its last 10. Auto changes still show on the page, collapsed under "Applied automatically" with an undo per change, until the user says otherwise. A skip or an undo counts against the class at once, so a class that stops earning trust drops back to `ready` on the next run.
 

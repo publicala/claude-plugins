@@ -1,5 +1,5 @@
 # CI for a skill repo: Markdown, YAML and JSON, plus the TypeScript scripts
-# that run on Bun (the bonsai page renderer and the plugin validation).
+# that run on Bun.
 #
 # Gate jobs feed a single `ci-success` aggregate. Make `ci-success` the required
 # status check in branch protection, so adding or renaming a gate never touches
@@ -102,12 +102,24 @@ jobs:
       - name: Relative links resolve and SKILL.md frontmatter is complete
         run: bun run validate:plugins
 
+  prose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Markdown prose follows the writing rules in CLAUDE.md
+        run: bun run check:prose
+
   # The single status check branch protection requires on `main`. Runs even when
   # a gate fails or is skipped (if: !cancelled()), but not when the run is
   # cancelled, so a cancelled run reports as cancelled rather than failed.
   ci-success:
     if: ${{ !cancelled() }}
-    needs: [format, lint, typecheck, test, validate-json, validate-plugins]
+    needs:
+      [format, lint, typecheck, test, validate-json, validate-plugins, prose]
     runs-on: ubuntu-latest
     steps:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0

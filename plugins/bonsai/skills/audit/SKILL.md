@@ -6,7 +6,7 @@ user-invocable: true
 disable-model-invocation: true
 ---
 
-Judge every line of every in-scope CLAUDE.md against one question: **what mistake does a session make without it?** If the answer is "none", the line is inventory, not instruction. The goal is not a shorter file. The goal is a file where every line changes behavior.
+Judge every line of every in-scope CLAUDE.md against one question: **what mistake does a session make without it?** If the answer is "none", the line is inventory. The goal is a file where every line changes behavior, however long the file ends up.
 
 Throughout the audit, "cut" means recording a cut verdict in the report. No file changes before approval, no exceptions.
 
@@ -14,7 +14,7 @@ Throughout the audit, "cut" means recording a cut verdict in the report. No file
 
 Default scope is the current project: its root CLAUDE.md, nested CLAUDE.md files, and the rule files they point to. User-level and ancestor-directory files load in every project, so include them only when the user asks, and evaluate them against a session in an arbitrary project (codebase greps and CI checks do not apply to them). Exclude vendored code, build output, and worktree copies everywhere: from the inventory and from every grep.
 
-Not everything called "referenced" is deferred. Classify each file by its load class before judging it: read [../../references/load-model.md](../../references/load-model.md) (relative to this skill's directory). Judge a scope-triggered line against a fresh session working in its scope, not against every session, and never count a move behind an `@path` import as a saving.
+Not everything called "referenced" is deferred. Classify each file by its load class before judging it: read [../../references/load-model.md](../../references/load-model.md) (relative to this skill's directory). Judge a scope-triggered line against a fresh session working in its scope, and count no saving for a move behind an `@path` import.
 
 ## Never cut
 
@@ -28,7 +28,7 @@ Check every line against this list before anything else. A match is a KEEP and s
 
 ## The audit, in order
 
-A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 8 line by line, and present the result as one round when it fits the budget in `references/rounds.md`. Probes and the panel still decide what the steps route to them; a small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `references/probe.md`.
+A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 8 line by line, and present the result as one round when it fits the budget in `references/rounds.md`. Probes and the panel still decide what the steps route to them. A small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `references/probe.md`.
 
 ### 1. Inventory
 
@@ -41,15 +41,15 @@ Cut what a fresh session reconstructs with a few tool calls:
 - Setup commands (`composer install`, `npm install`) and standard CLI usage
 - Stack and version inventories (lockfiles are the source of truth)
 - Directory layouts and file listings
-- Model and class rosters (a `## Models` section restating what `ls` of the directory shows). A class earns a mention only where the line carries a constraint the code cannot show at a glance, and that line lives with the behavior it governs, not in a roster section
+- Model and class rosters (a `## Models` section restating what `ls` of the directory shows). A class earns a mention only where the line carries a constraint the code cannot show at a glance, and that line lives with the behavior it governs
 - Generic best practices ("write tests", "validate inputs", "use clear names")
-- Self-referential document metadata and biography: version stamps ("**Version**: 2026-08-07"), "last updated" lines, rename history, drift-tracking clauses between files ("if the spine moves forward and this file doesn't..."), and rules phrased against the past ("previously X, now Z"). Git is the history. When the history carries a load-bearing constraint, reframe it present tense: that is a rewrite, not a cut. A date survives only when it is itself the instruction a session must apply, not a stamp about the document.
+- Self-referential document metadata and biography: version stamps ("**Version**: 2026-08-07"), "last updated" lines, rename history, drift-tracking clauses between files ("if the spine moves forward and this file doesn't..."), and rules phrased against the past ("previously X, now Z"). Git is the history. When the history carries a load-bearing constraint, reframe it present tense, as a rewrite. A date survives only when it is itself the instruction a session must apply.
 
-Test: delete the line and name the mistake a session in the file's scope now makes. No mistake, no line. A line that fails the test but matters in one identifiable situation moves instead of dying (see "Extract, don't delete").
+Test: delete the line and name the mistake a session in the file's scope now makes. No mistake, no line. A line that fails the test but matters in one identifiable situation moves instead of dying (see "Extract to a referenced file").
 
 The six classes above cut on sight. A cut for any other derivability claim needs a derivability probe first, run as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: one fresh low-effort agent gets a task the line governs, in the file's scope, without the line, and whether it derives the fact or makes the mistake is the verdict. The loaded auditor has read the line and cannot un-read it, so its own guess is not evidence. A line in an always-resident file never probes clean: record that and send the candidate to the capability-floor panel instead.
 
-Evidence must hold in the file's own scope, not just the auditing environment. A pointer that fails only where the audit runs (a tool the auditor's settings deny, a skill the auditor lacks, a URL the auditor cannot open) may work for every other consumer of the file: that is an open question for the user, never a cut backed by evidence.
+Evidence must hold everywhere the file is read. A pointer that fails only where the audit runs (a tool the auditor's settings deny, a skill the auditor lacks, a URL the auditor cannot open) may work for every other consumer of the file: record it as an open question for the user.
 
 ### 3. Enforcement verification
 
@@ -73,7 +73,7 @@ A rule that names nothing greppable (commit style, PR flow, shell habits) is pat
 
 ### 5. Capability-floor panel
 
-Docs serve the weakest model that reads them, not the strong one auditing them. A borderline block is a heading section or standalone bullet that steps 3 and 4 left undecided. Panel only those, never the whole file.
+Judge for the weakest model that reads the docs: the model auditing them is usually stronger. A borderline block is a heading section or standalone bullet that steps 3 and 4 left undecided. Panel only those.
 
 Spawn three independent low-effort agents per block. Each gets the repo path, the verbatim block, and one concrete task the block would govern, and answers: "Would this block change what you produce for this task? KEEP or CUT, one reason." Majority wins, ties are KEEP, the verdict is final.
 
@@ -95,7 +95,7 @@ See docs/payments.md for the retry flow, webhook signatures, refund windows, and
 Read docs/payments.md before touching payment or refund code.
 ```
 
-Exception: a fact stays in the pointer when the session needs it to pick WHICH target applies. A discriminator is routing, not summary.
+Exception: a fact stays in the pointer when the session needs it to pick WHICH target applies. A discriminator routes, so it stays.
 
 The same rule governs skill frontmatter descriptions: triggers and routing keywords stay, mechanics and step lists move to the body. Safety and precedence clauses stay in the description ("never mutates remote state", "OVERRIDES the global skill") because they change the invocation decision itself.
 
@@ -111,7 +111,7 @@ The auditor wrote every rewrite and judges it with the same blind spots. Before 
 
 Phrasing gets judged only after a line earns its keep, against the standard in [../../references/rule-writing.md](../../references/rule-writing.md) (relative to this skill's directory). Every specific detail in a kept line (a class inventory, an enumerated list, a count) is either load-bearing, meaning generalizing it would change what a session does, or a liability that drifts as the code moves. When a kept line carries non-load-bearing specifics, record a **rewrite**: drop those specifics, keep the load-bearing identifiers verbatim, and change nothing else. A rewrite never widens scope, weakens the boundary, or adds advice, and every identifier it keeps gets verified against the codebase like any example symbol.
 
-Two senses of "generic" live in this skill. Step 2 cuts generic best practices because they pin no boundary. Generic here means phrased at the pattern level while still pinning one. When dropping the driftable specifics would leave nothing a session cannot derive, the line was inventory all along: cut, not rewrite. Precision earns the keep, genericity makes it last.
+Two senses of "generic" live in this skill. Step 2 cuts generic best practices because they pin no boundary. Generic here means phrased at the pattern level while still pinning one. When dropping the driftable specifics would leave nothing a session cannot derive, the line was inventory all along: cut it. Precision earns the keep, genericity makes it last.
 
 ```markdown
 <!-- Rewrite: the inventory drifts as validators are added, the boundary does not -->
@@ -121,7 +121,7 @@ Our validators are EmailValidator, PhoneValidator, and VatValidator. Never write
 Never write a new validator for a rule one in app/Validators already covers.
 ```
 
-## Extract, don't delete
+## Extract to a referenced file
 
 Content needed only in a specific situation moves verbatim to a referenced file, leaving a one-line read-trigger behind ("read X before doing Y"). A move must beat the pointer it leaves behind: content no longer than its read-trigger stays resident. Reuse the project's existing referenced-doc location (detect it from current pointers) instead of inventing a new one. Deletion is only for content that fails step 2 outright.
 
@@ -135,7 +135,7 @@ Read [../../references/decision-memory.md](../../references/decision-memory.md) 
 - Rewrite (step 6 or "Precise but generic") the second check found the same: **ready**, grouped by cause.
 - False or stale claim, rewrite that still drifts, cut by a split panel vote or at a borderline compliance count, move, extract: **call**.
 - Evidence that holds only in the auditor's environment, a foreign-format migration proposal: **question**.
-- Keep: `kept`, never a decision.
+- Keep: `kept`, with nothing to decide.
 
 ## Rounds
 

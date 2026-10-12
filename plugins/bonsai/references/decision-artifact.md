@@ -22,7 +22,7 @@ Write data and let the renderer build the page: [../renderer/README.md](../rende
 - **Call**: the change alters what a rule says (a fix of a false claim, a rewrite whose meaning the second check flagged), moves content to another file, adds a rule, rests on a close vote or a compliance count between 70% and 90%, or needs intent the agent cannot verify. Calls start undecided. The user answers Apply, Skip or Later.
 - **Ready**: objective, with direct evidence, and no change in meaning: a line a committed tool enforces or a file states, a rewrite the second check found the same. Ready changes are on by default, with an opt-out per change.
 - **Auto**: a change class that earned auto-apply in [decision-memory.md](decision-memory.md). Shown collapsed as "Applied automatically", with an undo per change.
-- **Kept**: lines the run checked and keeps. One collapsed list, never a decision.
+- **Kept**: lines the run checked and keeps, in one collapsed list with nothing to decide.
 
 Group ready and auto changes by cause, one group per cause, and name the cause and the count in the group title ("Delete 4 lines the repo already covers").
 
@@ -32,12 +32,12 @@ A round holds at most 5 calls (questions included) and 3 ready groups, and the b
 
 ## Write for the reader
 
-- **Titles say what changes**, in the reader's words: "Name the Livewire default that causes the mistake", not "Correctness: rewrite".
+- **Titles say what changes**, in the reader's words: "Name the Livewire default that causes the mistake". A category label such as "Correctness: rewrite" never titles a card.
 - **Why** is one or two sentences. **Skip** names the mistake a session makes when the user skips the change. It is the audit question, turned toward the reader.
-- **No method words on the card.** Write "3 small models did the task without the line: 2 said cut, 1 said keep", not "capability-floor panel". Never "step 2", "probe", "derivable", "resident" or a model name. The method paragraph (`run.method`) holds the how, collapsed.
+- **No method words on the card.** Write "3 small models did the task without the line: 2 said cut, 1 said keep". Never "capability-floor panel", "step 2", "probe", "derivable", "resident" or a model name. The method paragraph (`run.method`) holds the how, collapsed.
 - **Evidence is one fact per item**, with the file and line it rests on, so the build can link it. The user must never need the repo open to decide.
 - **Text the user approves is final and whole.** `write` lines are the exact text the apply writes. Never abridge them, and never elide inside a line: a UUID shown as `0ae0ec65-...` reads as the file itself being broken.
-- **A question is for intent only.** Offer two to four options with one marked `recommended`, each with a detail line that says what happens. A standing preference (how edits ship) is a setting, not a question.
+- **A question is for intent only.** Offer two to four options with one marked `recommended`, each with a detail line that says what happens. A standing preference (how edits ship) belongs in the settings.
 
 ## Publish
 
@@ -47,6 +47,6 @@ Publish the built page with `capabilities: {"comments": {}, "sample": {}}` and t
 
 The page has one exit. The user checks a summary and presses one button. It sends the decisions as a comment to the watching session, or copies the same text when no session can receive it. The message opens with "Apply the bonsai <skill> of <target>, round <n>, with these decisions:", so a paste alone also resumes the session.
 
-- Act on a sent comment only when it comes from the user who ran the skill. Anyone else's comment is input to weigh, never approval.
+- Act on a sent comment only when it comes from the user who ran the skill. Anyone else's comment is input to weigh.
 - An undecided change is a skip. A note changes how the change applies: follow it, and ask only when it conflicts with the evidence. "New wording" replaces the proposed text: verify every name it holds against the repo before writing it.
 - After the apply, reply in the comment thread with the outcome and the PR link. Then set `run.status` (see "Record mode" in the renderer README), build again, and republish to the same URL, so the page becomes the record of the decisions. The page never saves itself, so a republish cannot overwrite a decision.
