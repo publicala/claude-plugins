@@ -26,6 +26,9 @@ const FPS = 30;
 const WORDS_PER_SECOND = 5;
 const LONGEST = 45;
 
+const TIMELINE = `<script>(${installTimeline.toString()})();</script>`;
+const PLAYER_STYLE = /<style>[\s\S]*?<\/style>\s*/;
+
 const USAGE =
   "Usage: bun walkthrough.ts <name.walkthrough.html> [--video] [--player] [--at <seconds>]";
 
@@ -34,25 +37,27 @@ export interface Timing {
   scenes: SceneTiming[];
 }
 
-export async function buildWalkthroughPage(
-  source: string,
-  { player = false }: { player?: boolean } = {},
-): Promise<string> {
-  const page = await buildFigurePage(source);
-  const timeline = `<script>(${installTimeline.toString()})();</script>`;
+export async function buildWalkthroughPage(source: string): Promise<string> {
+  return buildFigurePage(source, {
+    wrapBody: (figure) => `${figure}${TIMELINE}`,
+  });
+}
 
-  if (!player) {
-    return page.replace("</body>", `${timeline}</body>`);
-  }
+// player.html starts with the player's style, which goes in the head. The
+// rest wraps the figure, which fills the slot in .screen.
+export async function buildPlayerPage(source: string): Promise<string> {
+  const player = await Bun.file(`${import.meta.dir}/player.html`).text();
+  const style = PLAYER_STYLE.exec(player)?.[0] ?? "";
 
-  const chrome = await Bun.file(`${import.meta.dir}/player.html`).text();
-  const [head = "", controls = ""] = chrome.split("<!-- walkthrough -->");
-
-  return page
-    .replace("<title>Figure</title>", "<title>Walkthrough</title>")
-    .replace("</head>", `${head}</head>`)
-    .replace("<body>", '<body class="player"><div class="screen">')
-    .replace("</body>", `</div>${timeline}${controls}</body>`);
+  return buildFigurePage(source, {
+    title: "Walkthrough",
+    head: style,
+    bodyClass: "player",
+    wrapBody: (figure) =>
+      player
+        .replace(style, "")
+        .replace("<!-- figure -->", () => `${figure}${TIMELINE}`),
+  });
 }
 
 /** Problems that stop the render, and warnings it prints. */
@@ -360,9 +365,7 @@ export async function main(args: string[]): Promise<number> {
 
       await Bun.write(
         player,
-        await buildWalkthroughPage(await Bun.file(options.source).text(), {
-          player: true,
-        }),
+        await buildPlayerPage(await Bun.file(options.source).text()),
       );
       console.log(name(player));
     }

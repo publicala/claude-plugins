@@ -8,6 +8,7 @@ import sharp from "sharp";
 import { findChrome, launchBrowser } from "./renderer";
 import type { SceneTiming } from "./timeline";
 import {
+  buildPlayerPage,
   buildWalkthroughPage,
   findTimingProblems,
   main,
@@ -140,17 +141,27 @@ describe("parseArguments", () => {
   });
 });
 
-describe("buildWalkthroughPage", () => {
-  test("adds the timeline, and the player's controls when asked", async () => {
-    const source = walkthrough('<section class="scene">One</section>');
+describe("building the pages", () => {
+  const source = walkthrough('<section class="scene">One</section>');
+
+  test("buildWalkthroughPage adds the timeline to the figure", async () => {
     const page = await buildWalkthroughPage(source);
-    const player = await buildWalkthroughPage(source, { player: true });
 
     expect(page).toContain("window.walkthrough");
     expect(page).not.toContain('class="controls"');
-    expect(player).toContain('<body class="player"><div class="screen">');
-    expect(player).toContain('class="controls"');
+  });
+
+  test("buildPlayerPage puts the figure on the player's screen, above its controls", async () => {
+    const player = await buildPlayerPage(source);
+
     expect(player).toContain("<title>Walkthrough</title>");
+    expect(player).toMatch(/<style>\s*body\.player[^]*<\/head>/);
+    expect(player).toContain('<body class="player"><div class="screen">');
+    expect(player).toContain("window.walkthrough");
+    expect(player).toContain(
+      '<span class="play"><svg class="icon" viewBox="0 0 24 24"',
+    );
+    expect(player).not.toContain("<!-- figure -->");
   });
 });
 
@@ -208,9 +219,7 @@ describe.skipIf(!findChrome())("in Chrome", () => {
 
     try {
       await page.setContent(
-        await buildWalkthroughPage(await Bun.file(EXAMPLE).text(), {
-          player: true,
-        }),
+        await buildPlayerPage(await Bun.file(EXAMPLE).text()),
       );
       expect(await read(".controls output", "textContent")).toBe("0:05 / 0:31");
 
