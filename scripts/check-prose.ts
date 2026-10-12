@@ -3,11 +3,13 @@
 // Fails when the prose in a Markdown file breaks a writing rule from
 // CLAUDE.md that a pattern can catch. Code, code spans, HTML and link
 // destinations are not prose, so they never count.
-import { relative } from "node:path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
-const MARKDOWN = ["*.md", "plugins/**/*.md", ".github/**/*.md"];
+const CODE_OPEN = /^<(?:code|kbd|samp|pre)\b[^>]*>$/i;
+const CODE_CLOSE = /^<\/(?:code|kbd|samp|pre)\s*>$/i;
 
 interface Rule {
   pattern: RegExp;
@@ -50,8 +52,10 @@ const RULES: Rule[] = [
 
 /**
  * Collects the text a reader sees as prose, in document order. Each text
- * node renders as a numbered marker, and code, code spans and raw HTML
- * drop the markers of the text inside them.
+ * node renders as a numbered marker, and code, code spans and HTML blocks
+ * drop the markers of the text inside them. Inline HTML tags arrive as
+ * text, so the text between an inline code tag and its closing tag drops
+ * here.
  */
 export function proseFragments(markdown: string): string[] {
   const texts: string[] = [];
@@ -63,9 +67,22 @@ export function proseFragments(markdown: string): string[] {
     html: () => "",
   });
 
-  return [...rendered.matchAll(/\uE000(\d+)\uE001/g)].map(
-    ([, index]) => texts[Number(index)] ?? "",
-  );
+  const prose: string[] = [];
+  let insideCode = 0;
+
+  for (const [, index] of rendered.matchAll(/\uE000(\d+)\uE001/g)) {
+    const text = texts[Number(index)] ?? "";
+
+    if (CODE_OPEN.test(text)) {
+      insideCode++;
+    } else if (CODE_CLOSE.test(text)) {
+      insideCode = Math.max(0, insideCode - 1);
+    } else if (insideCode === 0) {
+      prose.push(text);
+    }
+  }
+
+  return prose;
 }
 
 export function findProseProblems(markdown: string): string[] {
@@ -93,34 +110,51 @@ export function findProseProblems(markdown: string): string[] {
   return problems;
 }
 
+/**
+ * Every Markdown file a commit could carry: tracked, or untracked and not
+ * ignored, in any directory.
+ */
+export function markdownFiles(root: string): string[] {
+  const listed = Bun.spawnSync(
+    [
+      "git",
+      "ls-files",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "-z",
+      "--",
+      "*.md",
+    ],
+    { cwd: root },
+  );
+
+  if (!listed.success) {
+    throw new Error(
+      `Unable to list the Markdown files with git in ${root}: ${listed.stderr.toString().trim()}`,
+    );
+  }
+
+  return [...new Set(listed.stdout.toString().split("\0"))]
+    .filter((path) => path !== "" && existsSync(join(root, path)))
+    .toSorted();
+}
+
 export async function checkProse(root: string): Promise<{
   checked: number;
   errors: string[];
 }> {
-  const paths = new Set<string>();
-
-  for (const pattern of MARKDOWN) {
-    for await (const path of new Bun.Glob(pattern).scan({
-      cwd: root,
-      dot: true,
-    })) {
-      if (!path.includes("node_modules/")) {
-        paths.add(path);
-      }
-    }
-  }
-
-  const sorted = [...paths].toSorted();
+  const paths = markdownFiles(root);
 
   const errors = await Promise.all(
-    sorted.map(async (path) =>
-      findProseProblems(await Bun.file(`${root}/${path}`).text()).map(
-        (problem) => `${relative(root, `${root}/${path}`)}: ${problem}`,
+    paths.map(async (path) =>
+      findProseProblems(await Bun.file(join(root, path)).text()).map(
+        (problem) => `${path}: ${problem}`,
       ),
     ),
   );
 
-  return { checked: sorted.length, errors: errors.flat() };
+  return { checked: paths.length, errors: errors.flat() };
 }
 
 export async function main(root = ROOT): Promise<number> {

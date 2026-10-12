@@ -1,14 +1,28 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
   checkProse,
+  markdownFiles,
   findProseProblems,
   main,
   proseFragments,
 } from "./check-prose";
+
+// A temporary git repository with these files, untracked as a new file is.
+async function gitRepo(files: Record<string, string>): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "check-prose-"));
+
+  for (const [path, text] of Object.entries(files)) {
+    await Bun.write(join(root, path), text);
+  }
+
+  Bun.spawnSync(["git", "init", "--quiet"], { cwd: root });
+
+  return root;
+}
 
 describe("proseFragments", () => {
   test("skips code blocks, code spans, raw HTML and link destinations", () => {
@@ -23,6 +37,14 @@ describe("proseFragments", () => {
     ].join("\n");
 
     expect(proseFragments(text).join("")).toBe("Prose with  and a link.");
+  });
+
+  test("skips the text inside inline code, kbd, samp and pre tags", () => {
+    expect(
+      proseFragments(
+        "Run <code>a; b</code>, press <kbd>Ctrl</kbd>; then <b>bold</b>.",
+      ),
+    ).toEqual(["Run ", ", press ", "; then ", "<b>", "bold", "</b>", "."]);
   });
 });
 
@@ -79,22 +101,38 @@ describe("findProseProblems", () => {
 });
 
 describe("checkProse", () => {
-  test("checks root, plugin and .github Markdown, never node_modules", async () => {
-    const root = await mkdtemp(join(tmpdir(), "check-prose-"));
+  test("checks every Markdown file git would commit, in any directory", async () => {
+    const root = await gitRepo({
+      ".gitignore": "node_modules\nignored.md\n",
+      "README.md": "Fine.\n",
+      "plugins/demo/SKILL.md": "One; two.\n",
+      ".claude/bonsai/candidates/pr1.md": "Three; four.\n",
+      "docs/guide.md": "Five \u2014 six.\n",
+      "node_modules/dep/README.md": "One; two.\n",
+      "ignored.md": "One; two.\n",
+    });
 
     try {
-      await mkdir(join(root, "plugins/demo"), { recursive: true });
-      await mkdir(join(root, "node_modules/dep"), { recursive: true });
-      await Bun.write(join(root, "README.md"), "Fine.\n");
-      await Bun.write(join(root, "plugins/demo/SKILL.md"), "One; two.\n");
-      await Bun.write(join(root, "node_modules/dep/README.md"), "One; two.\n");
-
       expect(await checkProse(root)).toEqual({
-        checked: 2,
+        checked: 4,
         errors: [
+          ".claude/bonsai/candidates/pr1.md: line 1 has a semicolon. Split it into two sentences.",
+          "docs/guide.md: line 1 has an em dash. Use parentheses or split the sentence.",
           "plugins/demo/SKILL.md: line 1 has a semicolon. Split it into two sentences.",
         ],
       });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("names the folder when git cannot list it", async () => {
+    const root = await mkdtemp(join(tmpdir(), "check-prose-"));
+
+    try {
+      expect(() => markdownFiles(root)).toThrow(
+        `Unable to list the Markdown files with git in ${root}:`,
+      );
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -113,12 +151,10 @@ describe("main", () => {
   });
 
   test("fails and reports each problem", async () => {
-    const root = await mkdtemp(join(tmpdir(), "check-prose-"));
+    const root = await gitRepo({ "README.md": "One \u2014 two.\n" });
     const error = spyOn(console, "error").mockImplementation(() => undefined);
 
     try {
-      await Bun.write(join(root, "README.md"), "One — two.\n");
-
       expect(await main(root)).toBe(1);
       expect(error).toHaveBeenCalledWith(
         "::error::README.md: line 1 has an em dash. Use parentheses or split the sentence.",
