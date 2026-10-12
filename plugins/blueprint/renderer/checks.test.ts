@@ -211,18 +211,25 @@ describe("findFigureProblems", () => {
     ]);
   });
 
-  test("asks every wire for a label", () => {
+  test("asks every wire for a label, and names the wire by what comes before it", () => {
     expect(
       findFigureProblems(
         measure({
           elements: [
-            element({ classes: ["wire"], box: row(0) }),
-            element({ parent: 1, classes: ["label"], box: row(0) }),
-            element({ classes: ["hwire"], box: row(1) }),
+            element({ classes: ["layer"], text: "Clients", box: row(0) }),
+            element({ classes: ["wire"], box: row(1) }),
+            element({ parent: 2, classes: ["label"], box: row(1) }),
+            element({ classes: ["layer"], text: "Edge", box: row(2) }),
+            element({ classes: ["hwire"], box: row(3) }),
+            element({ classes: ["flow"], box: { ...row(4), bottom: 300 } }),
+            element({ parent: 6, classes: ["hwire"], box: row(4) }),
           ],
         }),
       ),
-    ).toEqual(["A wire has no label. Say what crosses it, for example HTTPS."]);
+    ).toEqual([
+      'The wire after "Edge" has no label. Say what crosses it, for example HTTPS.',
+      'The first wire in "flow" has no label. Say what crosses it, for example HTTPS.',
+    ]);
   });
 
   test("reports split columns whose layers end at different heights", () => {

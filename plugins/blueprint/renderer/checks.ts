@@ -230,7 +230,21 @@ function wireProblems(figure: Figure): string[] {
 
   return wires
     .filter((wire) => !labels.some((label) => figure.isInside(label, wire)))
-    .map(() => "A wire has no label. Say what crosses it, for example HTTPS.");
+    .map(
+      (wire) =>
+        `${describeWire(figure, wire)} has no label. Say what crosses it, for example HTTPS.`,
+    );
+}
+
+function describeWire(figure: Figure, wire: number): string {
+  const { parent } = figure.at(wire);
+  const before = figure.elements.findLastIndex(
+    (element, index) => index < wire && element.parent === parent,
+  );
+
+  return before === -1
+    ? `The first wire in ${figure.describe(parent)}`
+    : `The wire after ${figure.describe(before)}`;
 }
 
 function splitProblems(figure: Figure): string[] {

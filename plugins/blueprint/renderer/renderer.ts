@@ -65,6 +65,14 @@ function playwrightChromium(dir: string | undefined): string[] {
 }
 
 export async function launchBrowser(): Promise<Browser> {
+  const chromePath = process.env.CHROME_PATH;
+
+  if (chromePath && !existsSync(chromePath)) {
+    throw new Error(
+      `CHROME_PATH points at ${chromePath}, which does not exist. Set it to the Chrome or Chromium binary, or unset it.`,
+    );
+  }
+
   const executablePath = findChrome();
 
   if (!executablePath) {

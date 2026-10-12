@@ -44,6 +44,26 @@ describe("findChrome", () => {
   });
 });
 
+describe("launchBrowser", () => {
+  test("names a CHROME_PATH that points nowhere", () => {
+    const chromePath = process.env.CHROME_PATH;
+
+    process.env.CHROME_PATH = "/nowhere/chrome";
+
+    try {
+      expect(launchBrowser()).rejects.toThrow(
+        "CHROME_PATH points at /nowhere/chrome, which does not exist.",
+      );
+    } finally {
+      if (chromePath === undefined) {
+        delete process.env.CHROME_PATH;
+      } else {
+        process.env.CHROME_PATH = chromePath;
+      }
+    }
+  });
+});
+
 describe.skipIf(!findChrome())("renderFigure", () => {
   let browser: Browser;
   let workDir: string;
@@ -100,7 +120,9 @@ describe.skipIf(!findChrome())("renderFigure", () => {
     )) as Error;
 
     expect(error.message).toContain("2 nodes are accented");
-    expect(error.message).toContain("A wire has no label");
+    expect(error.message).toContain(
+      'The wire after "OneDetailTwoDetail" has no label',
+    );
     expect(error.message).toContain("wraps to a second line");
     expect(error.message).toContain('"publica.la" renders in uppercase');
     expect(error.message).toContain("has an em dash");
