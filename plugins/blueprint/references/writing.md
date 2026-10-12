@@ -13,7 +13,7 @@ The text on a figure or a scene, and the message that carries it to its readers.
 - Direct, practical, concise. The facts and the numbers carry the figure. No marketing adjectives ("seamless", "robust", "powerful").
 - Titles and descriptions in sentence case. Uppercase comes only from the label classes, so never type it by hand.
 - A node title names the thing in a few words. Its description says what it does or holds, in one line, two at most.
-- State the claim directly. "Not X, but Y" stays only when a reader would plausibly assume X.
+- No contrastive negation ("not X, but Y", "X, not Y", "X, never Y"). State Y directly.
 - Plain words over jargon. A term stays only when the reader needs that concept.
 - No em dashes, semicolons or curly quotes. The renderer rejects all three, except inside a `quote` or `code`, which keep their own conventions.
 
