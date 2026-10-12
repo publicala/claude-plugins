@@ -247,11 +247,22 @@ export async function writeVideo(
     );
   }
 
-  const extraBrowsers = await Promise.all(
+  // allSettled waits for every launch, so one that fails can't leave the
+  // others running.
+  const launches = await Promise.allSettled(
     Array.from({ length: browsers - 1 }, () => launchBrowser()),
   );
+  const extraBrowsers = launches
+    .filter((launch) => launch.status === "fulfilled")
+    .map(({ value }) => value);
 
   try {
+    for (const launch of launches) {
+      if (launch.status === "rejected") {
+        throw launch.reason;
+      }
+    }
+
     const pages = [
       page,
       ...(await Promise.all(
