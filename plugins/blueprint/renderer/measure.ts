@@ -1,6 +1,6 @@
 // Functions that run inside the rendered figure. Puppeteer serializes each
-// one into the page, so they stay self-contained: no imports and no
-// references to module scope.
+// one into the page, so they stay self-contained: no runtime imports and
+// no references to module scope.
 import type { Box, Measurement } from "./checks";
 
 // The page globals these functions read, typed here so the DOM library

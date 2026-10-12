@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 
-// Renders Blueprint figure sources to PNG, and to PDF with --pdf. The PNG
-// lands next to its source at 2x, cropped to the canvas. Set CHROME_PATH
-// when Chrome is not in a standard location.
+// Command line for the figure renderer.
 import { relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 

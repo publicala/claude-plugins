@@ -1,11 +1,6 @@
 /*
- * Blueprint: the house style for publica.la technical figures.
- *
- * Hairline borders, square corners, monospace labels, a dot grid and one
- * accent color. The renderer inlines this file into every figure, so a
- * change here reaches every figure on its next render. Figures render in
- * the light colors. The dark ones serve pages that follow the reader's
- * color mode.
+ * Figures render in the light colors. The dark ones serve pages that
+ * follow the reader's color mode.
  */
 
 :root {
@@ -264,7 +259,6 @@ svg.icon {
   flex: 1;
 }
 
-/* A column that takes the remaining height and centers what it holds. */
 .center {
   flex: 1;
   display: flex;
@@ -373,7 +367,7 @@ svg.icon {
   gap: 8px;
 }
 
-/* Rows of nodes: any number of nodes share the width evenly. */
+/* Row */
 
 .row {
   display: grid;
@@ -382,7 +376,7 @@ svg.icon {
   gap: 8px;
 }
 
-/* Node: one component, service or actor. */
+/* Node */
 
 .node {
   border: 1px solid var(--hair);
@@ -431,7 +425,7 @@ svg.icon {
   padding: 1px 5px;
 }
 
-/* Tags: properties of a whole layer. */
+/* Tags */
 
 .tags {
   display: flex;
@@ -589,7 +583,7 @@ svg.icon {
   margin-top: 2px;
 }
 
-/* Callout: one note the reader must not miss. */
+/* Callout */
 
 .callout {
   border: 1px solid var(--hair-strong);
@@ -605,7 +599,7 @@ svg.icon {
   color: var(--ink);
 }
 
-/* Hero: the large statement on og and square cards. */
+/* Hero */
 
 .hero {
   display: flex;
@@ -638,7 +632,7 @@ svg.icon {
   max-width: 60ch;
 }
 
-/* Stat: one number that carries the point, with what it counts. */
+/* Stat */
 
 .stat {
   display: flex;
@@ -661,7 +655,7 @@ svg.icon {
   line-height: 1.4;
 }
 
-/* Quote: text shown verbatim, such as a message or a log line. */
+/* Quote */
 
 .quote {
   font-family: var(--mono);
@@ -694,7 +688,7 @@ svg.icon {
   background: var(--hair-strong);
 }
 
-/* Kicker, caption and verdict: one-line labels around a group. */
+/* Kicker, caption and verdict */
 
 .kicker {
   font-family: var(--mono);
