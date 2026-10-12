@@ -31,11 +31,11 @@ const node = (title: string, modifier = "") =>
   `<div class="node${modifier}"><div class="h">${title}</div><div class="d">Detail</div></div>`;
 
 describe("findChrome", () => {
-  test("takes CHROME_PATH when it exists, and nothing else when it does not", () => {
-    expect(findChrome({ CHROME_PATH: process.execPath })).toBe(
+  test("takes CHROME_PATH when it exists, and nothing else when it does not", async () => {
+    expect(await findChrome({ CHROME_PATH: process.execPath })).toBe(
       process.execPath,
     );
-    expect(findChrome({ CHROME_PATH: "/nowhere/chrome" })).toBeNull();
+    expect(await findChrome({ CHROME_PATH: "/nowhere/chrome" })).toBeNull();
   });
 
   test("finds the newest Chromium that Playwright installed", async () => {
@@ -47,7 +47,7 @@ describe("findChrome", () => {
         await Bun.write(join(dir, build, "chrome-linux/chrome"), "");
       }
 
-      expect(findChrome({ PLAYWRIGHT_BROWSERS_PATH: dir })).toBe(
+      expect(await findChrome({ PLAYWRIGHT_BROWSERS_PATH: dir })).toBe(
         join(dir, "chromium-1194/chrome-linux/chrome"),
       );
     } finally {
@@ -66,16 +66,25 @@ describe("findChrome", () => {
       await mkdir(join(path, ".."), { recursive: true });
       await Bun.write(path, "");
 
-      expect(findChrome({ PLAYWRIGHT_BROWSERS_PATH: dir })).toBe(path);
+      expect(await findChrome({ PLAYWRIGHT_BROWSERS_PATH: dir })).toBe(path);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
-  test("goes on to the other places when puppeteer finds no Google Chrome", async () => {
-    const lookup = spyOn(puppeteer, "executablePath").mockImplementation(() => {
-      throw new Error("Could not find Chrome");
-    });
+  test.each([
+    [
+      "Google Chrome is not where puppeteer expects it",
+      () => Promise.resolve("/nowhere/google-chrome"),
+    ],
+    [
+      "puppeteer cannot name a path",
+      () => Promise.reject(new Error("Unsupported platform")),
+    ],
+  ])("goes on to the other places when %s", async (_, lookupResult) => {
+    const lookup = spyOn(puppeteer, "executablePath").mockImplementation(
+      lookupResult,
+    );
     const dir = await mkdtemp(join(tmpdir(), "playwright-"));
     const path = join(dir, "chromium-1200/chrome-linux/chrome");
 
@@ -83,7 +92,7 @@ describe("findChrome", () => {
       await mkdir(join(path, ".."), { recursive: true });
       await Bun.write(path, "");
 
-      expect(findChrome({ PLAYWRIGHT_BROWSERS_PATH: dir })).toBe(path);
+      expect(await findChrome({ PLAYWRIGHT_BROWSERS_PATH: dir })).toBe(path);
       expect(lookup).toHaveBeenCalledWith("chrome");
     } finally {
       lookup.mockRestore();
@@ -103,8 +112,8 @@ describe("findChrome", () => {
       await Bun.write(path, "");
 
       // A machine with Chrome installed finds that one first.
-      expect(findChrome({ LOCALAPPDATA: appData })).toBe(
-        findChrome({}) ?? path,
+      expect(await findChrome({ LOCALAPPDATA: appData })).toBe(
+        (await findChrome({})) ?? path,
       );
     } finally {
       await rm(appData, { recursive: true, force: true });
@@ -132,7 +141,7 @@ describe("launchBrowser", () => {
   });
 });
 
-describe.skipIf(!findChrome())("openPage", () => {
+describe.skipIf(!(await findChrome()))("openPage", () => {
   test("closes the page when its setup fails", async () => {
     const browser = await launchBrowser();
 
@@ -149,7 +158,7 @@ describe.skipIf(!findChrome())("openPage", () => {
   });
 });
 
-describe.skipIf(!findChrome())("renderFigure", () => {
+describe.skipIf(!(await findChrome()))("renderFigure", () => {
   let browser: Browser;
   let workDir: string;
 
@@ -259,7 +268,7 @@ describe.skipIf(!findChrome())("renderFigure", () => {
   );
 });
 
-describe.skipIf(!findChrome())("command line", () => {
+describe.skipIf(!(await findChrome()))("command line", () => {
   test("renders each source and names what it wrote", async () => {
     const workDir = await mkdtemp(join(tmpdir(), "blueprint-cli-"));
     const log = spyOn(console, "log").mockImplementation(() => undefined);
