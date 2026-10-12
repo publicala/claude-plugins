@@ -45,7 +45,7 @@ The stylesheet is `style/blueprint.css` in this plugin, and these classes are th
 | `node planned` | Something not in production yet (dashed, with a "Planned" badge) |
 | `tags` > `tag` | Properties of a whole layer (`WAF`, `Autoscaling`) |
 | `wire` > `label` | A vertical connection between stacked layers |
-| `flow` > `layer` + `hwire` > `label` | Steps left to right with horizontal connections |
+| `flow` > `layer` + `hwire` > `label` | Steps left to right with horizontal connections. On `video` it holds four steps with icons, or five without, when each title is one word. Split six or more across two scenes or slides |
 | `sheet` | A key and value table (`th` and `td`, `<small>` for a second line) |
 | `stat` > `v` + `d` | One number that carries the point, with what it counts |
 | `meter` | A share of a whole, under a stat or in a sheet cell: `<div class="meter" style="--value: 82%"></div>`. `meter muted` for a share that is not the point |

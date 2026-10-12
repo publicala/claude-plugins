@@ -30,6 +30,27 @@ const figure = (body: string, size = "") =>
 const node = (title: string, modifier = "") =>
   `<div class="node${modifier}"><div class="h">${title}</div><div class="d">Detail</div></div>`;
 
+// blueprint.md says how many steps fit in a flow on video, for one-word titles like these.
+const STEPS = [
+  ["user", "Reader"],
+  ["store", "Storefront"],
+  ["shopping-cart", "Checkout"],
+  ["credit-card", "Payments"],
+  ["library", "Library"],
+];
+
+const videoFlow = (count: number, icons: boolean) =>
+  figure(
+    `<div class="flow">${STEPS.slice(0, count)
+      .map(
+        ([icon, title], index) =>
+          `<section class="layer"><div class="gutter"><span class="n">0${index + 1}</span><span class="t">Step</span></div>` +
+          `<div class="body"><div class="node"><div class="h">${icons ? `<i data-icon="${icon}"></i>` : ""}${title}</div><div class="d">Detail</div></div></div></section>`,
+      )
+      .join('<div class="hwire"><span class="label">Next</span></div>')}</div>`,
+    ' data-size="video"',
+  );
+
 describe("findChrome", () => {
   test("takes CHROME_PATH when it exists, and nothing else when it does not", async () => {
     expect(await findChrome({ CHROME_PATH: process.execPath })).toBe(
@@ -254,6 +275,17 @@ describe.skipIf(!(await findChrome()))("renderFigure", () => {
 
     expect(rendering).rejects.toThrow("The columns of a split end 100px apart");
     expect(rendering).rejects.toThrow('overlaps "Over"');
+  });
+
+  test("a flow on video fits four steps with icons, or five without, as blueprint.md says", async () => {
+    expect(await render("flow-4-icons", videoFlow(4, true))).toHaveLength(1);
+    expect(await render("flow-5-plain", videoFlow(5, false))).toHaveLength(1);
+  });
+
+  test("a flow on video refuses five steps with icons", () => {
+    expect(render("flow-5-icons", videoFlow(5, true))).rejects.toThrow(
+      /runs past the canvas by \d+px across/,
+    );
   });
 
   test.each(EXAMPLE_SOURCES)(
