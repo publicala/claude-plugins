@@ -10,7 +10,7 @@ Judge every rule of every in-scope CLAUDE.md against one question: **which sessi
 
 Throughout, "demote" and "promote" mean recording a verdict in the report. No file changes before approval, no exceptions.
 
-This skill decides where rules live. Whether they live is `/bonsai:audit`'s call: a rule that looks cuttable goes there and stays put. Run split after an audit, so placement work is spent only on lines that earned their keep.
+This skill decides where rules live. Whether they live is `/bonsai:audit`'s call: leave a rule that looks cuttable where it is and refer it to the audit. Run split after an audit, so placement work is spent only on lines that earned their keep.
 
 ## Scope
 

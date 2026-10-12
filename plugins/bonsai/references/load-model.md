@@ -9,7 +9,7 @@ What a session pays for a CLAUDE.md line depends only on how the file reaches th
 - **Path-scoped rule** (`.claude/rules/<topic>.md` with `paths` globs in the frontmatter): loads when the session reads a file matching a glob. The only class that scopes by file pattern across directories.
 - **Deferred**: a plain markdown pointer loads nothing until an agent chooses to read the target. The only class where content is close to free.
 
-Nested files and path-scoped rules are the two scope-triggered classes. Judge their lines against a fresh session working in their scope, the only sessions that load them.
+Nested files and path-scoped rules are the two scope-triggered classes. Judge their lines against a fresh session working in their scope, since only those sessions load them.
 
 ## The trigger is a read
 
