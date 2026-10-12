@@ -7,7 +7,7 @@ bun build.ts data.json -o page.html
 bun build.ts data.json --check
 ```
 
-The script needs [Bun](https://bun.sh) 1.1.9 or later and nothing else: no install step, no dependencies. The page draws in Blueprint, the house style the blueprint plugin owns: `blueprint-tokens.css` is a symlink to its tokens, and install copies the file in its place. It prints a one-line summary on success, and on failure one error that names the change and what to fix.
+The script needs [Bun](https://bun.sh) 1.1.9 or later and nothing else: no install step, no dependencies. It prints a one-line summary on success, and on failure one error that names the change and what to fix. The page draws in Blueprint's tokens (`blueprint-tokens.css`, owned by the blueprint plugin).
 
 ## The data file
 

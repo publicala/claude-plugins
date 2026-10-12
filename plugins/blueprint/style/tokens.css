@@ -1,8 +1,5 @@
 /*
  * Blueprint tokens: the colors and the type every Blueprint surface shares.
- * Figures and walkthroughs render in the light set. A page that follows the
- * reader's color mode gets the dark set from prefers-color-scheme, or from
- * data-theme on its root element.
  */
 
 :root {
