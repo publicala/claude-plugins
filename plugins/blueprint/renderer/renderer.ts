@@ -15,7 +15,7 @@ import {
 } from "./assets";
 import { findFigureProblems } from "./checks";
 import { measureFigure, roundCanvasHeight } from "./measure";
-import { buildPage, outputPathFor } from "./page";
+import { buildPage, outputPathFor, type PageOptions } from "./page";
 
 const SOURCE_SUFFIX = ".diagram.html";
 const SCALE = 2;
@@ -111,7 +111,10 @@ export async function launchBrowser(): Promise<Browser> {
   });
 }
 
-export async function buildFigurePage(source: string): Promise<string> {
+export async function buildFigurePage(
+  source: string,
+  options: PageOptions = {},
+): Promise<string> {
   const [stylesheet, fontFaceCss, logoSvg, icons] = await Promise.all([
     readStylesheet(),
     readFontFaceCss(),
@@ -119,7 +122,14 @@ export async function buildFigurePage(source: string): Promise<string> {
     readLucideIcons(),
   ]);
 
-  return buildPage({ source, stylesheet, fontFaceCss, logoSvg, icons });
+  return buildPage({
+    source,
+    stylesheet,
+    fontFaceCss,
+    logoSvg,
+    icons,
+    ...options,
+  });
 }
 
 /**

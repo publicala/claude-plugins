@@ -119,6 +119,27 @@ describe("buildPage", () => {
     expect(html).toContain('<div class="canvas">-- y --></div>');
   });
 
+  test("adds a title, head markup, a body class and a wrapper whose icons expand", () => {
+    const html = buildPage({
+      source: '<div class="canvas"></div>',
+      stylesheet: "",
+      fontFaceCss: "",
+      logoSvg: "",
+      icons,
+      title: "Player",
+      head: "<style>.screen{}</style>",
+      bodyClass: "player",
+      wrapBody: (figure) =>
+        `<div class="screen">${figure}</div><i data-icon="database"></i>`,
+    });
+
+    expect(html).toContain("<title>Player</title>");
+    expect(html).toContain("<style>.screen{}</style></head>");
+    expect(html).toContain(
+      '<body class="player"><div class="screen"><div class="canvas"></div></div><svg class="icon"',
+    );
+  });
+
   test("accepts a canvas with more classes", () => {
     expect(() => page("<div class='figure canvas'></div>")).not.toThrow();
   });

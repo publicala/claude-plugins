@@ -28,7 +28,7 @@ The figure is one `<div class="canvas">`, and `data-size` picks the format.
 
 ## Vocabulary
 
-The stylesheet is `style/blueprint.css` in this plugin, and these classes are the whole vocabulary.
+The stylesheet is `style/blueprint.css` in this plugin, and these classes are the whole vocabulary of a figure. The walkthrough skill adds the ones that stage its scenes.
 
 | Class | Use |
 | --- | --- |
