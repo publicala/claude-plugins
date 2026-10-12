@@ -46,6 +46,8 @@ One file, `<name>.walkthrough.html`, next to what it explains or in the scratchp
 </div>
 ```
 
+A scene stacks what it holds in one column, centered on the stage. `scene split` lays it out like `split` instead, with a side column on the right.
+
 Times are in seconds, counted from the start of the element's scene:
 
 | Attribute | Effect |
