@@ -372,6 +372,11 @@
   .card[data-state="later"] {
     border-left: 4px solid var(--body);
   }
+  .card[data-state="apply"]::before,
+  .card[data-state="skip"]::before,
+  .card[data-state="later"]::before {
+    left: -4px;
+  }
   .card[data-state="skip"] .diff,
   .card[data-state="later"] .diff {
     opacity: 0.55;
