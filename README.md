@@ -37,7 +37,7 @@ lefthook install
 bun run check
 ```
 
-`bun run check` runs Prettier, ESLint with type-aware rules, `tsc`, the plugin validation (relative links and SKILL.md frontmatter), and the tests with a coverage floor (`bunfig.toml`).
+`bun run check` runs Prettier, ESLint with type-aware rules, `tsc`, the plugin validation (relative links and SKILL.md frontmatter), the prose check (the mechanical writing rules in [CLAUDE.md](CLAUDE.md)), and the tests with a coverage floor (`bunfig.toml`).
 
 ## License
 

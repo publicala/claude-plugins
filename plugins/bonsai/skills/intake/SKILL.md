@@ -60,7 +60,7 @@ For each surviving finding, record:
 
 - **Symbols**: every class, method, file, and config key the rule or check would name, each checked on the default branch. A symbol that exists only in the PR freezes the candidate.
 - **Current code**: does the default branch comply with the rule, contradict it, or have no instance yet? Grep the governed paths and record numerator and denominator.
-- **Existing coverage**: the CLAUDE.md lines, scoped rules, and enforcement surfaces (linter, static analysis, architecture tests, hooks, CI) that already govern the behavior. A rule already stated is a duplicate; a rule already enforced is noise.
+- **Existing coverage**: the CLAUDE.md lines, scoped rules, and enforcement surfaces (linter, static analysis, architecture tests, hooks, CI) that already govern the behavior. A rule already stated is a duplicate. A rule already enforced is noise.
 
 ### 6. Classify
 
@@ -68,7 +68,7 @@ Every candidate gets one class and one status.
 
 Class:
 
-- **bake**: a tool the repository already runs can express the check (linter rule, static analysis, architecture test, hook, CI step, agent-harness deny rule). Record the tool and the shape of the check. Bake gets the first attempt at it; intake never turns a bake candidate into prose.
+- **bake**: a tool the repository already runs can express the check (linter rule, static analysis, architecture test, hook, CI step, agent-harness deny rule). Record the tool and the shape of the check. Bake gets the first attempt at it. Intake never turns a bake candidate into prose.
 - **prose**: the rule needs judgment no tool can express, or the feedback loop is too late for a check alone (see the bake skill on late feedback).
 
 Status, in precedence order (the first that applies wins):

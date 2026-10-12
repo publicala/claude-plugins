@@ -9,7 +9,7 @@ The key is the canonical GitHub name of the target repository, `owner/repo`: run
 ## Files
 
 - Local entry: `~/.claude/bonsai/intake/<key>/pr<number>.md`, one per source pull request, named by the PR alone so a rerun finds the same file. Holds the ledger and the candidates.
-- Exported candidates (opt-in, `--export`): `<target repo>/.claude/bonsai/candidates/pr<number>.md`. Holds the candidate sections only, verbatim, no ledger. Intake writes it uncommitted; whoever commits it decides it is fit to share.
+- Exported candidates (opt-in, `--export`): `<target repo>/.claude/bonsai/candidates/pr<number>.md`. Holds the candidate sections only, verbatim, no ledger. Intake writes it uncommitted. Whoever commits it decides it is fit to share.
 
 A reader treats a local entry and an exported file with the same `source_pr` as one entry, preferring the local copy's statuses.
 
@@ -78,7 +78,7 @@ verified_on: 3f2a9c1
 - `target_repo`, `source_repo`, `source_pr`: `source_repo` differs from `target_repo` when a review on one repository surfaces a rule for another.
 - `verified_on`: the default-branch commit of the target repository the symbol checks ran against.
 - Ledger `Outcome`: the slug of the candidate the thread feeds, or the reason it feeds none. One row per thread. This is the only place a dropped thread appears.
-- `Class`: `prose` or `bake`. Intake fixes it; bake may change `bake` to `prose` when it declines.
+- `Class`: `prose` or `bake`. Intake fixes it. Bake may change `bake` to `prose` when it declines.
 - `Status`: `open`, `frozen-until: <PR URL>`, or `watch` (written by intake), then `encoded: <rule path> (<PR URL or commit>)`, `baked: <check> (<PR URL or commit>)`, or `rejected: <reason>` (written by feed or bake, or by intake's sweep when the freezing PR closed unmerged). `rejected` is terminal and means the rule itself is wrong, already enforced, or names a symbol that never landed. Declining a check for any other reason is not a rejection: bake sets `Class: prose`, keeps `open`, and writes the reason in `History`.
 - `Mistake`: the concrete failure a session produces without the rule, one sentence.
 - `Symbols`: every identifier the rule or check names, each marked `exists` on the default branch or the PR it waits for.
