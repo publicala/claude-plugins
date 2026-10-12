@@ -10,7 +10,7 @@ import type { SceneTiming } from "./timeline";
 import {
   buildPlayerPage,
   buildWalkthroughPage,
-  findTimingProblems,
+  judgeTiming,
   main,
   openWalkthrough,
   parseArguments,
@@ -36,10 +36,10 @@ const scene = (overrides: Partial<SceneTiming> = {}): SceneTiming => ({
 const walkthrough = (scenes: string) =>
   `<div class="canvas" data-size="video"><main class="stage">${scenes}</main><footer class="colophon"><span data-fig></span><i class="progress"></i></footer></div>`;
 
-describe("findTimingProblems", () => {
+describe("judgeTiming", () => {
   test("passes scenes that settle before they fade and read at a calm pace", () => {
     expect(
-      findTimingProblems({
+      judgeTiming({
         duration: 10,
         scenes: [
           scene(),
@@ -50,14 +50,14 @@ describe("findTimingProblems", () => {
   });
 
   test("refuses a walkthrough without scenes", () => {
-    expect(
-      findTimingProblems({ duration: 0, scenes: [] }).problems[0],
-    ).toStartWith("The walkthrough has no scenes.");
+    expect(judgeTiming({ duration: 0, scenes: [] }).problems[0]).toStartWith(
+      "The walkthrough has no scenes.",
+    );
   });
 
   test("refuses a duration that is not a number of seconds above zero", () => {
     expect(
-      findTimingProblems({
+      judgeTiming({
         duration: 5,
         scenes: [scene({ title: "Forever", invalidDuration: "Infinity" })],
       }).problems,
@@ -68,7 +68,7 @@ describe("findTimingProblems", () => {
 
   test("refuses a scene still moving once it fades, and warns about pace and length", () => {
     expect(
-      findTimingProblems({
+      judgeTiming({
         duration: 50,
         scenes: [
           scene({ title: "Busy", settled: 4.8, words: 30 }),

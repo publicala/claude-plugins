@@ -2,13 +2,7 @@
 // timeline.ts) read. Each of those files declares the globals it uses with
 // these types, so the DOM library stays out of the Bun scripts that share
 // the TypeScript program.
-
-export interface PageBox {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
-}
+import type { Box } from "./checks";
 
 export interface PageStyle {
   height: string;
@@ -32,7 +26,7 @@ export interface PageElement {
   readonly clientHeight: number;
   readonly style: PageStyle;
   readonly dataset: Record<string, string | undefined>;
-  getBoundingClientRect(): PageBox;
+  getBoundingClientRect(): Box;
   getAttribute(name: string): string | null;
   querySelector(selectors: string): PageElement | null;
   querySelectorAll(selectors: string): Iterable<PageElement>;
@@ -56,7 +50,7 @@ export interface PageDocument {
   readonly fonts: Iterable<{ status: string; family: string; weight: string }>;
 }
 
-export interface ComputedStyle {
+export interface PageComputedStyle {
   display: string;
   textTransform: string;
   fontSize: string;

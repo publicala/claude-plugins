@@ -140,6 +140,12 @@ class Figure {
 
 const width = (box: Box) => box.right - box.left;
 const height = (box: Box) => box.bottom - box.top;
+const isEmpty = (box: Box) => width(box) === 0 && height(box) === 0;
+const isOutside = (box: Box, limits: Box) =>
+  box.left < limits.left - 0.5 ||
+  box.top < limits.top - 0.5 ||
+  box.right > limits.right + 0.5 ||
+  box.bottom > limits.bottom + 0.5;
 const lineCount = (element: MeasuredElement) =>
   Math.round(height(element.box) / element.lineHeight);
 
@@ -162,17 +168,7 @@ function overflowProblems(figure: Figure): string[] {
   const bounds = figure.canvas.box;
 
   figure.elements.forEach(({ box }, index) => {
-    if (index === 0 || (width(box) === 0 && height(box) === 0)) {
-      return;
-    }
-
-    const outside =
-      box.left < bounds.left - 0.5 ||
-      box.top < bounds.top - 0.5 ||
-      box.right > bounds.right + 0.5 ||
-      box.bottom > bounds.bottom + 0.5;
-
-    if (outside) {
+    if (index !== 0 && !isEmpty(box) && isOutside(box, bounds)) {
       problems.push(
         `${figure.describe(index)} sits outside the canvas. Move it back inside, or pick a larger data-size.`,
       );
@@ -183,14 +179,11 @@ function overflowProblems(figure: Figure): string[] {
     const { box: limits } = figure.at(stage);
 
     figure.elements.forEach(({ box }, index) => {
-      const visible = width(box) > 0 || height(box) > 0;
-      const outside =
-        box.left < limits.left - 0.5 ||
-        box.top < limits.top - 0.5 ||
-        box.right > limits.right + 0.5 ||
-        box.bottom > limits.bottom + 0.5;
-
-      if (visible && outside && figure.isInside(index, stage)) {
+      if (
+        !isEmpty(box) &&
+        isOutside(box, limits) &&
+        figure.isInside(index, stage)
+      ) {
         problems.push(
           `${figure.describe(index)} runs out of the stage. Cut the scene down or split it in two.`,
         );

@@ -14,7 +14,15 @@ import { findFigureProblems } from "./checks";
 import { measureFigure } from "./measure";
 import { outputPathFor } from "./page";
 import { buildFigurePage, launchBrowser, openPage } from "./renderer";
-import { installTimeline, isolateScene, type SceneTiming } from "./timeline";
+import {
+  installTimeline,
+  isolateScene,
+  readTiming,
+  renderFrame,
+  showAllScenes,
+  type SceneTiming,
+  type Timing,
+} from "./timeline";
 
 const SOURCE_SUFFIX = ".walkthrough.html";
 const WIDTH = 1280;
@@ -31,11 +39,6 @@ const PLAYER_STYLE = /<style>[\s\S]*?<\/style>\s*/;
 
 const USAGE =
   "Usage: bun walkthrough.ts <name.walkthrough.html> [--video] [--player] [--at <seconds>]";
-
-export interface Timing {
-  duration: number;
-  scenes: SceneTiming[];
-}
 
 export async function buildWalkthroughPage(source: string): Promise<string> {
   return buildFigurePage(source, {
@@ -60,8 +63,7 @@ export async function buildPlayerPage(source: string): Promise<string> {
   });
 }
 
-/** Problems that stop the render, and warnings it prints. */
-export function findTimingProblems({ duration, scenes }: Timing): {
+export function judgeTiming({ duration, scenes }: Timing): {
   problems: string[];
   warnings: string[];
 } {
@@ -132,11 +134,7 @@ export async function openWalkthrough(
     scale: SCALE,
   });
 
-  const timing = (await page.evaluate(
-    "({ duration: walkthrough.duration, scenes: walkthrough.scenes })",
-  )) as Timing;
-
-  return { page, timing };
+  return { page, timing: await page.evaluate(readTiming) };
 }
 
 function lastFullFrameAt(scene: SceneTiming): number {
@@ -151,7 +149,7 @@ async function findSceneProblems({
 
   for (const [index, scene] of timing.scenes.entries()) {
     await page.evaluate(isolateScene, index);
-    await renderAt(page, lastFullFrameAt(scene));
+    await page.evaluate(renderFrame, lastFullFrameAt(scene));
 
     for (const problem of findFigureProblems(
       await page.evaluate(measureFigure),
@@ -160,17 +158,13 @@ async function findSceneProblems({
     }
   }
 
-  await page.evaluate(isolateScene, -1);
+  await page.evaluate(showAllScenes);
 
   return problems;
 }
 
-async function renderAt(page: Page, t: number): Promise<void> {
-  await page.evaluate(`walkthrough.render(${t})`);
-}
-
 async function frameAt(page: Page, t: number): Promise<Uint8Array> {
-  await renderAt(page, t);
+  await page.evaluate(renderFrame, t);
 
   return page.screenshot({
     type: "png",
@@ -322,7 +316,7 @@ export async function main(args: string[]): Promise<number> {
 
   try {
     const walkthrough = await openWalkthrough(browser, options.source);
-    const { problems, warnings } = findTimingProblems(walkthrough.timing);
+    const { problems, warnings } = judgeTiming(walkthrough.timing);
 
     problems.push(...(await findSceneProblems(walkthrough)));
 

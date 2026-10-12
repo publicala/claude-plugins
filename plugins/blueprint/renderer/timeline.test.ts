@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Window } from "happy-dom";
 
-import { installTimeline, isolateScene, type Walkthrough } from "./timeline";
+import {
+  installTimeline,
+  isolateScene,
+  readTiming,
+  renderFrame,
+  showAllScenes,
+} from "./timeline";
 
 const PAGE = `
 <div class="canvas">
@@ -45,8 +51,6 @@ afterEach(() => {
   Reflect.deleteProperty(globalThis, "window");
 });
 
-const walkthrough = () =>
-  (globalThis as unknown as { walkthrough: Walkthrough }).walkthrough;
 const query = (selector: string) => {
   const element = window.document.querySelector(selector);
 
@@ -64,7 +68,7 @@ const counts = () =>
 
 describe("installTimeline", () => {
   test("lays the scenes end to end, five seconds when a scene sets no duration", () => {
-    const { duration, scenes } = walkthrough();
+    const { duration, scenes } = readTiming();
 
     expect(duration).toBe(9);
     expect(
@@ -76,14 +80,14 @@ describe("installTimeline", () => {
   });
 
   test("fades out every scene but the last before it ends", () => {
-    expect(walkthrough().scenes.map(({ fadesOutAt }) => fadesOutAt)).toEqual([
+    expect(readTiming().scenes.map(({ fadesOutAt }) => fadesOutAt)).toEqual([
       3.6, 9,
     ]);
   });
 
   test("knows when each scene settles and how many words it shows", () => {
     expect(
-      walkthrough().scenes.map(({ settled, words }) => ({ settled, words })),
+      readTiming().scenes.map(({ settled, words }) => ({ settled, words })),
     ).toEqual([
       { settled: 1.5, words: 3 },
       { settled: 3.2, words: 4 },
@@ -109,7 +113,7 @@ describe("scene durations", () => {
     installTimeline();
 
     expect(
-      walkthrough().scenes.map(({ end, invalidDuration }) => ({
+      readTiming().scenes.map(({ end, invalidDuration }) => ({
         end,
         invalidDuration,
       })),
@@ -126,16 +130,16 @@ describe("scene durations", () => {
 
 describe("render", () => {
   test("fades scenes in and out and names the one on screen", () => {
-    walkthrough().render(0.2);
+    renderFrame(0.2);
     expect(style(".scene[data-title='First']")).toContain("opacity: 0.5");
 
-    walkthrough().render(3.8);
+    renderFrame(3.8);
     expect(style(".scene[data-title='First']")).toContain("opacity: 0.5");
     expect(style(".scene[data-title='Second']")).toContain(
       "visibility: hidden",
     );
 
-    walkthrough().render(9);
+    renderFrame(9);
     expect(style(".scene[data-title='First']")).toContain("visibility: hidden");
     expect(style(".scene[data-title='Second']")).toContain("opacity: 1");
     expect(query("[data-fig]").textContent).toBe("Fig. 2 · Second");
@@ -143,52 +147,52 @@ describe("render", () => {
   });
 
   test("reveals elements from their scene's start, and the masthead from zero", () => {
-    walkthrough().render(0.1);
+    renderFrame(0.1);
     expect(style(".masthead")).toContain("opacity: 0");
     expect(style("h2")).toContain("translateY(10px)");
 
-    walkthrough().render(1.2);
+    renderFrame(1.2);
     expect(style(".masthead")).toContain("opacity: 1");
     expect(style("h2")).toContain("opacity: 1");
     expect(style("h2")).not.toContain("translateY");
   });
 
   test("draws a wire, and lands the arrowhead at the end", () => {
-    walkthrough().render(1.1);
+    renderFrame(1.1);
     expect(style(".wire")).toContain("--arrow: 0");
 
-    walkthrough().render(1.5);
+    renderFrame(1.5);
     expect(style(".wire")).toContain("--draw: 1");
     expect(style(".wire")).toContain("--arrow: 1");
   });
 
   test("counts up with each number's own separator, and ends on its text", () => {
-    walkthrough().render(4);
+    renderFrame(4);
     expect(counts()).toEqual(["0 tests", "0", "0%"]);
 
-    walkthrough().render(5.6);
+    renderFrame(5.6);
     expect(counts()).toEqual(["4.506 tests", "0", "16%"]);
 
-    walkthrough().render(9);
+    renderFrame(9);
     expect(counts()).toEqual(["5.150 tests", "1,240", "18%"]);
   });
 
   test("fills a meter to its value", () => {
-    walkthrough().render(4);
+    renderFrame(4);
     expect(style(".meter")).toContain("--value: 0%");
 
-    walkthrough().render(9);
+    renderFrame(9);
     expect(style(".meter")).toContain("--value: 80%");
   });
 });
 
 describe("isolateScene", () => {
-  test("hides every other scene, and -1 shows them all again", () => {
+  test("hides every other scene, and showAllScenes shows them again", () => {
     isolateScene(1);
     expect(style(".scene[data-title='First']")).toContain("display: none");
     expect(style(".scene[data-title='Second']")).not.toContain("display");
 
-    isolateScene(-1);
+    showAllScenes();
     expect(style(".scene[data-title='First']")).not.toContain("display");
   });
 });

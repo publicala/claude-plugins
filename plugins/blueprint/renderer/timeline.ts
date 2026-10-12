@@ -17,14 +17,16 @@ export interface SceneTiming {
   invalidDuration: string | null;
 }
 
-export interface Walkthrough {
+interface Walkthrough {
   duration: number;
   scenes: SceneTiming[];
   render(t: number): void;
 }
 
+export type Timing = Omit<Walkthrough, "render">;
+
 declare const document: PageDocument;
-declare const window: { walkthrough?: Walkthrough };
+declare const window: { walkthrough: Walkthrough };
 
 export function installTimeline(): void {
   const FADE = 0.4;
@@ -205,9 +207,26 @@ export function installTimeline(): void {
   render(0);
 }
 
+// page.evaluate returns plain data, so the timing leaves render behind.
+export function readTiming(): Timing {
+  const { duration, scenes } = window.walkthrough;
+
+  return { duration, scenes };
+}
+
+export function renderFrame(t: number): void {
+  window.walkthrough.render(t);
+}
+
 // Shows one scene alone, so the figure checks measure it without the others.
 export function isolateScene(index: number): void {
   [...document.querySelectorAll(".scene")].forEach((scene, position) => {
-    scene.style.display = index === -1 || position === index ? "" : "none";
+    scene.style.display = position === index ? "" : "none";
   });
+}
+
+export function showAllScenes(): void {
+  for (const scene of document.querySelectorAll(".scene")) {
+    scene.style.display = "";
+  }
 }

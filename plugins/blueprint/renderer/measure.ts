@@ -3,7 +3,7 @@
 // no references to module scope.
 import type { Measurement } from "./checks";
 import type {
-  ComputedStyle,
+  PageComputedStyle,
   PageDocument,
   PageElement,
   PageText,
@@ -16,7 +16,7 @@ declare const NodeFilter: {
   readonly FILTER_ACCEPT: number;
   readonly FILTER_REJECT: number;
 };
-declare function getComputedStyle(element: PageElement): ComputedStyle;
+declare function getComputedStyle(element: PageElement): PageComputedStyle;
 
 export function measureFigure(): Measurement {
   const canvas = document.querySelector(".canvas");
