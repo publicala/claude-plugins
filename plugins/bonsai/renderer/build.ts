@@ -17,7 +17,7 @@ const TEMPLATE = join(import.meta.dir, "template.html");
 // Blueprint's colors and type, from the blueprint plugin through a symlink
 // that install replaces with the file itself.
 const TOKENS = join(import.meta.dir, "blueprint-tokens.css");
-const TOKENS_PLACEHOLDER = "/*__BLUEPRINT_TOKENS__*/";
+export const TOKENS_PLACEHOLDER = "/*__BLUEPRINT_TOKENS__*/";
 export const DATA_PLACEHOLDER = "/*__DATA__*/ null";
 const TITLE_PLACEHOLDER = "<title>bonsai</title>";
 

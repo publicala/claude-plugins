@@ -37,7 +37,9 @@ describe("assets", () => {
   });
 
   test("read the stylesheet and the logo", async () => {
-    expect(await readStylesheet()).toContain("--accent: #2563eb;");
+    expect(await readStylesheet()).toContain(
+      await Bun.file(join(import.meta.dir, "../style/tokens.css")).text(),
+    );
     expect(await readLogoSvg()).toMatch(/^<svg\b/);
   });
 });
