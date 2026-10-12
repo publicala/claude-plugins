@@ -15,7 +15,7 @@
     },
     {
       "name": "blueprint",
-      "description": "Blueprint, publica.la's house style for engineering visuals: diagram renders standalone figures, spec sheets, social cards and slides to PNG and PDF from small HTML sources, with checks that refuse a broken figure.",
+      "description": "Blueprint, publica.la's house style for engineering visuals: diagram renders figures, spec sheets, social cards and slides to PNG and PDF, and walkthrough makes short silent videos that explain a change, both from small HTML sources with checks that refuse a broken result.",
       "source": "./plugins/blueprint",
       "homepage": "https://github.com/publicala/claude-plugins/tree/main/plugins/blueprint"
     }

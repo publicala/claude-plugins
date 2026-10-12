@@ -28,7 +28,7 @@ The figure is one `<div class="canvas">`, and `data-size` picks the format.
 
 ## Vocabulary
 
-The stylesheet is `style/blueprint.css` in this plugin, and these classes are the whole vocabulary.
+The stylesheet is `style/blueprint.css` in this plugin, and these classes are the whole vocabulary of a figure. The walkthrough skill adds the ones that stage its scenes.
 
 | Class | Use |
 | --- | --- |
@@ -64,4 +64,4 @@ When a figure needs something the vocabulary doesn't have, propose the class in 
 
 ## Colors
 
-The tokens live once in `style/blueprint.css`, in a light and a dark set: `--ink`, `--body`, `--muted`, `--hair`, `--hair-strong`, `--paper`, `--surface`, `--dot`, `--accent`, `--accent-soft`, `--accent-hair`, `--ok` and `--warn`. Figures render in the light set. A page that follows the reader's color mode gets the dark set from `prefers-color-scheme`, or from `data-theme` on its root element.
+Figures render in the light set.

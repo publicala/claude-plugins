@@ -49,7 +49,16 @@ export function expandLogo(markup: string, logoSvg: string): string {
   );
 }
 
-interface PageParts {
+/** What a page adds around the figure, such as a walkthrough's player. */
+export interface PageOptions {
+  title?: string;
+  head?: string;
+  bodyClass?: string;
+  /** Runs before the icons expand, so the wrapper can use them too. */
+  wrapBody?: (figure: string) => string;
+}
+
+interface PageParts extends PageOptions {
   source: string;
   stylesheet: string;
   fontFaceCss: string;
@@ -75,6 +84,10 @@ export function buildPage({
   fontFaceCss,
   logoSvg,
   icons,
+  title = "Figure",
+  head = "",
+  bodyClass,
+  wrapBody = (figure) => figure,
 }: PageParts): string {
   const markup = withoutComments(source);
   const canvases = markup.match(CANVAS_ELEMENT) ?? [];
@@ -85,7 +98,7 @@ export function buildPage({
     );
   }
 
-  const body = expandLogo(expandIcons(markup, icons), logoSvg);
+  const body = expandLogo(expandIcons(wrapBody(markup), icons), logoSvg);
   const leftover = LEFTOVER_PLACEHOLDER.exec(body);
 
   if (leftover) {
@@ -95,9 +108,9 @@ export function buildPage({
   }
 
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Figure</title>
-<style>${fontFaceCss}${stylesheet}</style></head>
-<body>${body}</body></html>
+<html lang="en"><head><meta charset="utf-8"><title>${title}</title>
+<style>${fontFaceCss}${stylesheet}</style>${head}</head>
+<body${bodyClass === undefined ? "" : ` class="${bodyClass}"`}>${body}</body></html>
 `;
 }
 

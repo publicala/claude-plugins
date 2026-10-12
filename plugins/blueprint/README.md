@@ -5,8 +5,9 @@ Blueprint is publica.la's house style for engineering visuals: hairlines, square
 | Skill | Role |
 | --- | --- |
 | `/blueprint:diagram` | Renders standalone figures, spec sheets, social cards and 16:9 slides to PNG and PDF from small HTML sources |
+| `/blueprint:walkthrough` | Makes a short, silent video (about 30 s, 1920x1080) that explains a change, scene by scene, with a contact sheet and a player page |
 
-Claude also reaches for `diagram` on its own when you ask for a figure.
+Claude also reaches for each one on its own when you ask for a figure or a video.
 
 ## Install
 
@@ -15,14 +16,15 @@ Claude also reaches for `diagram` on its own when you ask for a figure.
 /plugin install blueprint@publicala
 ```
 
-The renderer needs [Bun](https://bun.sh) and Chrome or Chromium. Claude Code installs its two packages (`puppeteer-core` and `sharp`) with the plugin.
+The renderer needs [Bun](https://bun.sh) and Chrome or Chromium, and a walkthrough's mp4 needs ffmpeg. Claude Code installs the two packages (`puppeteer-core` and `sharp`) with the plugin.
 
 ## Layout
 
 - `skills/<name>/SKILL.md`: one skill per output, with its examples
 - `references/`: shared by the skills: the look and the vocabulary, truth and audiences, writing
-- `style/blueprint.css`: the stylesheet, with the light and the dark tokens
-- `renderer/`: builds a self-contained page from a source, measures it in Chrome, judges the measurement and writes the PNG or PDF
+- `style/tokens.css`: the colors (a light and a dark set) and the type every Blueprint surface shares. bonsai's decision page links to it
+- `style/blueprint.css`: the figure and walkthrough components
+- `renderer/`: builds a self-contained page from a source, measures it in Chrome, judges the measurement and writes the PNG or PDF. `walkthrough.ts` adds the timeline (`timeline.ts`), checks each scene, and writes the contact sheet, the mp4 and the player (`player.html`)
 - `assets/`: the publica.la wordmark, Inter and JetBrains Mono (SIL Open Font License), and the Lucide icons (ISC License), so a render needs no network
 - `evals/<skill>/PLAN.md`: eval plans per skill
 
