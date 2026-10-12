@@ -52,7 +52,7 @@ Times are in seconds, counted from the start of the element's scene:
 
 | Attribute | Effect |
 | --- | --- |
-| `data-duration` on a scene | How long the scene stays (5 when unset). Scenes play in order and cross-fade |
+| `data-duration` on a scene | How long the scene stays (5 when unset). Scenes play in order: each one fades out before the next fades in |
 | `data-title` on a scene | Its name in the colophon's `data-fig`: "Fig. 2 · Qué pasaba" |
 | `data-in` | The element fades in and rises into place. Outside the scenes, it counts from the start of the video |
 | `data-draw` on a `wire` or `hwire` | The wire draws itself, and the arrowhead lands last |
@@ -75,6 +75,7 @@ The first run checks the scenes and writes `name.contact.png`, one frame per sce
 Checked by the renderer:
 
 - Each scene passes every figure check in [the diagram skill](../diagram/SKILL.md), alone, once it settles.
+- The canvas is `data-size="video"`, the size every frame is captured at.
 - Nothing runs out of the stage, and every scene settles before it starts fading out.
 - It warns when a scene asks for more than 5 words a second (people read about 4), or when the video runs past 45 seconds. Both are rules of thumb. Fix them unless the extra words are labels a viewer only glances at.
 

@@ -10,6 +10,7 @@ import type { SceneTiming } from "./timeline";
 import {
   buildPlayerPage,
   buildWalkthroughPage,
+  findCanvasProblems,
   judgeTiming,
   main,
   openWalkthrough,
@@ -35,6 +36,39 @@ const scene = (overrides: Partial<SceneTiming> = {}): SceneTiming => ({
 
 const walkthrough = (scenes: string) =>
   `<div class="canvas" data-size="video"><main class="stage">${scenes}</main><footer class="colophon"><span data-fig></span><i class="progress"></i></footer></div>`;
+
+describe("findCanvasProblems", () => {
+  const measurement = (right: number, bottom: number) => ({
+    failedFonts: [],
+    overflow: { x: 0, y: 0 },
+    texts: [],
+    elements: [
+      {
+        parent: -1,
+        classes: ["canvas"],
+        tag: "div",
+        text: "",
+        box: { left: 0, top: 0, right, bottom },
+        scrollWidth: right,
+        clientWidth: right,
+        scrollHeight: bottom,
+        clientHeight: bottom,
+        fontSize: 16,
+        lineHeight: 20,
+      },
+    ],
+  });
+
+  test("passes a video canvas", () => {
+    expect(findCanvasProblems(measurement(1280, 720))).toEqual([]);
+  });
+
+  test("refuses any other size, which the frames would crop", () => {
+    expect(findCanvasProblems(measurement(1080, 1080))).toEqual([
+      'The canvas is 1080x1080, and a walkthrough plays at 1280x720. Give the canvas data-size="video".',
+    ]);
+  });
+});
 
 describe("judgeTiming", () => {
   test("passes scenes that settle before they fade and read at a calm pace", () => {

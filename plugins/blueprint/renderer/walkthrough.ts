@@ -9,7 +9,7 @@ import { parseArgs } from "node:util";
 import type { Browser, Page } from "puppeteer-core";
 import sharp from "sharp";
 
-import { findFigureProblems } from "./checks";
+import { findFigureProblems, type Measurement } from "./checks";
 import { measureFigure } from "./measure";
 import { outputPathFor } from "./page";
 import { buildFigurePage, launchBrowser, openPage } from "./renderer";
@@ -137,6 +137,27 @@ export async function openWalkthrough(
 
 function lastFullFrameAt(scene: SceneTiming): number {
   return scene.fadesOutAt - 0.01;
+}
+
+// Every frame is captured at 1280x720, so a canvas of any other size would
+// lose its edges in the video and the player.
+export function findCanvasProblems({ elements }: Measurement): string[] {
+  const canvas = elements.find(({ classes }) => classes.includes("canvas"));
+
+  if (canvas === undefined) {
+    return [];
+  }
+
+  const width = Math.round(canvas.box.right - canvas.box.left);
+  const height = Math.round(canvas.box.bottom - canvas.box.top);
+
+  if (width === WIDTH && height === HEIGHT) {
+    return [];
+  }
+
+  return [
+    `The canvas is ${width}x${height}, and a walkthrough plays at ${WIDTH}x${HEIGHT}. Give the canvas data-size="video".`,
+  ];
 }
 
 async function findSceneProblems({
@@ -311,7 +332,10 @@ export async function main(args: string[]): Promise<number> {
     const walkthrough = await openWalkthrough(browser, options.source);
     const { problems, warnings } = judgeTiming(walkthrough.timing);
 
-    problems.push(...(await findSceneProblems(walkthrough)));
+    problems.push(
+      ...findCanvasProblems(await walkthrough.page.evaluate(measureFigure)),
+      ...(await findSceneProblems(walkthrough)),
+    );
 
     for (const warning of warnings) {
       console.warn(`Warning: ${warning}`);
