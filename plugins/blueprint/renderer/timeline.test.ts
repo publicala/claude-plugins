@@ -64,15 +64,20 @@ const counts = () =>
 
 describe("installTimeline", () => {
   test("lays the scenes end to end, five seconds when a scene sets no duration", () => {
-    const { duration, fade, scenes } = walkthrough();
+    const { duration, scenes } = walkthrough();
 
     expect(duration).toBe(9);
-    expect(fade).toBe(0.4);
     expect(
       scenes.map(({ title, start, end }) => ({ title, start, end })),
     ).toEqual([
       { title: "First", start: 0, end: 4 },
       { title: "Second", start: 4, end: 9 },
+    ]);
+  });
+
+  test("fades out every scene but the last before it ends", () => {
+    expect(walkthrough().scenes.map(({ fadesOutAt }) => fadesOutAt)).toEqual([
+      3.6, 9,
     ]);
   });
 

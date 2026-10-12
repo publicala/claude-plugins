@@ -14,7 +14,6 @@ import {
   openWalkthrough,
   outputPathFor,
   parseArguments,
-  settledAt,
   writeVideo,
 } from "./walkthrough";
 
@@ -28,6 +27,7 @@ const scene = (overrides: Partial<SceneTiming> = {}): SceneTiming => ({
   start: 0,
   end: 5,
   settled: 2,
+  fadesOutAt: 4.6,
   words: 10,
   invalidDuration: null,
   ...overrides,
@@ -55,15 +55,17 @@ describe("findTimingProblems", () => {
     expect(
       findTimingProblems({
         duration: 10,
-        fade: 0.4,
-        scenes: [scene(), scene({ start: 5, end: 10, settled: 5 })],
+        scenes: [
+          scene(),
+          scene({ start: 5, end: 10, settled: 5, fadesOutAt: 10 }),
+        ],
       }),
     ).toEqual({ problems: [], warnings: [] });
   });
 
   test("refuses a walkthrough without scenes", () => {
     expect(
-      findTimingProblems({ duration: 0, fade: 0.4, scenes: [] }).problems[0],
+      findTimingProblems({ duration: 0, scenes: [] }).problems[0],
     ).toStartWith("The walkthrough has no scenes.");
   });
 
@@ -71,7 +73,6 @@ describe("findTimingProblems", () => {
     expect(
       findTimingProblems({
         duration: 5,
-        fade: 0.4,
         scenes: [scene({ title: "Forever", invalidDuration: "Infinity" })],
       }).problems,
     ).toEqual([
@@ -83,10 +84,15 @@ describe("findTimingProblems", () => {
     expect(
       findTimingProblems({
         duration: 50,
-        fade: 0.4,
         scenes: [
           scene({ title: "Busy", settled: 4.8, words: 30 }),
-          scene({ title: "Last", start: 5, end: 50, settled: 46 }),
+          scene({
+            title: "Last",
+            start: 5,
+            end: 50,
+            settled: 46,
+            fadesOutAt: 50,
+          }),
         ],
       }),
     ).toEqual({
@@ -99,25 +105,6 @@ describe("findTimingProblems", () => {
         "The walkthrough runs 50 s. Aim for 25 to 40 s, or make two.",
       ],
     });
-  });
-});
-
-describe("settledAt", () => {
-  const timing = {
-    duration: 10,
-    fade: 0.4,
-    scenes: [scene(), scene({ start: 5, end: 10 })],
-  };
-
-  test("picks the moment before a scene fades, and the end for the last one", () => {
-    expect(settledAt(timing, 0)).toBeCloseTo(4.59);
-    expect(settledAt(timing, 1)).toBeCloseTo(9.99);
-  });
-
-  test("refuses a scene that does not exist", () => {
-    expect(() => settledAt(timing, 2)).toThrow(
-      "The walkthrough has no scene 3.",
-    );
   });
 });
 

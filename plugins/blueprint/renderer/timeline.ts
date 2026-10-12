@@ -10,6 +10,8 @@ export interface SceneTiming {
   end: number;
   /** Seconds after the scene starts when its last element is in place. */
   settled: number;
+  /** Equal to end for the last scene, which never fades out. */
+  fadesOutAt: number;
   words: number;
   /** A data-duration that is not a number of seconds above zero, as written. */
   invalidDuration: string | null;
@@ -17,7 +19,6 @@ export interface SceneTiming {
 
 export interface Walkthrough {
   duration: number;
-  fade: number;
   scenes: SceneTiming[];
   render(t: number): void;
 }
@@ -180,22 +181,24 @@ export function installTimeline(): void {
 
   window.walkthrough = {
     duration,
-    fade: FADE,
-    scenes: scenes.map(({ element, title, start, end, invalidDuration }) => ({
-      title,
-      start,
-      end,
-      invalidDuration,
-      settled: Math.max(
-        0,
-        ...motions
-          .filter((motion) => element.contains(motion.element))
-          .map((motion) => motion.offset + motion.length),
-      ),
-      words: (element.textContent ?? "")
-        .split(/\s+/)
-        .filter((word) => /[\p{L}\p{N}]/u.test(word)).length,
-    })),
+    scenes: scenes.map(
+      ({ element, title, start, end, invalidDuration }, index) => ({
+        title,
+        start,
+        end,
+        fadesOutAt: index === scenes.length - 1 ? end : end - FADE,
+        invalidDuration,
+        settled: Math.max(
+          0,
+          ...motions
+            .filter((motion) => element.contains(motion.element))
+            .map((motion) => motion.offset + motion.length),
+        ),
+        words: (element.textContent ?? "")
+          .split(/\s+/)
+          .filter((word) => /[\p{L}\p{N}]/u.test(word)).length,
+      }),
+    ),
     render,
   };
 

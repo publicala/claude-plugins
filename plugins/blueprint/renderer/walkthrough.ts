@@ -29,7 +29,6 @@ const USAGE =
 
 export interface Timing {
   duration: number;
-  fade: number;
   scenes: SceneTiming[];
 }
 
@@ -65,7 +64,7 @@ export async function buildWalkthroughPage(
 }
 
 /** Problems that stop the render, and warnings it prints. */
-export function findTimingProblems({ duration, fade, scenes }: Timing): {
+export function findTimingProblems({ duration, scenes }: Timing): {
   problems: string[];
   warnings: string[];
 } {
@@ -82,7 +81,10 @@ export function findTimingProblems({ duration, fade, scenes }: Timing): {
   const warnings: string[] = [];
 
   scenes.forEach(
-    ({ title, start, end, settled, words, invalidDuration }, index) => {
+    (
+      { title, start, end, settled, fadesOutAt, words, invalidDuration },
+      index,
+    ) => {
       const name = `Scene ${index + 1} ("${title}")`;
 
       if (invalidDuration !== null) {
@@ -92,12 +94,11 @@ export function findTimingProblems({ duration, fade, scenes }: Timing): {
       }
 
       const length = end - start;
-      const still = index === scenes.length - 1 ? length : length - fade;
       const pace = words / length;
 
-      if (settled > still) {
+      if (start + settled > fadesOutAt) {
         problems.push(
-          `${name} is still moving at ${settled.toFixed(2)} s, after it starts fading out at ${still.toFixed(2)} s. Bring the reveals forward or lengthen the scene.`,
+          `${name} is still moving at ${settled.toFixed(2)} s, after it starts fading out at ${(fadesOutAt - start).toFixed(2)} s. Bring the reveals forward or lengthen the scene.`,
         );
       }
 
@@ -142,23 +143,14 @@ export async function openWalkthrough(
   await page.evaluate("document.fonts.ready");
 
   const timing = (await page.evaluate(
-    "({ duration: walkthrough.duration, fade: walkthrough.fade, scenes: walkthrough.scenes })",
+    "({ duration: walkthrough.duration, scenes: walkthrough.scenes })",
   )) as Timing;
 
   return { page, timing };
 }
 
-/** The moment a scene shows everything, before it starts fading out. */
-export function settledAt({ fade, scenes }: Timing, index: number): number {
-  const scene = scenes[index];
-
-  if (scene === undefined) {
-    throw new Error(`The walkthrough has no scene ${index + 1}.`);
-  }
-
-  const last = index === scenes.length - 1;
-
-  return scene.end - (last ? 0 : fade) - 0.01;
+function lastFullFrameAt(scene: SceneTiming): number {
+  return scene.fadesOutAt - 0.01;
 }
 
 export async function findSceneProblems({
@@ -167,9 +159,9 @@ export async function findSceneProblems({
 }: OpenWalkthrough): Promise<string[]> {
   const problems: string[] = [];
 
-  for (const [index] of timing.scenes.entries()) {
+  for (const [index, scene] of timing.scenes.entries()) {
     await page.evaluate(isolateScene, index);
-    await renderAt(page, settledAt(timing, index));
+    await renderAt(page, lastFullFrameAt(scene));
 
     for (const problem of findFigureProblems(
       await page.evaluate(measureFigure),
@@ -206,8 +198,8 @@ export async function writeContactSheet(
   const rows = Math.ceil(timing.scenes.length / columns);
   const tiles = [];
 
-  for (const [index] of timing.scenes.entries()) {
-    const frame = await frameAt(page, settledAt(timing, index));
+  for (const [index, scene] of timing.scenes.entries()) {
+    const frame = await frameAt(page, lastFullFrameAt(scene));
 
     tiles.push({
       input: await sharp(frame).resize(tile.width, tile.height).toBuffer(),
