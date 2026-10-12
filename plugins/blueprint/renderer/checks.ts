@@ -179,6 +179,25 @@ function overflowProblems(figure: Figure): string[] {
     }
   });
 
+  for (const stage of figure.indexesWith("stage")) {
+    const { box: limits } = figure.at(stage);
+
+    figure.elements.forEach(({ box }, index) => {
+      const visible = width(box) > 0 || height(box) > 0;
+      const outside =
+        box.left < limits.left - 0.5 ||
+        box.top < limits.top - 0.5 ||
+        box.right > limits.right + 0.5 ||
+        box.bottom > limits.bottom + 0.5;
+
+      if (visible && outside && figure.isInside(index, stage)) {
+        problems.push(
+          `${figure.describe(index)} runs out of the stage. Cut the scene down or split it in two.`,
+        );
+      }
+    });
+  }
+
   figure.elements.forEach((element, index) => {
     const mustNotOverflow =
       MUST_NOT_OVERFLOW.some((className) =>

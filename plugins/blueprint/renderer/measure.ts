@@ -1,45 +1,20 @@
 // Functions that run inside the rendered figure. Puppeteer serializes each
 // one into the page, so they stay self-contained: no runtime imports and
 // no references to module scope.
-import type { Box, Measurement } from "./checks";
+import type { Measurement } from "./checks";
+import type { ComputedStyle, PageDocument, PageElement } from "./page-globals";
 
-// The page globals these functions read, typed here so the DOM library
-// stays out of the Bun scripts that share the TypeScript program.
-interface PageElement {
-  readonly classList: Iterable<string>;
-  readonly tagName: string;
-  readonly textContent: string | null;
-  readonly parentElement: PageElement | null;
-  readonly scrollWidth: number;
-  readonly scrollHeight: number;
-  readonly clientWidth: number;
-  readonly clientHeight: number;
-  readonly style: { height: string };
-  getBoundingClientRect(): Box;
-  querySelectorAll(selectors: string): Iterable<PageElement>;
-  closest(selectors: string): PageElement | null;
-}
-
-declare const document: {
-  querySelector(selectors: string): PageElement;
-  createTreeWalker(
-    root: PageElement,
-    whatToShow: number,
-  ): {
-    nextNode(): unknown;
-    readonly currentNode: Pick<PageElement, "parentElement" | "textContent">;
-  };
-  readonly fonts: Iterable<{ status: string; family: string; weight: string }>;
-};
+declare const document: PageDocument;
 declare const NodeFilter: { readonly SHOW_TEXT: number };
-declare function getComputedStyle(element: PageElement): {
-  textTransform: string;
-  fontSize: string;
-  lineHeight: string;
-};
+declare function getComputedStyle(element: PageElement): ComputedStyle;
 
 export function measureFigure(): Measurement {
   const canvas = document.querySelector(".canvas");
+
+  if (canvas === null) {
+    throw new Error("The page has no canvas.");
+  }
+
   const elements = [canvas, ...canvas.querySelectorAll("*")];
   const indexOf = new Map(elements.map((element, index) => [element, index]));
 
@@ -94,6 +69,11 @@ export function measureFigure(): Measurement {
 // Whole pixels keep the PNG and the PDF page at exact sizes.
 export function roundCanvasHeight(): void {
   const canvas = document.querySelector(".canvas");
+
+  if (canvas === null) {
+    throw new Error("The page has no canvas.");
+  }
+
   const { top, bottom } = canvas.getBoundingClientRect();
 
   canvas.style.height = `${Math.ceil(bottom - top)}px`;

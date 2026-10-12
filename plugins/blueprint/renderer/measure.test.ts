@@ -91,6 +91,17 @@ describe("measureFigure", () => {
   });
 });
 
+describe("a page without a canvas", () => {
+  test("stops both functions with a clear error", () => {
+    loadPage("<div></div>");
+
+    expect(() => measureFigure()).toThrow("The page has no canvas.");
+    expect(() => {
+      roundCanvasHeight();
+    }).toThrow("The page has no canvas.");
+  });
+});
+
 describe("roundCanvasHeight", () => {
   test("fixes the canvas height in whole pixels", () => {
     const window = loadPage('<div class="canvas"></div>');

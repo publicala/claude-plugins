@@ -109,6 +109,42 @@ describe("findFigureProblems", () => {
     ]);
   });
 
+  test("keeps what a stage holds inside the stage", () => {
+    expect(
+      findFigureProblems(
+        measure({
+          elements: [
+            element({
+              classes: ["stage"],
+              box: { left: 0, top: 100, right: 1600, bottom: 600 },
+            }),
+            element({
+              parent: 1,
+              classes: ["scene"],
+              box: { left: 0, top: 100, right: 1600, bottom: 600 },
+            }),
+            element({
+              parent: 2,
+              text: "Fits",
+              box: { left: 10, top: 300, right: 110, bottom: 340 },
+            }),
+            element({
+              parent: 2,
+              text: "Too tall",
+              box: { left: 10, top: 500, right: 110, bottom: 640 },
+            }),
+            element({
+              parent: 2,
+              box: { left: 0, top: 900, right: 0, bottom: 900 },
+            }),
+          ],
+        }),
+      ),
+    ).toEqual([
+      '"Too tall" runs out of the stage. Cut the scene down or split it in two.',
+    ]);
+  });
+
   test("reports text that overflows a box across or down, and sheet cells too", () => {
     expect(
       findFigureProblems(
