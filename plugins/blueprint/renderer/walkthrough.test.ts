@@ -19,6 +19,7 @@ import {
   buildPlayerPage,
   buildWalkthroughPage,
   findCanvasProblems,
+  frameTime,
   judgeTiming,
   main,
   openWalkthrough,
@@ -40,6 +41,7 @@ const scene = (overrides: Partial<SceneTiming> = {}): SceneTiming => ({
   end: 5,
   settled: 2,
   fadesOutAt: 4.6,
+  fullAt: 4.59,
   words: 10,
   invalidDuration: null,
   ...overrides,
@@ -136,6 +138,16 @@ describe("judgeTiming", () => {
         "The walkthrough runs 50 s. Aim for 25 to 40 s, or make two.",
       ],
     });
+  });
+});
+
+describe("frameTime", () => {
+  test("opens on the poster, then plays from the start", () => {
+    expect([0, 1, 2].map((frame) => frameTime(4.59, frame))).toEqual([
+      4.59,
+      1 / 30,
+      2 / 30,
+    ]);
   });
 });
 

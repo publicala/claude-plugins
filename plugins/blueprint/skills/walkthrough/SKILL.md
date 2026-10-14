@@ -83,6 +83,7 @@ Checked by you:
 
 - The story makes sense with the sound off, and each scene says one thing.
 - The accent node or the biggest number sits on what the scene is about.
+- The first scene works as the thumbnail. The mp4 opens on it in full, as the player does while paused, so Slack and GitHub show it before anyone presses play.
 - Every number matches its source.
 
 ## Deliver

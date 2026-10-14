@@ -95,10 +95,10 @@
     const button = document.querySelector(".controls button");
     const scrubber = document.querySelector(".controls input");
     const clock = document.querySelector(".controls output");
-    const { duration, scenes, render } = window.walkthrough;
+    const { duration, poster, render } = window.walkthrough;
 
-    // Paused, the player shows the first scene in full, like a poster.
-    let t = scenes.length > 0 ? scenes[0].fadesOutAt - 0.01 : 0;
+    // Paused, the player shows the poster: the first scene in full.
+    let t = poster;
     let started = false;
     let playing = false;
     let last = 0;
