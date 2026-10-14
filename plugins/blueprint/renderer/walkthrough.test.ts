@@ -393,6 +393,39 @@ describe.skipIf(!(await findChrome()))("in Chrome", () => {
     }
   });
 
+  test("splits the capture between browsers and keeps the frames in order", async () => {
+    // The progress bar moves every frame, so frames out of order would change
+    // what the encoder receives.
+    const short = await write(
+      "ordered",
+      walkthrough(
+        '<section class="scene" data-duration="0.5" data-title="Short"><div class="callout">Short</div></section>',
+      ),
+    );
+    // A stand-in for ffmpeg that keeps what it receives as the output file.
+    const encoder = join(workDir, "ffmpeg");
+    const which = spyOn(Bun, "which").mockReturnValue(encoder);
+    const opened = await openWalkthrough(browser, short);
+    const one = join(workDir, "one.mp4");
+    const three = join(workDir, "three.mp4");
+
+    try {
+      await Bun.write(
+        encoder,
+        '#!/bin/sh\nfor last; do :; done\ncat > "$last"\n',
+      );
+      await chmod(encoder, 0o755);
+      expect(await writeVideo(opened, one, 1)).toBe(15);
+      expect(await writeVideo(opened, three, 3)).toBe(15);
+      expect(await Bun.file(three).bytes()).toEqual(
+        await Bun.file(one).bytes(),
+      );
+    } finally {
+      which.mockRestore();
+      await opened.page.close();
+    }
+  });
+
   test("names ffmpeg when it is missing", async () => {
     const which = spyOn(Bun, "which").mockReturnValue(null);
     const opened = await openWalkthrough(browser, EXAMPLE);

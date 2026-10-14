@@ -70,7 +70,7 @@ bun ${CLAUDE_PLUGIN_ROOT}/renderer/walkthrough.ts name.walkthrough.html --at 7.5
 bun ${CLAUDE_PLUGIN_ROOT}/renderer/walkthrough.ts name.walkthrough.html --video --player
 ```
 
-The first run checks the scenes and writes `name.contact.png`, one frame per scene, in about two seconds. Read it as an image after every change. `--at` writes a still at that second, to check a moment mid-animation. Render `--video` once the sheet is right: `name.mp4` takes about three seconds per second of video and needs ffmpeg. `--player` writes `name.player.html`, which needs nothing else.
+The first run checks the scenes and writes `name.contact.png`, one frame per scene, in about two seconds. Read it as an image after every change. `--at` writes a still at that second, to check a moment mid-animation. Render `--video` once the sheet is right: `name.mp4` takes about a second per second of video on four cores and needs ffmpeg. `--player` writes `name.player.html`, which needs nothing else.
 
 Checked by the renderer:
 
