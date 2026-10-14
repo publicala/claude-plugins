@@ -19,6 +19,7 @@ import {
   buildPlayerPage,
   buildWalkthroughPage,
   findCanvasProblems,
+  frameTimes,
   judgeTiming,
   main,
   openWalkthrough,
@@ -136,6 +137,27 @@ describe("judgeTiming", () => {
         "The walkthrough runs 50 s. Aim for 25 to 40 s, or make two.",
       ],
     });
+  });
+});
+
+describe("frameTimes", () => {
+  test("opens on the first scene in full, then plays from the start", () => {
+    const times = frameTimes({
+      duration: 10,
+      scenes: [scene(), scene({ start: 5, end: 10, fadesOutAt: 10 })],
+    });
+
+    expect(times).toHaveLength(300);
+    expect(times.slice(0, 3)).toEqual([4.59, 1 / 30, 2 / 30]);
+    expect(times.at(-1)).toBe(299 / 30);
+  });
+
+  test("starts at zero without scenes", () => {
+    expect(frameTimes({ duration: 0.1, scenes: [] })).toEqual([
+      0,
+      1 / 30,
+      2 / 30,
+    ]);
   });
 });
 
