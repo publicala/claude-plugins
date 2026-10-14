@@ -161,7 +161,9 @@ describe.skipIf(!(await findChrome()))("openPage", () => {
     try {
       const pages = (await browser.pages()).length;
 
-      expect(
+      // bun-types declares rejects matchers as void, but bun returns a Promise.
+      // eslint-disable-next-line @typescript-eslint/await-thenable, @typescript-eslint/no-confusing-void-expression
+      await expect(
         openPage(browser, "<p></p>", { width: -1, height: 1, scale: 1 }),
       ).rejects.toThrow("Width and height values must be positive");
       expect(await browser.pages()).toHaveLength(pages);
