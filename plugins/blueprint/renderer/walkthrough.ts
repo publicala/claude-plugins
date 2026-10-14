@@ -66,7 +66,10 @@ export async function buildPlayerPage(source: string): Promise<string> {
   });
 }
 
-export function judgeTiming({ duration, scenes }: Timing): {
+export function judgeTiming({
+  duration,
+  scenes,
+}: Pick<Timing, "duration" | "scenes">): {
   problems: string[];
   warnings: string[];
 } {
@@ -144,15 +147,11 @@ function lastFullFrameAt(scene: SceneTiming): number {
 }
 
 // Slack, GitHub and file browsers take the first frame as the thumbnail, and
-// at 0 s the stage is still empty. So the first frame shows the first scene in
-// full, as the player does while paused. It lasts 1/30 s, and a viewer who
-// pressed play was already looking at it.
-export function frameTimes({ duration, scenes }: Timing): number[] {
-  const [first] = scenes;
-
-  return Array.from({ length: Math.round(duration * FPS) }, (_, frame) =>
-    frame === 0 && first !== undefined ? lastFullFrameAt(first) : frame / FPS,
-  );
+// at 0 s the stage is still empty. So the first frame shows the poster, as the
+// player does while paused. It lasts 1/30 s, and a viewer who pressed play was
+// already looking at it.
+export function frameTime({ poster }: Timing, frame: number): number {
+  return frame === 0 ? poster : frame / FPS;
 }
 
 // Every frame is captured at 1280x720, so a canvas of any other size would
@@ -292,8 +291,7 @@ export async function writeVideo(
       ].flat(),
       { stdin: "pipe", stdout: "inherit", stderr: "inherit" },
     );
-    const times = frameTimes(timing);
-    const frames = times.length;
+    const frames = Math.round(timing.duration * FPS);
     const captured = Array.from({ length: frames }, () =>
       Promise.withResolvers<Uint8Array>(),
     );
@@ -302,7 +300,9 @@ export async function writeVideo(
     const capturing = Promise.all(
       pages.map(async (capturer, first) => {
         for (let frame = first; frame < frames; frame += pages.length) {
-          captured[frame]?.resolve(await frameAt(capturer, times[frame] ?? 0));
+          captured[frame]?.resolve(
+            await frameAt(capturer, frameTime(timing, frame)),
+          );
         }
       }),
     );

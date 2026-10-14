@@ -20,6 +20,8 @@ export interface SceneTiming {
 interface Walkthrough {
   duration: number;
   scenes: SceneTiming[];
+  /** The frame that stands for the video: the first scene in full, or 0. */
+  poster: number;
   render(t: number): void;
 }
 
@@ -182,26 +184,29 @@ export function installTimeline(): void {
 
   const motions = [...reveals, ...draws, ...counts, ...meters];
 
+  const timings = scenes.map(
+    ({ element, title, start, end, invalidDuration }, index) => ({
+      title,
+      start,
+      end,
+      fadesOutAt: index === scenes.length - 1 ? end : end - FADE,
+      invalidDuration,
+      settled: Math.max(
+        0,
+        ...motions
+          .filter((motion) => element.contains(motion.element))
+          .map((motion) => motion.offset + motion.length),
+      ),
+      words: (element.textContent ?? "")
+        .split(/\s+/)
+        .filter((word) => /[\p{L}\p{N}]/u.test(word)).length,
+    }),
+  );
+
   window.walkthrough = {
     duration,
-    scenes: scenes.map(
-      ({ element, title, start, end, invalidDuration }, index) => ({
-        title,
-        start,
-        end,
-        fadesOutAt: index === scenes.length - 1 ? end : end - FADE,
-        invalidDuration,
-        settled: Math.max(
-          0,
-          ...motions
-            .filter((motion) => element.contains(motion.element))
-            .map((motion) => motion.offset + motion.length),
-        ),
-        words: (element.textContent ?? "")
-          .split(/\s+/)
-          .filter((word) => /[\p{L}\p{N}]/u.test(word)).length,
-      }),
-    ),
+    scenes: timings,
+    poster: timings[0] === undefined ? 0 : timings[0].fadesOutAt - 0.01,
     render,
   };
 
@@ -210,9 +215,9 @@ export function installTimeline(): void {
 
 // page.evaluate returns plain data, so the timing leaves render behind.
 export function readTiming(): Timing {
-  const { duration, scenes } = window.walkthrough;
+  const { duration, scenes, poster } = window.walkthrough;
 
-  return { duration, scenes };
+  return { duration, scenes, poster };
 }
 
 export function renderFrame(t: number): void {

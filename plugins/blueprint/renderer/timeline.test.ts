@@ -85,6 +85,10 @@ describe("installTimeline", () => {
     ]);
   });
 
+  test("shows the first scene in full as the poster", () => {
+    expect(readTiming().poster).toBeCloseTo(3.59);
+  });
+
   test("knows when each scene settles and how many words it shows", () => {
     expect(
       readTiming().scenes.map(({ settled, words }) => ({ settled, words })),

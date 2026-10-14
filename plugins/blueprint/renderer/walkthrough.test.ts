@@ -19,7 +19,7 @@ import {
   buildPlayerPage,
   buildWalkthroughPage,
   findCanvasProblems,
-  frameTimes,
+  frameTime,
   judgeTiming,
   main,
   openWalkthrough,
@@ -140,21 +140,12 @@ describe("judgeTiming", () => {
   });
 });
 
-describe("frameTimes", () => {
-  test("opens on the first scene in full, then plays from the start", () => {
-    const times = frameTimes({
-      duration: 10,
-      scenes: [scene(), scene({ start: 5, end: 10, fadesOutAt: 10 })],
-    });
+describe("frameTime", () => {
+  test("opens on the poster, then plays from the start", () => {
+    const timing = { duration: 10, scenes: [scene()], poster: 4.59 };
 
-    expect(times).toHaveLength(300);
-    expect(times.slice(0, 3)).toEqual([4.59, 1 / 30, 2 / 30]);
-    expect(times.at(-1)).toBe(299 / 30);
-  });
-
-  test("starts at zero without scenes", () => {
-    expect(frameTimes({ duration: 0.1, scenes: [] })).toEqual([
-      0,
+    expect([0, 1, 2].map((frame) => frameTime(timing, frame))).toEqual([
+      4.59,
       1 / 30,
       2 / 30,
     ]);
