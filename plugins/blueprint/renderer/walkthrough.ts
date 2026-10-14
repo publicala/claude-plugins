@@ -20,7 +20,6 @@ import {
   readTiming,
   renderFrame,
   showAllScenes,
-  type SceneTiming,
   type Timing,
 } from "./timeline";
 
@@ -142,15 +141,11 @@ export async function openWalkthrough(
   return { page, timing: await page.evaluate(readTiming), html };
 }
 
-function lastFullFrameAt(scene: SceneTiming): number {
-  return scene.fadesOutAt - 0.01;
-}
-
 // Slack, GitHub and file browsers take the first frame as the thumbnail, and
 // at 0 s the stage is still empty. So the first frame shows the poster, as the
 // player does while paused. It lasts 1/30 s, and a viewer who pressed play was
 // already looking at it.
-export function frameTime({ poster }: Timing, frame: number): number {
+export function frameTime(poster: number, frame: number): number {
   return frame === 0 ? poster : frame / FPS;
 }
 
@@ -183,7 +178,7 @@ async function findSceneProblems({
 
   for (const [index, scene] of timing.scenes.entries()) {
     await page.evaluate(isolateScene, index);
-    await page.evaluate(renderFrame, lastFullFrameAt(scene));
+    await page.evaluate(renderFrame, scene.fullAt);
 
     for (const problem of findFigureProblems(
       await page.evaluate(measureFigure),
@@ -220,7 +215,7 @@ async function writeContactSheet(
   const tiles = [];
 
   for (const [index, scene] of timing.scenes.entries()) {
-    const frame = await frameAt(page, lastFullFrameAt(scene));
+    const frame = await frameAt(page, scene.fullAt);
 
     tiles.push({
       input: await sharp(frame).resize(tile.width, tile.height).toBuffer(),
@@ -301,7 +296,7 @@ export async function writeVideo(
       pages.map(async (capturer, first) => {
         for (let frame = first; frame < frames; frame += pages.length) {
           captured[frame]?.resolve(
-            await frameAt(capturer, frameTime(timing, frame)),
+            await frameAt(capturer, frameTime(timing.poster, frame)),
           );
         }
       }),

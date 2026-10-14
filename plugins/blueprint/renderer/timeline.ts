@@ -12,6 +12,8 @@ export interface SceneTiming {
   settled: number;
   /** Equal to end for the last scene, which never fades out. */
   fadesOutAt: number;
+  /** The last moment the scene is on screen in full. */
+  fullAt: number;
   words: number;
   /** A data-duration that is not a number of seconds above zero, as written. */
   invalidDuration: string | null;
@@ -20,7 +22,7 @@ export interface SceneTiming {
 interface Walkthrough {
   duration: number;
   scenes: SceneTiming[];
-  /** The frame that stands for the video: the first scene in full, or 0. */
+  /** The frame that stands for the video: the first scene's fullAt, or 0. */
   poster: number;
   render(t: number): void;
 }
@@ -185,28 +187,33 @@ export function installTimeline(): void {
   const motions = [...reveals, ...draws, ...counts, ...meters];
 
   const timings = scenes.map(
-    ({ element, title, start, end, invalidDuration }, index) => ({
-      title,
-      start,
-      end,
-      fadesOutAt: index === scenes.length - 1 ? end : end - FADE,
-      invalidDuration,
-      settled: Math.max(
-        0,
-        ...motions
-          .filter((motion) => element.contains(motion.element))
-          .map((motion) => motion.offset + motion.length),
-      ),
-      words: (element.textContent ?? "")
-        .split(/\s+/)
-        .filter((word) => /[\p{L}\p{N}]/u.test(word)).length,
-    }),
+    ({ element, title, start, end, invalidDuration }, index) => {
+      const fadesOutAt = index === scenes.length - 1 ? end : end - FADE;
+
+      return {
+        title,
+        start,
+        end,
+        fadesOutAt,
+        fullAt: fadesOutAt - 0.01,
+        invalidDuration,
+        settled: Math.max(
+          0,
+          ...motions
+            .filter((motion) => element.contains(motion.element))
+            .map((motion) => motion.offset + motion.length),
+        ),
+        words: (element.textContent ?? "")
+          .split(/\s+/)
+          .filter((word) => /[\p{L}\p{N}]/u.test(word)).length,
+      };
+    },
   );
 
   window.walkthrough = {
     duration,
     scenes: timings,
-    poster: timings[0] === undefined ? 0 : timings[0].fadesOutAt - 0.01,
+    poster: timings[0]?.fullAt ?? 0,
     render,
   };
 

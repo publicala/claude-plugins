@@ -41,6 +41,7 @@ const scene = (overrides: Partial<SceneTiming> = {}): SceneTiming => ({
   end: 5,
   settled: 2,
   fadesOutAt: 4.6,
+  fullAt: 4.59,
   words: 10,
   invalidDuration: null,
   ...overrides,
@@ -142,9 +143,7 @@ describe("judgeTiming", () => {
 
 describe("frameTime", () => {
   test("opens on the poster, then plays from the start", () => {
-    const timing = { duration: 10, scenes: [scene()], poster: 4.59 };
-
-    expect([0, 1, 2].map((frame) => frameTime(timing, frame))).toEqual([
+    expect([0, 1, 2].map((frame) => frameTime(4.59, frame))).toEqual([
       4.59,
       1 / 30,
       2 / 30,
