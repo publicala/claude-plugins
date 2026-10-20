@@ -1,7 +1,7 @@
 ---
 name: intake
 description: >
-  Records one pull request's review threads as local evidence for feed and bake. Run after a review round with the PR number or URL, `--export` to share candidates through the repo. Never commits, never touches the threads.
+  Records pull request review threads as local evidence for feed and bake. Run after a review round with the PR number or URL, or with `--search` over a reviewer's past PRs to start from history, `--export` to share candidates through the repo. Never commits, never touches the threads.
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -17,6 +17,20 @@ Entries live under `~/.claude/bonsai/intake/<repository key>/pr<number>.md`, out
 The repository key, the file layout, and what a rerun may change are defined once in [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory). Read it before writing anything.
 
 `<repository key>` is the repository the candidate targets, which is not always the repository under review: a review on a client library can surface a rule for its host application. Write each candidate under its target, so feed run there finds it.
+
+## Several pull requests
+
+Recurrence counts distinct PRs, so a rule reaches feed and bake only once two reviews show it. To start from history instead of waiting for it, intake takes several PRs of one repository: numbers or URLs, or `--search "<query>"`. Entries are named by PR number alone, so two repositories' PR 7 would share a file under one target: refuse a list that mixes repositories, and run one batch per repository.
+
+`--search` resolves with `gh pr list --repo <key> --state all --search "<query>" --limit <n> --json number,title,state,mergedAt`, where `<key>` is the repository key of the current directory, so a fork clone searches the canonical repository. `--limit` defaults to 20.
+
+The query takes GitHub's search syntax, for example `is:merged reviewed-by:jdoe merged:>=2026-09-01`. A review bot that is a GitHub App takes `reviewed-by:app/<slug>`, its login without `[bot]` (`acme-review[bot]` is `reviewed-by:app/acme-review`), since the bare login fails the search.
+
+- Show the resolved list (number, title, merge date) before reading any thread, and ask before going on when it holds more than 20 PRs: each one costs a full read of its diff and threads.
+- Skip a PR that already has an entry under any key (an entry whose `source_pr` is the PR's URL), unless the user passes `--rerun`. Its candidates may target another repository, so the current key alone can miss it. A batch run twice then reads nothing new.
+- Run the sweep (step 2) once for the whole batch.
+- Take the PRs oldest first, one at a time, each in a clean-context agent that runs steps 1 and 3 through 8 for its PR and writes its entry. Give each agent this skill's path and the slugs already recorded under every key the batch writes to, the ones earlier agents minted included, so step 7 reuses a slug before it mints one. One agent per PR keeps each diff out of the next PR's window, and one at a time keeps two agents from naming the same mistake twice.
+- Report once for the batch (step 9), and mark the slugs this batch took to two or more PRs: those are the ones feed and bake pick up next.
 
 ## The intake, in order
 
