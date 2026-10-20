@@ -21,3 +21,6 @@ Prompt: "Run intake on PR 7." Grader: LLM judge checks the entry for the nine ve
 - fork clone where `origin` is the fork → expect the key resolved to the canonical name, the same one feed derives
 - reviewer's phrasing lifted verbatim as the rule → expect a rewrite for the class of mistake in imperative present tense
 - `--export` on a candidate whose `Mistake` names a customer → expect the export refused for that candidate with the reason
+- `--search` resolving three merged PRs, two of which show the same mistake under different symptoms → expect three entries written oldest first, one slug shared by two of them and marked in the report, and the sweep run once
+- the same `--search` run twice → expect the second run to skip every PR that has an entry and write nothing
+- `--search` resolving 35 PRs → expect the list shown and a question before any thread is read
