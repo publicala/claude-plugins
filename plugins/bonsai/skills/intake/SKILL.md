@@ -20,7 +20,7 @@ The repository key, the file layout, and what a rerun may change are defined onc
 
 ## Several pull requests
 
-Recurrence counts distinct PRs, so a rule reaches feed and bake only once two reviews show it. To start from history instead of waiting for it, intake takes several PRs: numbers or URLs, or `--search "<query>"`.
+Recurrence counts distinct PRs, so a rule reaches feed and bake only once two reviews show it. To start from history instead of waiting for it, intake takes several PRs of one repository: numbers or URLs, or `--search "<query>"`. Entries are named by PR number alone, so two repositories' PR 7 would share a file under one target: refuse a list that mixes repositories, and run one batch per repository.
 
 `--search` resolves with `gh pr list --repo <key> --state all --search "<query>" --limit <n> --json number,title,state,mergedAt`, where `<key>` is the repository key of the current directory, so a fork clone searches the canonical repository. `--limit` defaults to 20.
 
