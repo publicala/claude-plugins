@@ -20,7 +20,7 @@ Write data and let the renderer build the page: [../renderer/README.md](../rende
 ## Route every change to a lane
 
 - **Call**: the change alters what a rule says (a fix of a false claim, a rewrite whose meaning the second check flagged), moves content to another file, adds a rule, rests on a close vote or a compliance count between 70% and 90%, or needs intent the agent cannot verify. Calls start undecided. The user answers Apply, Skip or Later.
-- **Ready**: objective, with direct evidence, and no change in meaning: a line a committed tool enforces or a file states, a rewrite the second check found the same. Ready changes are on by default, with an opt-out per change.
+- **Ready**: objective, with direct evidence, and no change in meaning: a line a committed check holds ([enforcement.md](enforcement.md)) or a file states, a rewrite the second check found the same. Ready changes are on by default, with an opt-out per change.
 - **Auto**: a change class that earned auto-apply in [decision-memory.md](decision-memory.md). Shown collapsed as "Applied automatically", with an undo per change.
 - **Kept**: lines the run checked and keeps, in one collapsed list with nothing to decide.
 

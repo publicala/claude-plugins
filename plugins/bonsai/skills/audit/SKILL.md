@@ -18,7 +18,7 @@ Not everything called "referenced" is deferred. Classify each file by its load c
 
 ## Never cut
 
-Check every line against this list before anything else. A match is a KEEP and skips the rest of the audit, with one exception: a rule the formatter rewrites silently may still fall in step 3, because the tool guarantees it.
+Check every line against this list before anything else. A match is a KEEP and skips the rest of the audit, with one exception: a rule a committed check holds may still fall in step 3, because the tool guarantees it. A safety prohibition stays whatever enforces it.
 
 - Safety prohibitions, as `references/load-model.md` defines them ("never force-push", "never run the seeder against a shared database")
 - Gotchas that contradict appearances (the call that silently no-ops, the flag that looks optional but is not). Greps come back clean precisely because the line works, so step 4 would misread these as derivable.
@@ -53,11 +53,11 @@ Evidence must hold everywhere the file is read. A pointer that fails only where 
 
 ### 3. Enforcement verification
 
-Never trust a claim (yours or the file's) that "the linter handles this". Inspect every enforcement surface: formatter and linter configs, static analysis, architecture or convention tests, git hooks, CI workflows, and the project's committed `.claude/settings.json`. A surface counts only when it is committed: a hook or deny rule that lives in someone's local settings enforces nothing for teammates or CI, so a rule backed only by it is unenforced. Record which surfaces you checked per rule. Then classify each rule by its feedback loop:
+Never trust a claim (yours or the file's) that "the linter handles this". Inspect every enforcement surface: formatter and linter configs, static analysis, architecture or convention tests, git hooks, CI workflows, and the project's committed `.claude/settings.json`. Record which surfaces you checked per rule. Then judge each rule's check against [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory):
 
-- **Auto-fixed at format time**: confirm the tool's file globs cover the affected paths and that it runs before code lands (hook or CI), then cut the prose. Violations get rewritten silently, so the line prevents nothing.
-- **Fails at suite time only** (architecture test, CI check): the prose can still pay for itself by preventing a write, fail, rewrite roundtrip. Leave the verdict open. Step 4 closes it: keep when neighbors teach the wrong pattern, cut when they teach the right one.
-- **Unenforced**: step 4 decides, and the rule is a candidate for `/bonsai:bake`.
+- **Held**: the check meets every condition there, and fixing a violation is a local edit. Cut the prose, and every clause that only names the check.
+- **Held, and the fix is a redesign**: keep one line that states the rule, as that reference prescribes.
+- **Held with a gap**, or **unenforced**: step 4 decides, and the rule is a candidate for `/bonsai:bake`, which closes the gap or adds the check.
 
 Expect surprises in both directions: rules believed enforced that are not, and rules believed prose-only that a formatter already fixes.
 
@@ -131,7 +131,7 @@ Environment-conditional content is its own extract class: sentences that bind on
 
 Read [../../references/decision-memory.md](../../references/decision-memory.md) (relative to this skill's directory) before routing, then pick the delivery as [../../references/decision-artifact.md](../../references/decision-artifact.md) prescribes under "Delivery". For the page, build it with the renderer that reference names. Each cut, rewrite, move or extract verdict is one change. Route it:
 
-- Cut on sight (step 2), cut because a committed tool enforces the rule (step 3), or cut at 90% compliance or above (step 4): **ready**, grouped by cause.
+- Cut on sight (step 2), cut because a committed check holds the rule (step 3), or cut at 90% compliance or above (step 4): **ready**, grouped by cause.
 - Rewrite (step 6 or "Precise but generic") the second check found the same: **ready**, grouped by cause.
 - False or stale claim, rewrite that still drifts, cut by a split panel vote or at a borderline compliance count, move, extract: **call**.
 - Evidence that holds only in the auditor's environment, a foreign-format migration proposal: **question**.
