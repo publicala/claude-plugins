@@ -429,9 +429,53 @@ describe.skipIf(!(await findChrome()))("in Chrome", () => {
       await chmod(encoder, 0o755);
       expect(await writeVideo(opened, one, 1)).toBe(15);
       expect(await writeVideo(opened, three, 3)).toBe(15);
-      expect(await Bun.file(three).bytes()).toEqual(
-        await Bun.file(one).bytes(),
-      );
+      // Diagnostic: tell an encoding difference from a pixel difference.
+      const split = (bytes: Uint8Array): Uint8Array[] => {
+        const end = [0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82];
+        const frames: Uint8Array[] = [];
+        let start = 0;
+
+        for (let i = 0; i + end.length <= bytes.length; i++) {
+          if (end.every((byte, offset) => bytes[i + offset] === byte)) {
+            frames.push(bytes.slice(start, i + end.length));
+            start = i + end.length;
+          }
+        }
+
+        return frames;
+      };
+      const ones = split(await Bun.file(one).bytes());
+      const threes = split(await Bun.file(three).bytes());
+      const report: string[] = [
+        `chrome ${await browser.version()}`,
+        `frames ${ones.length} vs ${threes.length}`,
+      ];
+      let pixelsDiffer = false;
+
+      for (const [index, frame] of ones.entries()) {
+        const other = threes[index] ?? new Uint8Array();
+        const a = await sharp(frame).raw().toBuffer();
+        const b = await sharp(other).raw().toBuffer();
+        let differing = 0;
+        let delta = 0;
+
+        for (let i = 0; i < Math.min(a.length, b.length); i++) {
+          const d = Math.abs((a[i] ?? 0) - (b[i] ?? 0));
+
+          if (d > 0) {
+            differing++;
+            delta = Math.max(delta, d);
+          }
+        }
+
+        pixelsDiffer ||= differing > 0;
+        report.push(
+          `frame ${index} (browser ${index % 3}): bytes ${Buffer.compare(frame, other) === 0 ? "same" : "differ"}, ${differing} channel values differ, max delta ${delta}`,
+        );
+      }
+
+      console.log(report.join("\n"));
+      expect(pixelsDiffer).toBe(false);
     } finally {
       which.mockRestore();
       await opened.page.close();
