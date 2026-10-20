@@ -13,9 +13,16 @@ Nested files and path-scoped rules are the two scope-triggered classes. Judge th
 
 ## The trigger is a read
 
-A scoped file loads on a read, and only on a read. A session that creates a new in-scope file without reading a neighbor first, or that touches in-scope paths only through shell commands, never loads it. Edits are covered, because the harness refuses an edit without a prior read. Every demotion verdict hangs on this fact.
+A scoped file loads when the session reads a file in its scope, and only then. Two kinds of read fire it:
 
-Some harness modes tell the session to read files through shell commands (`cat`, `sed`, `grep`) instead of the file tools. In those modes no scoped file ever loads, for the whole session. A demotion is only safe for sessions that read through the harness's file tools.
+- **A file-tool read** of any in-scope file.
+- **A plain shell read**: a command whose every part reads a named in-scope file (`cat`, `head`, `tail`, `sed -n`, `grep` on a file), joined by `;` or `&&` with nothing but `echo`. The harness misses the read when the file comes through a pipe (`cat f | head`), a variable (`cat "$f"`), a directory listing or recursive search (`ls`, `grep -r`), or a compound command that mixes one of those in.
+
+A session that creates a new in-scope file before it reads a neighbor never loads the scoped file. Neither does a session whose only reads take a shape the harness misses. Every demotion verdict hangs on these facts.
+
+An edit doesn't guarantee a load. The harness refuses an edit without a prior read, but a shell read it missed still counts as that read, so a session can edit an in-scope file while the scoped file never loaded.
+
+Some harness modes tell the session to read files through shell commands. Those sessions load scoped files only when their commands take the plain shape, so a demotion stands for them only on a probe run in that mode.
 
 Compaction adds an asymmetry: the root file is re-injected after a compaction automatically, while scoped files return only on the next in-scope read.
 
