@@ -64,7 +64,7 @@ verified_on: 3f2a9c1
 - Current code: 0 of 14 non-facade modules import the bridge (complies)
 - Existing coverage: prose line in `CLAUDE.md` under Integration; no lint rule
 - Check:
-  ESLint `no-restricted-imports` for `@vendor/bridge` outside `src/communication/**`, tests exempt, in the existing `lint` CI job.
+  ESLint `no-restricted-imports` for `@vendor/bridge` outside `src/communication/**`, tests exempt, in the existing `lint` CI job, with the message "Import the bridge through src/communication, which translates its transport errors."
 - Target: `eslint.config.js`
 - Evidence: [r4](https://github.com/owner/reviewed-repo/pull/123#discussion_r4)
 

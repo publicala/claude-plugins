@@ -41,7 +41,7 @@ Group what recurs into candidate rules: the same correction asked for twice, the
 
 ### 3. Route
 
-For each candidate, decide whether a tool could enforce it instead (lint, static analysis, architecture test, CI, hook). If so, the proposal is a deferral to `/bonsai:bake`. `Class: bake` intake candidates always route there.
+For each candidate, decide whether a tool could enforce it instead (lint, static analysis, architecture test, CI, hook). If so, and fixing a violation is a local edit, the proposal is a deferral to `/bonsai:bake`. A rule whose violation takes a redesign to fix stays a feed proposal, as [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory) explains, and bake may add a check next to it. `Class: bake` intake candidates always route there.
 
 ### 4. Place
 

@@ -1,8 +1,9 @@
 # Writing a rule
 
-The standard for any rule text bonsai writes or records: a feed proposal, an intake candidate's `Rule` or `Check`, an audit rewrite.
+The standard for any rule text bonsai writes or records: a feed proposal, an intake candidate's `Rule` or `Check`, an audit rewrite, the message of a check bake adds.
 
 - Lead with the rule, imperative voice, present tense
+- A check's message leads with what is wrong at the flagged site, since the session reads it there, then says what to write instead, so a session that never saw the rule fixes it from the message alone
 - One or two sentences, or a tight bullet list: a CLAUDE.md line. When the text runs past about forty words, the rationale is in the rule and belongs in a `Why:` line or nowhere
 - Add a `Why:` line only when the reason is non-obvious and a session needs it to judge edge cases
 - Match the voice of the file the rule lands in

@@ -50,6 +50,44 @@ const scene = (overrides: Partial<SceneTiming> = {}): SceneTiming => ({
 const walkthrough = (scenes: string) =>
   `<div class="canvas" data-size="video"><main class="stage">${scenes}</main><footer class="colophon"><span data-fig></span><i class="progress"></i></footer></div>`;
 
+// Chrome on macOS can render a few channel values one level apart in two
+// captures of the same frame, so two frames match when no channel differs by
+// more than this.
+const SAME_FRAME = 2;
+
+// The stand-in encoder keeps the PNGs it receives back to back, and each ends
+// with its IEND chunk.
+function pngFrames(stream: Uint8Array): Uint8Array[] {
+  const end = [0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82];
+  const frames: Uint8Array[] = [];
+  let start = 0;
+
+  for (let at = 0; at + end.length <= stream.length; at++) {
+    if (end.every((byte, offset) => stream[at + offset] === byte)) {
+      frames.push(stream.subarray(start, at + end.length));
+      start = at + end.length;
+    }
+  }
+
+  return frames;
+}
+
+async function largestChannelDifference(
+  a: Uint8Array,
+  b: Uint8Array,
+): Promise<number> {
+  const [first, second] = await Promise.all(
+    [a, b].map((png) => sharp(png).raw().toBuffer()),
+  );
+  let largest = first?.length === second?.length ? 0 : Infinity;
+
+  for (const [index, value] of (first ?? []).entries()) {
+    largest = Math.max(largest, Math.abs(value - (second?.[index] ?? 0)));
+  }
+
+  return largest;
+}
+
 describe("findCanvasProblems", () => {
   const measurement = (right: number, bottom: number) => ({
     failedFonts: [],
@@ -429,9 +467,29 @@ describe.skipIf(!(await findChrome()))("in Chrome", () => {
       await chmod(encoder, 0o755);
       expect(await writeVideo(opened, one, 1)).toBe(15);
       expect(await writeVideo(opened, three, 3)).toBe(15);
-      expect(await Bun.file(three).bytes()).toEqual(
-        await Bun.file(one).bytes(),
-      );
+      const single = pngFrames(await Bun.file(one).bytes());
+      const split = pngFrames(await Bun.file(three).bytes());
+
+      expect(split).toHaveLength(single.length);
+
+      for (const [index, frame] of single.entries()) {
+        expect(
+          await largestChannelDifference(
+            frame,
+            split[index] ?? new Uint8Array(),
+          ),
+        ).toBeLessThanOrEqual(SAME_FRAME);
+
+        // Each frame differs from the next by more than a matching pair, so a
+        // frame out of order fails the check above.
+        const next = single[index + 1];
+
+        if (next !== undefined) {
+          expect(await largestChannelDifference(frame, next)).toBeGreaterThan(
+            SAME_FRAME,
+          );
+        }
+      }
     } finally {
       which.mockRestore();
       await opened.page.close();
