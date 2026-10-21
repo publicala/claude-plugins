@@ -137,7 +137,7 @@ The page also lists the **not now** candidates with their reasons, so the user c
 
 ### 8. Build
 
-Build each approved candidate in parallel, one clean-context agent per PR, each in its own worktree on a branch cut from the fresh default branch (`guard/<candidate>`), following the repository's worktree convention. Brief each agent with the finding and its thread URLs, the concrete case, the rung and the check's shape, its message, the violations and exceptions from the cost gate, the proof below, the PR shape below, and the repository's own rules (commit hooks run, never `--no-verify`, tests run where its CLAUDE.md says). Each agent reports the PR URL, the proof, and the CI result.
+Build the approved candidates in parallel, one clean-context agent per PR, each in its own worktree on a branch cut from the fresh default branch, following the repository's worktree convention. Each check candidate is its own PR (`guard/<candidate>`). The approved prose candidates share one PR (`guard/claude-md-<round>`), so one agent writes them all. Brief each agent with the finding and its thread URLs, the concrete case, the rung and the check's shape, its message, the violations and exceptions from the cost gate, the proof below, the PR shape below, and the repository's own rules (commit hooks run, never `--no-verify`, tests run where its CLAUDE.md says). Each agent reports the PR URL, the proof, and the CI result.
 
 The check:
 
