@@ -180,6 +180,7 @@ The build refuses, in a guard run:
 - No quotes or more than 4, a quote over 300 characters or without a `reviewer`, a quote `url` or a `notNow` thread that is not http or https, or a `count` below the quotes shown
 - A `notNow` item without `id`, `title` and `why`, or with an id another not-now item or a candidate uses, and a `none` row without `finding` and `verdict`
 - A `ship`, or a round with no candidate and nothing not now
+- A `run.status.prs` link for a candidate the decisions do not build: one without `apply` in `decisions.d`, or a not-now id without `true` in `decisions.pull`
 - `notNow`, `none`, `run.prs`, `run.status.prs` or a candidate field in any other run
 
 ## What the build refuses

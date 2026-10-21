@@ -1054,6 +1054,18 @@ function validateStatus(status: unknown, ids: RoundIds): void {
         ),
       "run.status.prs must map candidate and not-now ids to http or https links.",
     );
+
+    // A link beside a candidate recorded as not built would contradict the record.
+    const recorded = isRecord(status.decisions) ? status.decisions : {};
+    const built = isRecord(recorded.d) ? recorded.d : {};
+    const pulled = isRecord(recorded.pull) ? recorded.pull : {};
+    const unbuilt = Object.keys(prs).find((key) =>
+      ids.changes.has(key) ? built[key] !== "apply" : pulled[key] !== true,
+    );
+    ensure(
+      unbuilt === undefined,
+      `run.status.prs links ${quote(unbuilt)}, which the decisions do not build. Record "apply" for it in run.status.decisions.d, or true in run.status.decisions.pull for a not-now id.`,
+    );
   }
 
   const decisions = status.decisions;

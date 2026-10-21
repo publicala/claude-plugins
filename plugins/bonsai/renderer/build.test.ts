@@ -1589,6 +1589,38 @@ describe("guard build refuses data that would mislead", () => {
       "run.status.prs must map candidate and not-now ids to http or https links.",
     ],
     [
+      "a PR link beside a candidate recorded as skipped",
+      (data) => {
+        data.run.status = {
+          state: "built",
+          prs: { [TOTAL]: "https://github.com/acme/books/pull/64" },
+          decisions: { d: { [TOTAL]: "skip" } },
+        };
+      },
+      `run.status.prs links "${TOTAL}", which the decisions do not build. Record "apply" for it in run.status.decisions.d, or true in run.status.decisions.pull for a not-now id.`,
+    ],
+    [
+      "a PR link beside a candidate with no recorded decision",
+      (data) => {
+        data.run.status = {
+          state: "built",
+          prs: { [TOTAL]: "https://github.com/acme/books/pull/64" },
+        };
+      },
+      `run.status.prs links "${TOTAL}", which the decisions do not build. Record "apply" for it in run.status.decisions.d, or true in run.status.decisions.pull for a not-now id.`,
+    ],
+    [
+      "a PR link beside a not-now candidate left out",
+      (data) => {
+        data.run.status = {
+          state: "built",
+          prs: { [MONEY]: "https://github.com/acme/books/pull/65" },
+          decisions: { pull: { [MONEY]: false } },
+        };
+      },
+      `run.status.prs links "${MONEY}", which the decisions do not build. Record "apply" for it in run.status.decisions.d, or true in run.status.decisions.pull for a not-now id.`,
+    ],
+    [
       "a pull decision for an unknown not-now id",
       (data) => {
         data.run.status = {
