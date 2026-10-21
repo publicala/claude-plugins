@@ -1,0 +1,282 @@
+{
+  "run": {
+    "skill": "guard",
+    "title": "Acme Books Guardrails",
+    "heading": "Acme Books",
+    "subject": "Guardrails from PR #57",
+    "target": "acme/books#57",
+    "date": "2026-10-21",
+    "round": 1,
+    "rounds": 1,
+    "waiting": 0,
+    "root": "repo",
+    "editor": null,
+    "outcome": "Turn five mistakes the review of PR #57 caught by hand into checks that fail before the next review.",
+    "prs": "Each candidate you build becomes its own PR from `main`, labelled `guardrail`. The status enum stacks on a prep PR that fixes its 26 string sites.",
+    "method": "Read the 14 review threads, 3 review bodies and the diff of PR #57, then the `main` branch: Pint, Rector, PHPStan with its custom rules, the Pest arch suite, the pre-commit hook and CI. Measured each candidate's violations, exceptions and run time on `main`."
+  },
+  "files": [{ "path": "app/Users/CLAUDE.md", "new": true }],
+  "changes": [
+    {
+      "id": "order-total-summed-by-hand",
+      "title": "Read every order total from `Order::total()`",
+      "recommendation": "recommended",
+      "caught": {
+        "count": 3,
+        "quotes": [
+          {
+            "reviewer": "simplify",
+            "text": "This sums `price * quantity` over the lines by hand. `Order::total()` already does that and applies the discount and VAT, so this invoice comes out low for every discounted order.",
+            "url": "https://github.com/acme/books/pull/57#discussion_r2011401"
+          },
+          {
+            "reviewer": "full-review",
+            "text": "Same hand-built total as in `RefundController`: it skips the discount, so a refund pays back more than the customer paid.",
+            "url": "https://github.com/acme/books/pull/57#discussion_r2011437"
+          },
+          {
+            "reviewer": "Codex",
+            "text": "`InvoicePdf::render()` recomputes the total from `$order->lines`. Use the model's `total()` so the PDF and the checkout agree.",
+            "url": "https://github.com/acme/books/pull/57#discussion_r2011502"
+          }
+        ]
+      },
+      "mistake": {
+        "lang": "php",
+        "wrong": "$total = $order->lines->sum(\n    fn (OrderLine $line) => $line->price * $line->quantity,\n);",
+        "right": "$total = $order->total();",
+        "note": "`Order::total()` applies discounts and VAT, and returns cents."
+      },
+      "guardrail": {
+        "rung": 3,
+        "tool": "PHPStan custom rule",
+        "where": [
+          "app/PHPStan/OrderTotalRule.php",
+          "tests/PHPStan/OrderTotalRuleTest.php",
+          "phpstan.neon"
+        ],
+        "message": "Order totals come from Order::total(), which applies discounts and VAT.\nReplace this sum over $order->lines with $order->total()."
+      },
+      "cost": [
+        { "label": "Violations on `main`", "value": "4, all fixed in this PR" },
+        {
+          "label": "Exceptions",
+          "value": "1: `Order::total()` itself sums the lines"
+        },
+        { "label": "Run time", "value": "+1s on `composer phpstan`" },
+        {
+          "label": "New tools",
+          "value": "None. PHPStan runs in `composer test` and CI."
+        },
+        {
+          "label": "Overlap with open PRs",
+          "value": "#61 edits `InvoicePdf.php`. Merge this one after it."
+        }
+      ],
+      "skip": "The next invoice, refund or export that needs a total sums the lines by hand and drops the discount."
+    },
+    {
+      "id": "status-as-string",
+      "title": "Store order status as the `OrderStatus` enum",
+      "recommendation": "close call",
+      "caught": {
+        "count": 2,
+        "quotes": [
+          {
+            "reviewer": "full-review",
+            "text": "`'shiped'` is a typo, and nothing catches it: the column takes any string, so the order drops out of every status filter.",
+            "url": "https://github.com/acme/books/pull/57#discussion_r2011588"
+          },
+          {
+            "reviewer": "dana",
+            "text": "Can we stop passing status as a string? This is the third typo this quarter.",
+            "url": "https://github.com/acme/books/pull/57#discussion_r2011610"
+          }
+        ]
+      },
+      "mistake": {
+        "lang": "php",
+        "wrong": "$order->update(['status' => 'shiped']);",
+        "right": "$order->update(['status' => OrderStatus::Shipped]);",
+        "note": "The cast refuses, on write, any string that names no status."
+      },
+      "guardrail": {
+        "rung": 1,
+        "tool": "Enum cast on `Order::$status`",
+        "where": ["app/Enums/OrderStatus.php", "app/Models/Order.php"],
+        "message": "ValueError: \"shiped\" is not a valid backing value for enum App\\Enums\\OrderStatus"
+      },
+      "cost": [
+        {
+          "label": "Violations on `main`",
+          "value": "26 string literals in 11 files, fixed by hand in a prep PR. This PR stacks on it."
+        },
+        { "label": "Exceptions", "value": "None" },
+        { "label": "Run time", "value": "None. The cast runs on write." },
+        { "label": "New tools", "value": "None" },
+        {
+          "label": "Overlap with open PRs",
+          "value": "#63 (draft, updated 2026-10-14) adds a `refunded` status. Merge it first, or add the case here."
+        }
+      ],
+      "skip": "Another status typo ships, and the order drops out of the fulfilment queue without an error.",
+      "alternative": "A PHPStan rule that flags string literals passed to `status` needs no prep PR, and leaves the column free to take any string."
+    },
+    {
+      "id": "now-helper",
+      "title": "Write `Date::now()` where the code calls `now()`",
+      "recommendation": "recommended",
+      "caught": {
+        "quotes": [
+          {
+            "reviewer": "simplify",
+            "text": "Nit: the rest of the codebase writes `Date::now()`, so a search for the clock misses this one.",
+            "url": "https://github.com/acme/books/pull/57#discussion_r2011655"
+          }
+        ]
+      },
+      "mistake": {
+        "lang": "php",
+        "wrong": "$invoice->issued_at = now();",
+        "right": "$invoice->issued_at = Date::now();"
+      },
+      "guardrail": {
+        "rung": 2,
+        "tool": "Rector `FuncCallToStaticCallRector`",
+        "where": ["rector.php"]
+      },
+      "cost": [
+        {
+          "label": "Violations on `main`",
+          "value": "41, all rewritten by Rector in this PR"
+        },
+        { "label": "Exceptions", "value": "None" },
+        { "label": "Run time", "value": "+2s on the pre-commit hook" },
+        {
+          "label": "New tools",
+          "value": "None. Rector runs in the pre-commit hook."
+        },
+        { "label": "Overlap with open PRs", "value": "None" }
+      ],
+      "skip": "Sessions keep writing `now()`, and review keeps flagging it by hand."
+    },
+    {
+      "id": "user-created-over-deleted",
+      "title": "Restore a deleted user before you create one for the same email",
+      "recommendation": "close call",
+      "caught": {
+        "quotes": [
+          {
+            "reviewer": "dana",
+            "text": "This creates a second user for an email that belongs to a deleted account. The unique index skips deleted rows, so the old invoices stay on the old row.",
+            "url": "https://github.com/acme/books/pull/57#discussion_r2011760"
+          }
+        ]
+      },
+      "mistake": {
+        "lang": "php",
+        "wrong": "$user = User::create(['email' => $email, 'name' => $name]);",
+        "right": "$user = User::withTrashed()->firstWhere('email', $email);\n$user?->restore();\n$user ??= User::create(['email' => $email, 'name' => $name]);",
+        "note": "No check can tell a fresh email from one a deleted account holds. The unique index lives in a migration, far from the code that creates users."
+      },
+      "guardrail": { "rung": 8 },
+      "edits": [
+        {
+          "file": "app/Users/CLAUDE.md",
+          "at": "end",
+          "write": [
+            "# Users",
+            "",
+            "- A deleted user keeps their row, and the unique email index skips deleted rows. Before you create a user for an email, look for a deleted one with `User::withTrashed()` and restore it."
+          ]
+        }
+      ],
+      "cost": [
+        {
+          "label": "Violations on `main`",
+          "value": "1 in `InviteUser`, which the source PR fixes"
+        },
+        {
+          "label": "Tokens",
+          "value": "About 50, only in sessions that read `app/Users`"
+        },
+        { "label": "Overlap with open PRs", "value": "None" }
+      ],
+      "skip": "The next flow that creates users, an import or a single sign-on, splits a customer's invoices across two rows."
+    },
+    {
+      "id": "payments-graphql-by-hand",
+      "title": "Send payments GraphQL only through `PaymentsClient`",
+      "recommendation": "low value",
+      "caught": {
+        "quotes": [
+          {
+            "reviewer": "Codex",
+            "text": "`RefundOrder` posts a raw GraphQL query with `Http::post()`. `PaymentsClient` adds the auth header, the idempotency key and retries, and this call has none of them.",
+            "url": "https://github.com/acme/books/pull/57#discussion_r2011702"
+          }
+        ]
+      },
+      "mistake": {
+        "lang": "php",
+        "wrong": "Http::withToken($token)\n    ->post($url.'/graphql', ['query' => $refundMutation]);",
+        "right": "$this->payments->refund($order, $amount);"
+      },
+      "guardrail": {
+        "rung": 4,
+        "tool": "Pest guard test",
+        "where": ["tests/Arch/PaymentsClientTest.php"],
+        "message": "app/Jobs/RefundOrder.php sends a payments GraphQL request outside PaymentsClient.\nAdd a method to App\\Payments\\PaymentsClient and call it, so the request gets auth, an idempotency key and retries."
+      },
+      "cost": [
+        { "label": "Violations on `main`", "value": "1, fixed in this PR" },
+        { "label": "Exceptions", "value": "None" },
+        { "label": "Run time", "value": "+0.2s on `composer test`" },
+        { "label": "New tools", "value": "None" },
+        { "label": "Overlap with open PRs", "value": "None" }
+      ],
+      "skip": "A new payments call skips the client. One caller has done it in 14 months.",
+      "alternative": "A two-line arch test that keeps `Http` out of `App\\Jobs` covers the same paths, and also blocks the jobs that call other APIs."
+    }
+  ],
+  "notNow": [
+    {
+      "id": "money-by-hand",
+      "title": "Format money only through `Money::format()`",
+      "why": "38 views call `number_format()` by hand, and fixing them needs the invoice views refactored first. That prep PR is bigger than this round.",
+      "threads": ["https://github.com/acme/books/pull/57#discussion_r2011803"]
+    },
+    {
+      "id": "import-queue-unnamed",
+      "title": "Name the queue on every dispatched import job",
+      "why": "The check needs ast-grep, a new tool, for one finding. Horizon's default queue already runs the jobs that miss it.",
+      "threads": ["https://github.com/acme/books/pull/57#discussion_r2011840"]
+    }
+  ],
+  "none": [
+    {
+      "finding": "Inbox keys act under an open dialog",
+      "verdict": "One-off bug, fixed in the PR",
+      "url": "https://github.com/acme/books/pull/57#discussion_r2011901"
+    },
+    {
+      "finding": "`CheckoutTest` inserts rows with `DB::table()`",
+      "verdict": "Stated in `CLAUDE.md` line 29",
+      "url": "https://github.com/acme/books/pull/57#discussion_r2011922"
+    },
+    {
+      "finding": "Rename `processOrder()` to `fulfil()`",
+      "verdict": "A preference with no single right form",
+      "url": "https://github.com/acme/books/pull/57#discussion_r2011947"
+    },
+    {
+      "finding": "Cache the VAT rate per country",
+      "verdict": "Withdrawn: the reviewer took it back two comments later",
+      "url": "https://github.com/acme/books/pull/57#discussion_r2011963"
+    },
+    {
+      "finding": "Split `InvoiceController` into single actions",
+      "verdict": "A design choice for the team"
+    }
+  ]
+}

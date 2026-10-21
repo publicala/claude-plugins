@@ -1,16 +1,17 @@
 # bonsai
 
-Keeps CLAUDE.md files like a bonsai: small on purpose, shaped by continuous feeding and pruning. Five skills cover the lifecycle:
+Keeps CLAUDE.md files like a bonsai: small on purpose, shaped by continuous feeding and pruning. Six skills cover the lifecycle:
 
 | Skill | Role |
 | --- | --- |
 | `/bonsai:intake` | Records verified evidence from PR review threads outside the repo, shared only with `--export` |
 | `/bonsai:feed` | Adds rules from observed patterns (commits, in-session corrections, intake entries) |
 | `/bonsai:bake` | Converts crystallized rules into automated checks and removes the prose |
+| `/bonsai:guard` | Turns one review round's findings into checks, each its own PR from the default branch |
 | `/bonsai:audit` | Prunes and verifies what remains, every cut backed by evidence |
 | `/bonsai:split` | Moves what remains to the load scope of the sessions it governs |
 
-Run `intake` after each review round (with `--search` once, to start from a reviewer's past PRs), `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.
+Run `intake` after each review round (with `--search` once, to start from a reviewer's past PRs), `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `guard` after a review round whose findings a check could have caught before review, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.
 
 ## Evidence
 
