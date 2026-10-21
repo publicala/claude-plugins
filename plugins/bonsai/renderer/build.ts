@@ -19,7 +19,7 @@ export const TOKENS_PLACEHOLDER = "/*__BLUEPRINT_TOKENS__*/";
 export const DATA_PLACEHOLDER = "/*__DATA__*/ null";
 const TITLE_PLACEHOLDER = "<title>bonsai</title>";
 
-const SKILLS = ["audit", "bake", "feed", "split"] as const;
+const SKILLS = ["audit", "bake", "feed", "guard", "split"] as const;
 const LANES = ["call", "ready", "auto"] as const;
 const GROUP_LANES = ["ready", "auto"] as const;
 const VERBS = [
@@ -41,12 +41,38 @@ const DECISION_KEYS = [
   "gnote",
   "next",
   "ship",
+  "pull",
 ] as const;
 const CHANGE_DECISIONS = ["apply", "skip", "later"] as const;
 const MAX_CALLS = 5;
 const MAX_READY_GROUPS = 3;
 const MAX_FULL_PREVIEW_LINES = 400;
 
+const RECOMMENDATIONS = ["recommended", "close call", "low value"] as const;
+const RUNGS = [
+  "Unwritable",
+  "Auto-fix",
+  "Static analysis",
+  "Arch or guard test",
+  "ast-grep",
+  "Git hook",
+  "Runtime guard",
+  "CLAUDE.md line",
+] as const;
+const AUTO_FIX_RUNG = 2;
+const PROSE_RUNG = 8;
+const MAX_QUOTES = 4;
+const MAX_QUOTE_LENGTH = 300;
+const GUARD_CHANGE_FIELDS = [
+  "recommendation",
+  "caught",
+  "mistake",
+  "guardrail",
+  "cost",
+  "alternative",
+] as const;
+
+type Skill = (typeof SKILLS)[number];
 type Lane = (typeof LANES)[number];
 type Editor = (typeof EDITORS)[number];
 
@@ -90,6 +116,7 @@ interface PageChange extends JsonObject {
 export interface Page {
   schema: 1;
   run: JsonObject & {
+    skill: Skill;
     title: string;
     root: string;
     round: number;
@@ -103,6 +130,23 @@ export interface Page {
   kept: JsonObject[];
   next: unknown;
   ship: unknown;
+  notNow: JsonObject[];
+  none: JsonObject[];
+}
+
+interface PageGuardrail {
+  rung: number;
+  name: string;
+  tool: string | null;
+  where: string[];
+  message: string | null;
+}
+
+interface ChangeContext {
+  groups: Map<string, PageGroup>;
+  files: Map<string, LoadedFile>;
+  root: string;
+  editor: Editor | null;
 }
 
 interface LoadedFile {
@@ -138,6 +182,14 @@ function isOneOf<T extends string>(
 
 function isFilledString(value: unknown): value is string {
   return typeof value === "string" && value !== "";
+}
+
+function isOptionalText(value: unknown): value is string | undefined {
+  return value === undefined || isFilledString(value);
+}
+
+function isListOfText(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isFilledString);
 }
 
 function isRecord(value: unknown): value is JsonObject {
@@ -298,6 +350,7 @@ async function loadFiles(
   entries: JsonObject[],
   root: string,
   editor: Editor | null,
+  skill: Skill,
 ): Promise<Map<string, LoadedFile>> {
   const files = new Map<string, LoadedFile>();
 
@@ -340,8 +393,9 @@ async function loadFiles(
     });
   }
 
+  // A guard run that only builds checks edits no file.
   ensure(
-    files.size > 0,
+    files.size > 0 || skill === "guard",
     'The data lists no files. Add every file a change edits to "files".',
   );
 
@@ -369,7 +423,7 @@ function ensureLinesInFile(
 }
 
 function resolveEdit(
-  changeId: string,
+  owner: string,
   edit: JsonObject,
   files: Map<string, LoadedFile>,
   editor: Editor | null,
@@ -378,18 +432,18 @@ function resolveEdit(
   const file = typeof path === "string" ? files.get(path) : undefined;
   ensure(
     typeof path === "string" && file,
-    `Change '${changeId}' edits ${quote(path)}, which is missing from "files".`,
+    `${owner} edits ${quote(path)}, which is missing from "files".`,
   );
 
   const count = file.page.lines.length;
   const write = edit.write === undefined ? [] : edit.write;
   ensure(
     Array.isArray(write) && write.every((line) => typeof line === "string"),
-    `Change '${changeId}' needs "write" as a list of lines.`,
+    `${owner} needs "write" as a list of lines.`,
   );
 
   if ("lines" in edit) {
-    ensureLinesInFile(edit.lines, file, `Change '${changeId}'`, "edits");
+    ensureLinesInFile(edit.lines, file, owner, "edits");
     const [first, last] = edit.lines;
 
     return {
@@ -407,11 +461,11 @@ function resolveEdit(
   const at = edit.at;
   ensure(
     at === "end" || (isPositiveInteger(at) && at <= count + 1),
-    `Change '${changeId}' inserts into ${path} at ${quote(at)}. Use a line number from 1 to ${count + 1}, or "end".`,
+    `${owner} inserts into ${path} at ${quote(at)}. Use a line number from 1 to ${count + 1}, or "end".`,
   );
   ensure(
     write.length > 0,
-    `Change '${changeId}' inserts into ${path} but writes no lines.`,
+    `${owner} inserts into ${path} but writes no lines.`,
   );
   const position = at === "end" ? count + 1 : at;
 
@@ -432,7 +486,7 @@ function resolveEdit(
 }
 
 function resolveEvidence(
-  changeId: string,
+  owner: string,
   evidence: JsonObject[],
   root: string,
   editor: Editor | null,
@@ -440,13 +494,13 @@ function resolveEvidence(
   return evidence.map((item) => {
     ensure(
       isFilledString(item.text),
-      `Change '${changeId}' needs "text" in every evidence item.`,
+      `${owner} needs "text" in every evidence item.`,
     );
 
     if (item.file === undefined) {
       ensure(
         item.url === undefined || isWebUrl(item.url),
-        `Change '${changeId}' has evidence with "url" ${quote(item.url)}. Use an http or https URL.`,
+        `${owner} has evidence with "url" ${quote(item.url)}. Use an http or https URL.`,
       );
 
       return { text: item.text, href: item.url ?? null };
@@ -455,7 +509,7 @@ function resolveEvidence(
     const line = item.line ?? 1;
     ensure(
       isFilledString(item.file) && isPositiveInteger(line),
-      `Change '${changeId}' has evidence that needs "file" as a path and "line" as a line number.`,
+      `${owner} has evidence that needs "file" as a path and "line" as a line number.`,
     );
 
     return {
@@ -485,97 +539,300 @@ function resolveGroups(entries: JsonObject[]): Map<string, PageGroup> {
   return new Map(groups.map((group) => [group.id, group]));
 }
 
-function resolveChange(
-  change: JsonObject,
-  groups: Map<string, PageGroup>,
-  files: Map<string, LoadedFile>,
-  root: string,
-  editor: Editor | null,
-): PageChange {
+function ensureSecondCheck(owner: string, check: unknown, lane: Lane): void {
+  if (check === undefined || check === null) {
+    return;
+  }
+
+  ensure(
+    isRecord(check) &&
+      isOneOf(VERDICTS, check.verdict) &&
+      isFilledString(check.summary),
+    `${owner} has a check without a verdict (${listChoices(VERDICTS)}) and a summary.`,
+  );
+  ensure(
+    !(check.verdict === "drift" && lane !== "call"),
+    `${owner} drifted in the second check, so it belongs in lane call.`,
+  );
+}
+
+function resolveChange(change: JsonObject, context: ChangeContext): PageChange {
   const changeId = change.id;
   ensure(
     isId(changeId),
     `Every change needs an id, got ${quote(changeId)}. ${ID_RULE}`,
   );
 
-  const lane = change.lane;
+  const owner = `Change '${changeId}'`;
+  const guardField = GUARD_CHANGE_FIELDS.find((field) => field in change);
   ensure(
-    isOneOf(LANES, lane),
-    `Change '${changeId}' needs lane ${listChoices(LANES)}.`,
+    guardField === undefined,
+    `${owner} has "${guardField ?? ""}", which only a guard run shows. Remove it, or set run.skill to "guard".`,
   );
+
+  const lane = change.lane;
+  ensure(isOneOf(LANES, lane), `${owner} needs lane ${listChoices(LANES)}.`);
   ensure(
     isOneOf(VERBS, change.verb),
-    `Change '${changeId}' has verb ${quote(change.verb)}. Use one of ${listChoices(VERBS)}.`,
+    `${owner} has verb ${quote(change.verb)}. Use one of ${listChoices(VERBS)}.`,
   );
   ensure(
     isFilledString(change.title) && isFilledString(change.why),
-    `Change '${changeId}' needs a title and a why.`,
+    `${owner} needs a title and a why.`,
   );
 
-  const edits = listOfObjects(change.edits, "edits", `Change '${changeId}'`);
-  ensure(edits.length > 0, `Change '${changeId}' has no edits.`);
+  const edits = listOfObjects(change.edits, "edits", owner);
+  ensure(edits.length > 0, `${owner} has no edits.`);
 
   if (lane === "call") {
     ensure(
       isFilledString(change.skip),
-      `Change '${changeId}' is a call, so it needs "skip": what goes wrong if the user skips it.`,
+      `${owner} is a call, so it needs "skip": what goes wrong if the user skips it.`,
     );
   } else {
     const group =
-      typeof change.group === "string" ? groups.get(change.group) : undefined;
+      typeof change.group === "string"
+        ? context.groups.get(change.group)
+        : undefined;
     ensure(
       group,
-      `Change '${changeId}' is in lane ${lane}, so it needs a "group" from "groups".`,
+      `${owner} is in lane ${lane}, so it needs a "group" from "groups".`,
     );
     ensure(
       group.lane === lane,
-      `Change '${changeId}' is in lane ${lane}, but its group '${group.id}' is ${group.lane}.`,
+      `${owner} is in lane ${lane}, but its group '${group.id}' is ${group.lane}.`,
     );
   }
 
-  const check = change.check ?? null;
-  if (check !== null) {
-    ensure(
-      isRecord(check) &&
-        isOneOf(VERDICTS, check.verdict) &&
-        isFilledString(check.summary),
-      `Change '${changeId}' has a check without a verdict (${listChoices(VERDICTS)}) and a summary.`,
-    );
-    ensure(
-      !(check.verdict === "drift" && lane !== "call"),
-      `Change '${changeId}' drifted in the second check, so it belongs in lane call.`,
-    );
-  }
+  ensureSecondCheck(owner, change.check, lane);
 
   return {
     ...change,
     id: changeId,
     lane,
-    edits: edits.map((edit) => resolveEdit(changeId, edit, files, editor)),
+    edits: edits.map((edit) =>
+      resolveEdit(owner, edit, context.files, context.editor),
+    ),
     evidence: resolveEvidence(
-      changeId,
-      listOfObjects(change.evidence, "evidence", `Change '${changeId}'`),
-      root,
-      editor,
+      owner,
+      listOfObjects(change.evidence, "evidence", owner),
+      context.root,
+      context.editor,
+    ),
+  };
+}
+
+function resolveGuardrail(owner: string, value: unknown): PageGuardrail {
+  ensure(
+    isRecord(value),
+    `${owner} needs "guardrail": { "rung", "tool", "where", "message" }.`,
+  );
+
+  const { rung, tool, where, message } = value;
+  const name = isPositiveInteger(rung) ? RUNGS[rung - 1] : undefined;
+  ensure(
+    isPositiveInteger(rung) && name !== undefined,
+    `${owner} has rung ${quote(rung)}. Use a whole number from 1 to ${RUNGS.length}: ${RUNGS.map((rungName, index) => `${index + 1} ${rungName}`).join(", ")}.`,
+  );
+  ensure(
+    isOptionalText(tool) &&
+      (where === undefined || isListOfText(where)) &&
+      isOptionalText(message),
+    `${owner} needs "guardrail.tool" and "guardrail.message" as text, and "guardrail.where" as a list of paths.`,
+  );
+
+  if (rung === PROSE_RUNG) {
+    ensure(
+      message === undefined,
+      `${owner} is a CLAUDE.md line (rung ${PROSE_RUNG}), so it prints no "guardrail.message". The line itself goes in "edits".`,
+    );
+  } else {
+    ensure(
+      tool !== undefined,
+      `${owner} needs "guardrail.tool": the tool that runs the check.`,
+    );
+    ensure(
+      where !== undefined && where.length > 0,
+      `${owner} needs "guardrail.where": the files the check lives in.`,
+    );
+    ensure(
+      message !== undefined || rung === AUTO_FIX_RUNG,
+      `${owner} needs "guardrail.message": the exact text the check prints when it fails. Only an auto-fix (rung ${AUTO_FIX_RUNG}) rewrites the code without one.`,
+    );
+  }
+
+  return {
+    rung,
+    name,
+    tool: tool ?? null,
+    where: where ?? [],
+    message: message ?? null,
+  };
+}
+
+function resolveCaught(owner: string, value: unknown): JsonObject {
+  ensure(
+    isRecord(value),
+    `${owner} needs "caught": the review quotes that flagged the mistake.`,
+  );
+
+  const quotes = listOfObjects(value.quotes, "caught.quotes", owner);
+  ensure(
+    quotes.length >= 1 && quotes.length <= MAX_QUOTES,
+    `${owner} needs 1 to ${MAX_QUOTES} quotes in "caught.quotes", got ${quotes.length}.`,
+  );
+
+  for (const item of quotes) {
+    ensure(
+      isFilledString(item.reviewer) && isFilledString(item.text),
+      `${owner} needs "reviewer" and "text" in every quote.`,
+    );
+
+    const length = Array.from(item.text).length;
+    ensure(
+      length <= MAX_QUOTE_LENGTH,
+      `${owner} quotes ${length} characters from ${item.reviewer}. Cut the quote to the sentences that name the mistake, ${MAX_QUOTE_LENGTH} characters at most.`,
+    );
+    ensure(
+      isWebUrl(item.url),
+      `${owner} has a quote with "url" ${quote(item.url)}. Use the http or https link to the thread.`,
+    );
+  }
+
+  const count = value.count ?? quotes.length;
+  ensure(
+    isPositiveInteger(count) && count >= quotes.length,
+    `${owner} has "caught.count" ${quote(count)}. Count every thread that raised it, at least the ${quotes.length} quoted.`,
+  );
+
+  return {
+    count,
+    quotes: quotes.map(({ reviewer, text, url }) => ({ reviewer, text, url })),
+  };
+}
+
+function resolveMistake(owner: string, value: unknown): JsonObject {
+  ensure(
+    isRecord(value) &&
+      isFilledString(value.wrong) &&
+      isFilledString(value.right),
+    `${owner} needs "mistake" with the "wrong" code and the "right" code to write instead.`,
+  );
+  ensure(
+    isOptionalText(value.lang) && isOptionalText(value.note),
+    `${owner} needs "mistake.lang" and "mistake.note" as text, or left out.`,
+  );
+
+  return {
+    lang: value.lang ?? null,
+    wrong: value.wrong,
+    right: value.right,
+    note: value.note ?? null,
+  };
+}
+
+function resolveCost(owner: string, value: unknown): JsonObject[] {
+  const rows = listOfObjects(value, "cost", owner);
+  ensure(
+    rows.length > 0,
+    `${owner} needs "cost": the rows of its cost line, as { "label", "value" }.`,
+  );
+  ensure(
+    rows.every((row) => isFilledString(row.label) && isFilledString(row.value)),
+    `${owner} needs "label" and "value" as text in every cost row.`,
+  );
+
+  return rows.map(({ label, value }) => ({ label, value }));
+}
+
+/**
+ * A guard candidate is always a call: nothing is built
+ * until the user approves it on the page.
+ */
+function resolveCandidate(
+  candidate: JsonObject,
+  context: ChangeContext,
+): PageChange {
+  const candidateId = candidate.id;
+  ensure(
+    isId(candidateId),
+    `Every candidate needs an id, got ${quote(candidateId)}. ${ID_RULE}`,
+  );
+
+  const owner = `Candidate '${candidateId}'`;
+  const lane = candidate.lane ?? "call";
+  ensure(
+    lane === "call",
+    `${owner} needs lane call: a guard run builds only what the user approves.`,
+  );
+  ensure(
+    isFilledString(candidate.title),
+    `${owner} needs a title: the rule in plain words.`,
+  );
+  ensure(
+    isOneOf(RECOMMENDATIONS, candidate.recommendation),
+    `${owner} has recommendation ${quote(candidate.recommendation)}. Use ${listChoices(RECOMMENDATIONS)}.`,
+  );
+  ensure(
+    isFilledString(candidate.skip),
+    `${owner} is a call, so it needs "skip": what goes wrong if the user skips it.`,
+  );
+  ensure(
+    isOptionalText(candidate.alternative),
+    `${owner} needs "alternative" as text, or left out.`,
+  );
+
+  const caught = resolveCaught(owner, candidate.caught);
+  const mistake = resolveMistake(owner, candidate.mistake);
+  const guardrail = resolveGuardrail(owner, candidate.guardrail);
+  const cost = resolveCost(owner, candidate.cost);
+
+  const edits = listOfObjects(candidate.edits, "edits", owner);
+  if (guardrail.rung === PROSE_RUNG) {
+    ensure(
+      edits.length > 0,
+      `${owner} is a CLAUDE.md line (rung ${PROSE_RUNG}), so it needs "edits" with the line it writes.`,
+    );
+  } else {
+    ensure(
+      edits.length === 0,
+      `${owner} is a check (rung ${guardrail.rung}), so it carries no "edits". Its message teaches the rule, and CLAUDE.md carries nothing for it.`,
+    );
+  }
+
+  ensureSecondCheck(owner, candidate.check, "call");
+
+  return {
+    ...candidate,
+    id: candidateId,
+    lane: "call",
+    caught,
+    mistake,
+    guardrail,
+    cost,
+    edits: edits.map((edit) =>
+      resolveEdit(owner, edit, context.files, context.editor),
+    ),
+    evidence: resolveEvidence(
+      owner,
+      listOfObjects(candidate.evidence, "evidence", owner),
+      context.root,
+      context.editor,
     ),
   };
 }
 
 function resolveChanges(
   entries: JsonObject[],
-  groups: Map<string, PageGroup>,
-  files: Map<string, LoadedFile>,
-  root: string,
-  editor: Editor | null,
+  skill: Skill,
+  context: ChangeContext,
 ): PageChange[] {
   const changes = entries.map((change) =>
-    resolveChange(change, groups, files, root, editor),
+    skill === "guard"
+      ? resolveCandidate(change, context)
+      : resolveChange(change, context),
   );
   ensureUniqueIds(changes, '"changes"');
-  ensure(
-    changes.length > 0,
-    "The data holds no changes. A run with nothing to decide needs no page.",
-  );
 
   return changes;
 }
@@ -698,12 +955,59 @@ function indexNextItems(next: JsonObject[]): Set<string> {
   return new Set(items.map((item) => item.id));
 }
 
+function resolveNotNow(
+  entries: JsonObject[],
+  changes: PageChange[],
+): JsonObject[] {
+  const items = entries.map((item) => {
+    ensure(
+      isId(item.id) && isFilledString(item.title) && isFilledString(item.why),
+      `Every not-now candidate needs an id, a title and a why: the reason the cost gate stopped it. ${ID_RULE}`,
+    );
+
+    const threads = item.threads ?? [];
+    ensure(
+      Array.isArray(threads) && threads.every(isWebUrl),
+      `Not-now candidate '${item.id}' needs "threads" as a list of http or https links.`,
+    );
+
+    return { ...item, id: item.id, threads };
+  });
+  ensureUniqueIds(items, '"notNow"');
+
+  const changeIds = new Set(changes.map((change) => change.id));
+  const shared = items.find((item) => changeIds.has(item.id));
+  ensure(
+    shared === undefined,
+    `The id '${shared?.id ?? ""}' is in "changes" and in "notNow". A candidate is either a card or not now.`,
+  );
+
+  return items;
+}
+
+function validateNone(rows: JsonObject[]): JsonObject[] {
+  for (const row of rows) {
+    ensure(
+      isFilledString(row.finding) && isFilledString(row.verdict),
+      'Every "none" row needs a "finding" and a "verdict": the reason no guardrail fits.',
+    );
+    ensure(
+      row.url === undefined || isWebUrl(row.url),
+      `The "none" row ${quote(row.finding)} has "url" ${quote(row.url)}. Use an http or https URL.`,
+    );
+  }
+
+  return rows;
+}
+
 interface RoundIds {
+  skill: Skill;
   changes: Set<string>;
   groups: Set<string>;
   questionOptions: Map<string, Set<string>>;
   next: Set<string>;
   shipOptions: Set<string>;
+  notNow: Set<string>;
 }
 
 function ensureDecisionMap(
@@ -735,6 +1039,22 @@ function validateStatus(status: unknown, ids: RoundIds): void {
     status.link === undefined || isWebUrl(status.link),
     `run.status.link must be an http or https URL, got ${quote(status.link)}.`,
   );
+
+  const prs = status.prs;
+  if (prs !== undefined) {
+    ensure(
+      ids.skill === "guard",
+      "run.status.prs belongs to a guard run. Put the one link in run.status.link.",
+    );
+    ensure(
+      isRecord(prs) &&
+        Object.entries(prs).every(
+          ([key, link]) =>
+            (ids.changes.has(key) || ids.notNow.has(key)) && isWebUrl(link),
+        ),
+      "run.status.prs must map candidate and not-now ids to http or https links.",
+    );
+  }
 
   const decisions = status.decisions;
   if (decisions === undefined) {
@@ -804,6 +1124,12 @@ function validateStatus(status: unknown, ids: RoundIds): void {
         ids.shipOptions.has(decisions.ship)),
     `run.status.decisions.ship must be one of the ship option ids, got ${quote(decisions.ship)}.`,
   );
+  ensureDecisionMap(
+    decisions.pull,
+    "pull",
+    (key, entry) => ids.notNow.has(key) && typeof entry === "boolean",
+    "not-now ids to true or false",
+  );
 }
 
 function validateRoundSize(
@@ -851,6 +1177,41 @@ function resolveKept(
   });
 }
 
+/**
+ * A guard run ships each built candidate as its own PR and reports
+ * what it left out, so those fields belong to guard runs alone.
+ */
+function validateSkillShape(
+  data: JsonObject,
+  run: JsonObject,
+  skill: Skill,
+): void {
+  if (skill === "guard") {
+    ensure(
+      data.ship === undefined || data.ship === null,
+      'A guard run ships every built candidate as its own PR, so it takes no "ship". Say how the PRs land in run.prs.',
+    );
+    ensure(
+      isOptionalText(run.prs),
+      `run.prs must be one sentence on how the built candidates land, got ${quote(run.prs)}.`,
+    );
+
+    return;
+  }
+
+  const guardKey = (["notNow", "none"] as const).find(
+    (key) => data[key] !== undefined,
+  );
+  ensure(
+    guardKey === undefined,
+    `"${guardKey ?? ""}" belongs to a guard run. Remove it, or set run.skill to "guard".`,
+  );
+  ensure(
+    run.prs === undefined,
+    'run.prs belongs to a guard run. Remove it, or set run.skill to "guard".',
+  );
+}
+
 export async function build(
   data: unknown,
   dataDirectory: string,
@@ -867,6 +1228,8 @@ export async function build(
     ensure(isFilledString(run[key]), `run.${key} is required.`);
   }
   const title = run.title as string;
+  const skill = run.skill;
+  validateSkillShape(data, run, skill);
 
   const editor = run.editor ?? null;
   ensure(
@@ -902,14 +1265,25 @@ export async function build(
     listOfObjects(data.files, "files"),
     root,
     editor,
+    skill,
   );
   const groups = resolveGroups(listOfObjects(data.groups, "groups"));
   const changes = resolveChanges(
     listOfObjects(data.changes, "changes"),
-    groups,
-    files,
-    root,
-    editor,
+    skill,
+    {
+      groups,
+      files,
+      root,
+      editor,
+    },
+  );
+  const notNow = resolveNotNow(listOfObjects(data.notNow, "notNow"), changes);
+  ensure(
+    changes.length > 0 || notNow.length > 0,
+    skill === "guard"
+      ? "The data holds no candidates and nothing not now. A guard run with nothing to build needs no page."
+      : "The data holds no changes. A run with nothing to decide needs no page.",
   );
   rejectOverlaps(changes);
 
@@ -920,11 +1294,13 @@ export async function build(
 
   const next = listOfObjects(data.next, "next");
   validateStatus(run.status, {
+    skill,
     changes: new Set(changes.map((change) => change.id)),
     groups: new Set(groups.keys()),
     questionOptions,
     next: indexNextItems(next),
     shipOptions,
+    notNow: new Set(notNow.map((item) => item.id as string)),
   });
 
   const usedGroups = new Set(changes.map((change) => change.group));
@@ -939,6 +1315,7 @@ export async function build(
     schema: 1,
     run: {
       ...run,
+      skill,
       title,
       root,
       round,
@@ -952,6 +1329,8 @@ export async function build(
     kept: resolveKept(listOfObjects(data.kept, "kept"), files, editor),
     next,
     ship: data.ship ?? null,
+    notNow,
+    none: validateNone(listOfObjects(data.none, "none")),
   };
 }
 
@@ -975,7 +1354,31 @@ export async function render(page: Page): Promise<string> {
     .replace(DATA_PLACEHOLDER, () => payload);
 }
 
+function plural(count: number, one: string, many = `${one}s`): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+function guardSummary(page: Page): string {
+  const count = (recommendation: (typeof RECOMMENDATIONS)[number]) =>
+    page.changes.filter((change) => change.recommendation === recommendation)
+      .length;
+  const residentFiles = page.files.filter((file) => file.resident);
+  const resident =
+    residentFiles.length === 0
+      ? ""
+      : `; resident est. ${residentFiles.reduce((sum, file) => sum + file.tokens, 0)} tokens before`;
+
+  return (
+    `${plural(page.changes.length, "candidate")}: ${count("recommended")} recommended, ${plural(count("close call"), "close call")}, ${count("low value")} low value; ` +
+    `${page.notNow.length} not now; ${page.none.length} with no guardrail; ${plural(page.questions.length, "question")}${resident}`
+  );
+}
+
 export function summary(page: Page): string {
+  if (page.run.skill === "guard") {
+    return guardSummary(page);
+  }
+
   const count = (lane: Lane) =>
     page.changes.filter((change) => change.lane === lane).length;
   const questions = page.questions.length;

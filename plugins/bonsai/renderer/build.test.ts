@@ -3,7 +3,13 @@ import { chmod, cp, mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { Window } from "happy-dom";
+import {
+  type HTMLButtonElement,
+  type HTMLElement,
+  type HTMLInputElement,
+  type HTMLTextAreaElement,
+  Window,
+} from "happy-dom";
 
 import {
   DATA_PLACEHOLDER,
@@ -53,6 +59,74 @@ interface Fixture {
 
 async function exampleData(): Promise<Fixture> {
   return (await Bun.file(join(EXAMPLE, "data.json")).json()) as Fixture;
+}
+
+interface GuardCandidate {
+  id: string;
+  lane?: string;
+  title?: string;
+  recommendation?: unknown;
+  caught: { count?: unknown; quotes: Record<string, unknown>[] };
+  mistake: Record<string, unknown>;
+  guardrail: Record<string, unknown>;
+  cost: unknown;
+  skip?: string;
+  alternative?: unknown;
+  edits?: unknown;
+}
+
+interface GuardFixture {
+  run: Record<string, unknown>;
+  files: Record<string, unknown>[];
+  changes: GuardCandidate[];
+  notNow: Record<string, unknown>[];
+  none: Record<string, unknown>[];
+  questions?: Record<string, unknown>[];
+}
+
+const TOTAL = "order-total-summed-by-hand";
+const STATUS = "status-as-string";
+const NOW = "now-helper";
+const USERS = "user-created-over-deleted";
+const PAYMENTS = "payments-graphql-by-hand";
+const MONEY = "money-by-hand";
+const RUNG_LIST =
+  "1 Unwritable, 2 Auto-fix, 3 Static analysis, 4 Arch or guard test, 5 ast-grep, 6 Git hook, 7 Runtime guard, 8 CLAUDE.md line";
+
+async function guardData(): Promise<GuardFixture> {
+  return (await Bun.file(
+    join(EXAMPLE, "guard-data.json"),
+  ).json()) as GuardFixture;
+}
+
+function firstQuote(candidate: GuardCandidate): Record<string, unknown> {
+  const [quoted] = candidate.caught.quotes;
+
+  if (quoted === undefined) {
+    throw new Error(`Candidate '${candidate.id}' quotes no review.`);
+  }
+
+  return quoted;
+}
+
+function firstNotNow(data: GuardFixture): Record<string, unknown> {
+  const [item] = data.notNow;
+
+  if (item === undefined) {
+    throw new Error("The guard example has nothing not now.");
+  }
+
+  return item;
+}
+
+/**
+ * A guard run whose only CLAUDE.md line is gone, so it edits no file.
+ */
+function withoutProse(data: GuardFixture): GuardFixture {
+  data.changes = data.changes.filter((change) => change.id !== USERS);
+  data.files = [];
+
+  return data;
 }
 
 function changeIn<T extends { id: string }>(changes: T[], changeId: string): T {
@@ -914,7 +988,7 @@ describe("build refuses data that would mislead", () => {
       (data) => {
         data.run.skill = "prune";
       },
-      'run.skill must be one of audit, bake, feed or split, got "prune".',
+      'run.skill must be one of audit, bake, feed, guard or split, got "prune".',
     ],
     [
       "a run without an outcome",
@@ -965,6 +1039,49 @@ describe("build refuses data that would mislead", () => {
       },
       'run.root must be the repository directory, got "data.json"',
     ],
+    [
+      "a not-now list outside a guard run",
+      (data) => {
+        (data as unknown as Record<string, unknown>).notNow = [];
+      },
+      '"notNow" belongs to a guard run. Remove it, or set run.skill to "guard".',
+    ],
+    [
+      "a no-guardrail list outside a guard run",
+      (data) => {
+        (data as unknown as Record<string, unknown>).none = [];
+      },
+      '"none" belongs to a guard run.',
+    ],
+    [
+      "a guardrail on a change outside a guard run",
+      (data) => {
+        (
+          changeIn(data.changes, "livewire") as unknown as Record<
+            string,
+            unknown
+          >
+        ).guardrail = { rung: 3 };
+      },
+      "Change 'livewire' has \"guardrail\", which only a guard run shows.",
+    ],
+    [
+      "a PR shape outside a guard run",
+      (data) => {
+        data.run.prs = "Each one its own PR.";
+      },
+      "run.prs belongs to a guard run.",
+    ],
+    [
+      "PR links per change outside a guard run",
+      (data) => {
+        data.run.status = {
+          state: "applied",
+          prs: { livewire: "https://github.com/acme/books/pull/42" },
+        };
+      },
+      "run.status.prs belongs to a guard run. Put the one link in run.status.link.",
+    ],
   ];
 
   test.each(cases)("%s", async (_, mutate, message) => {
@@ -980,6 +1097,524 @@ describe("build refuses data that would mislead", () => {
 
   test("a run that is not an object", () => {
     expectDataError({ run: "audit" }, '"run" must be an object.');
+  });
+});
+
+describe("guard build", () => {
+  test("builds the guard example", async () => {
+    const page = await build(await guardData(), EXAMPLE);
+    const total = changeIn(page.changes, TOTAL);
+
+    expect(page.run.skill).toBe("guard");
+    expect(page.changes.map((change) => change.lane)).toEqual(
+      Array.from({ length: 5 }, () => "call"),
+    );
+    expect(total.guardrail).toEqual({
+      rung: 3,
+      name: "Static analysis",
+      tool: "PHPStan custom rule",
+      where: [
+        "app/PHPStan/OrderTotalRule.php",
+        "tests/PHPStan/OrderTotalRuleTest.php",
+        "phpstan.neon",
+      ],
+      message:
+        "Order totals come from Order::total(), which applies discounts and VAT.\nReplace this sum over $order->lines with $order->total().",
+    });
+    expect(total.caught).toMatchObject({ count: 3 });
+    expect(page.notNow.map((item) => item.id)).toEqual([
+      MONEY,
+      "import-queue-unnamed",
+    ]);
+    expect(page.none).toHaveLength(5);
+    expect(page.files.map((file) => file.path)).toEqual([
+      "app/Users/CLAUDE.md",
+    ]);
+  });
+
+  test("fills what a candidate leaves out", async () => {
+    const page = await build(await guardData(), EXAMPLE);
+
+    expect(changeIn(page.changes, NOW).caught).toMatchObject({ count: 1 });
+    expect(changeIn(page.changes, NOW).guardrail).toMatchObject({
+      name: "Auto-fix",
+      message: null,
+    });
+    expect(changeIn(page.changes, USERS).guardrail).toEqual({
+      rung: 8,
+      name: "CLAUDE.md line",
+      tool: null,
+      where: [],
+      message: null,
+    });
+    expect(changeIn(page.changes, PAYMENTS).mistake).toMatchObject({
+      note: null,
+    });
+    expect(page.notNow[0]?.threads).toEqual([
+      "https://github.com/acme/books/pull/57#discussion_r2011803",
+    ]);
+  });
+
+  test("quotes the line a CLAUDE.md candidate writes", async () => {
+    const users = changeIn(
+      (await build(await guardData(), EXAMPLE)).changes,
+      USERS,
+    );
+
+    expect(users.edits).toHaveLength(1);
+    expect(users.edits[0]).toMatchObject({
+      file: "app/Users/CLAUDE.md",
+      at: 1,
+      before: [],
+    });
+  });
+
+  test("lets an auto-fix print a message", async () => {
+    const data = await guardData();
+    changeIn(data.changes, NOW).guardrail.message = "Rector rewrote 1 file.";
+
+    expect(
+      changeIn((await build(data, EXAMPLE)).changes, NOW).guardrail,
+    ).toMatchObject({ message: "Rector rewrote 1 file." });
+  });
+
+  test("builds a guard run that edits no file", async () => {
+    const page = await build(withoutProse(await guardData()), EXAMPLE);
+
+    expect(page.files).toEqual([]);
+    expect(page.changes).toHaveLength(4);
+  });
+
+  test("builds a guard run where everything is not now", async () => {
+    const data = withoutProse(await guardData());
+    data.changes = [];
+
+    expect((await build(data, EXAMPLE)).notNow).toHaveLength(2);
+  });
+
+  test("accepts a guard record with a PR per candidate", async () => {
+    const data = await guardData();
+    data.run.status = {
+      state: "built",
+      date: "2026-10-22",
+      summary: "4 guardrails built, 1 skipped.",
+      prs: {
+        [TOTAL]: "https://github.com/acme/books/pull/64",
+        [MONEY]: "https://github.com/acme/books/pull/65",
+      },
+      decisions: {
+        d: { [TOTAL]: "apply", [PAYMENTS]: "skip", [STATUS]: "later" },
+        note: { [PAYMENTS]: "Fold it into the arch suite." },
+        pull: { [MONEY]: true, "import-queue-unnamed": false },
+      },
+    };
+
+    expect((await build(data, EXAMPLE)).run.status).toEqual(data.run.status);
+  });
+});
+
+describe("guard build refuses data that would mislead", () => {
+  const cases: [string, (data: GuardFixture) => void, string][] = [
+    [
+      "a candidate without a title",
+      (data) => {
+        delete changeIn(data.changes, TOTAL).title;
+      },
+      `Candidate '${TOTAL}' needs a title: the rule in plain words.`,
+    ],
+    [
+      "a check without its failure message",
+      (data) => {
+        delete changeIn(data.changes, TOTAL).guardrail.message;
+      },
+      `Candidate '${TOTAL}' needs "guardrail.message": the exact text the check prints when it fails.`,
+    ],
+    [
+      "a type that refuses the wrong form without its error",
+      (data) => {
+        delete changeIn(data.changes, STATUS).guardrail.message;
+      },
+      `Candidate '${STATUS}' needs "guardrail.message"`,
+    ],
+    [
+      "a CLAUDE.md line with a failure message",
+      (data) => {
+        changeIn(data.changes, USERS).guardrail.message = "Fails.";
+      },
+      `Candidate '${USERS}' is a CLAUDE.md line (rung 8), so it prints no "guardrail.message".`,
+    ],
+    [
+      "a rung above the ladder",
+      (data) => {
+        changeIn(data.changes, TOTAL).guardrail.rung = 9;
+      },
+      `Candidate '${TOTAL}' has rung 9. Use a whole number from 1 to 8: ${RUNG_LIST}.`,
+    ],
+    [
+      "a rung of zero",
+      (data) => {
+        changeIn(data.changes, TOTAL).guardrail.rung = 0;
+      },
+      `Candidate '${TOTAL}' has rung 0.`,
+    ],
+    [
+      "a rung as text",
+      (data) => {
+        changeIn(data.changes, TOTAL).guardrail.rung = "3";
+      },
+      `Candidate '${TOTAL}' has rung "3".`,
+    ],
+    [
+      "a guardrail that is not an object",
+      (data) => {
+        (
+          changeIn(data.changes, TOTAL) as unknown as Record<string, unknown>
+        ).guardrail = "PHPStan";
+      },
+      `Candidate '${TOTAL}' needs "guardrail": { "rung", "tool", "where", "message" }.`,
+    ],
+    [
+      "a check without its tool",
+      (data) => {
+        delete changeIn(data.changes, TOTAL).guardrail.tool;
+      },
+      `Candidate '${TOTAL}' needs "guardrail.tool": the tool that runs the check.`,
+    ],
+    [
+      "a check that lives nowhere",
+      (data) => {
+        changeIn(data.changes, TOTAL).guardrail.where = [];
+      },
+      `Candidate '${TOTAL}' needs "guardrail.where": the files the check lives in.`,
+    ],
+    [
+      "a check home that is not a list",
+      (data) => {
+        changeIn(data.changes, TOTAL).guardrail.where = "phpstan.neon";
+      },
+      `Candidate '${TOTAL}' needs "guardrail.tool" and "guardrail.message" as text, and "guardrail.where" as a list of paths.`,
+    ],
+    [
+      "a quote that links to a script",
+      (data) => {
+        firstQuote(changeIn(data.changes, TOTAL)).url = "javascript:alert(1)";
+      },
+      `Candidate '${TOTAL}' has a quote with "url" "javascript:alert(1)". Use the http or https link to the thread.`,
+    ],
+    [
+      "a quote without a link",
+      (data) => {
+        delete firstQuote(changeIn(data.changes, TOTAL)).url;
+      },
+      `Candidate '${TOTAL}' has a quote with "url" nothing.`,
+    ],
+    [
+      "a quote longer than an excerpt",
+      (data) => {
+        firstQuote(changeIn(data.changes, TOTAL)).text = "a".repeat(301);
+      },
+      `Candidate '${TOTAL}' quotes 301 characters from simplify. Cut the quote to the sentences that name the mistake, 300 characters at most.`,
+    ],
+    [
+      "a quote without a reviewer",
+      (data) => {
+        delete firstQuote(changeIn(data.changes, TOTAL)).reviewer;
+      },
+      `Candidate '${TOTAL}' needs "reviewer" and "text" in every quote.`,
+    ],
+    [
+      "more than four quotes",
+      (data) => {
+        const total = changeIn(data.changes, TOTAL);
+        total.caught.quotes.push(firstQuote(total), firstQuote(total));
+      },
+      `Candidate '${TOTAL}' needs 1 to 4 quotes in "caught.quotes", got 5.`,
+    ],
+    [
+      "no quotes",
+      (data) => {
+        changeIn(data.changes, TOTAL).caught.quotes = [];
+      },
+      `Candidate '${TOTAL}' needs 1 to 4 quotes in "caught.quotes", got 0.`,
+    ],
+    [
+      "a count below the quotes shown",
+      (data) => {
+        changeIn(data.changes, TOTAL).caught.count = 2;
+      },
+      `Candidate '${TOTAL}' has "caught.count" 2. Count every thread that raised it, at least the 3 quoted.`,
+    ],
+    [
+      "caught that is not an object",
+      (data) => {
+        (
+          changeIn(data.changes, TOTAL) as unknown as Record<string, unknown>
+        ).caught = [];
+      },
+      `Candidate '${TOTAL}' needs "caught": the review quotes that flagged the mistake.`,
+    ],
+    [
+      "an unknown recommendation",
+      (data) => {
+        changeIn(data.changes, TOTAL).recommendation = "maybe";
+      },
+      `Candidate '${TOTAL}' has recommendation "maybe". Use recommended, close call or low value.`,
+    ],
+    [
+      "a candidate without a recommendation",
+      (data) => {
+        delete changeIn(data.changes, TOTAL).recommendation;
+      },
+      `Candidate '${TOTAL}' has recommendation nothing.`,
+    ],
+    [
+      "a mistake without the code to write instead",
+      (data) => {
+        delete changeIn(data.changes, TOTAL).mistake.right;
+      },
+      `Candidate '${TOTAL}' needs "mistake" with the "wrong" code and the "right" code to write instead.`,
+    ],
+    [
+      "a mistake whose language is not text",
+      (data) => {
+        changeIn(data.changes, TOTAL).mistake.lang = 3;
+      },
+      `Candidate '${TOTAL}' needs "mistake.lang" and "mistake.note" as text, or left out.`,
+    ],
+    [
+      "a candidate without a cost",
+      (data) => {
+        changeIn(data.changes, TOTAL).cost = [];
+      },
+      `Candidate '${TOTAL}' needs "cost": the rows of its cost line, as { "label", "value" }.`,
+    ],
+    [
+      "a cost row that is not text",
+      (data) => {
+        changeIn(data.changes, TOTAL).cost = [
+          { label: "Violations", value: 4 },
+        ];
+      },
+      `Candidate '${TOTAL}' needs "label" and "value" as text in every cost row.`,
+    ],
+    [
+      "a candidate without skip",
+      (data) => {
+        delete changeIn(data.changes, TOTAL).skip;
+      },
+      `Candidate '${TOTAL}' is a call, so it needs "skip": what goes wrong if the user skips it.`,
+    ],
+    [
+      "an alternative that is not text",
+      (data) => {
+        changeIn(data.changes, TOTAL).alternative = ["arch test"];
+      },
+      `Candidate '${TOTAL}' needs "alternative" as text, or left out.`,
+    ],
+    [
+      "a check that adds a CLAUDE.md line",
+      (data) => {
+        changeIn(data.changes, TOTAL).edits = [
+          { file: "app/Users/CLAUDE.md", at: "end", write: ["- Use total()."] },
+        ];
+      },
+      `Candidate '${TOTAL}' is a check (rung 3), so it carries no "edits".`,
+    ],
+    [
+      "a CLAUDE.md line without its edit",
+      (data) => {
+        delete changeIn(data.changes, USERS).edits;
+      },
+      `Candidate '${USERS}' is a CLAUDE.md line (rung 8), so it needs "edits" with the line it writes.`,
+    ],
+    [
+      "a CLAUDE.md line in an unlisted file",
+      (data) => {
+        changeIn(data.changes, USERS).edits = [
+          { file: "docs/users.md", at: "end", write: ["- x"] },
+        ];
+      },
+      `Candidate '${USERS}' edits "docs/users.md", which is missing from "files".`,
+    ],
+    [
+      "a candidate outside lane call",
+      (data) => {
+        changeIn(data.changes, TOTAL).lane = "ready";
+      },
+      `Candidate '${TOTAL}' needs lane call: a guard run builds only what the user approves.`,
+    ],
+    [
+      "more than five candidates",
+      (data) => {
+        data.changes.push({ ...changeIn(data.changes, NOW), id: "extra" });
+      },
+      "This round holds 6 calls (questions included), but a round holds at most 5.",
+    ],
+    [
+      "five candidates and a question",
+      (data) => {
+        data.questions = [
+          {
+            id: "enum-or-table",
+            text: "Should status be an enum or a lookup table?",
+            options: [
+              { id: "enum", label: "Enum" },
+              { id: "table", label: "Table" },
+            ],
+          },
+        ];
+      },
+      "This round holds 6 calls (questions included), but a round holds at most 5.",
+    ],
+    [
+      "a candidate id that shadows a built-in",
+      (data) => {
+        changeIn(data.changes, TOTAL).id = "constructor";
+      },
+      'Every candidate needs an id, got "constructor". An id uses letters, digits',
+    ],
+    [
+      "a candidate id with a space",
+      (data) => {
+        changeIn(data.changes, TOTAL).id = "order total";
+      },
+      'Every candidate needs an id, got "order total".',
+    ],
+    [
+      "a candidate id used twice",
+      (data) => {
+        changeIn(data.changes, NOW).id = TOTAL;
+      },
+      `The id '${TOTAL}' appears twice in "changes".`,
+    ],
+    [
+      "a not-now id used twice",
+      (data) => {
+        data.notNow.push({ ...firstNotNow(data) });
+      },
+      `The id '${MONEY}' appears twice in "notNow".`,
+    ],
+    [
+      "a not-now id that is also a card",
+      (data) => {
+        firstNotNow(data).id = TOTAL;
+      },
+      `The id '${TOTAL}' is in "changes" and in "notNow". A candidate is either a card or not now.`,
+    ],
+    [
+      "a not-now id with a quote",
+      (data) => {
+        firstNotNow(data).id = 'money"quote';
+      },
+      "Every not-now candidate needs an id, a title and a why: the reason the cost gate stopped it.",
+    ],
+    [
+      "a not-now candidate without a why",
+      (data) => {
+        delete firstNotNow(data).why;
+      },
+      "Every not-now candidate needs an id, a title and a why",
+    ],
+    [
+      "a not-now thread that links to a script",
+      (data) => {
+        firstNotNow(data).threads = ["javascript:alert(1)"];
+      },
+      `Not-now candidate '${MONEY}' needs "threads" as a list of http or https links.`,
+    ],
+    [
+      "a no-guardrail row without a verdict",
+      (data) => {
+        delete data.none[0]?.verdict;
+      },
+      'Every "none" row needs a "finding" and a "verdict": the reason no guardrail fits.',
+    ],
+    [
+      "a no-guardrail row that links to a script",
+      (data) => {
+        data.none.push({
+          finding: "Typo",
+          verdict: "Wording",
+          url: "javascript:alert(1)",
+        });
+      },
+      'The "none" row "Typo" has "url" "javascript:alert(1)". Use an http or https URL.',
+    ],
+    [
+      "a ship choice in a guard run",
+      (data) => {
+        (data as unknown as Record<string, unknown>).ship = {
+          default: "pr",
+          options: [
+            { id: "pr", label: "PR" },
+            { id: "local", label: "Local" },
+          ],
+        };
+      },
+      'A guard run ships every built candidate as its own PR, so it takes no "ship".',
+    ],
+    [
+      "a PR shape that is not text",
+      (data) => {
+        data.run.prs = ["one PR each"];
+      },
+      'run.prs must be one sentence on how the built candidates land, got ["one PR each"].',
+    ],
+    [
+      "a guard run with nothing to build",
+      (data) => {
+        withoutProse(data).changes = [];
+        data.notNow = [];
+      },
+      "The data holds no candidates and nothing not now.",
+    ],
+    [
+      "a PR link for an unknown candidate",
+      (data) => {
+        data.run.status = {
+          state: "built",
+          prs: { missing: "https://github.com/acme/books/pull/64" },
+        };
+      },
+      "run.status.prs must map candidate and not-now ids to http or https links.",
+    ],
+    [
+      "a PR link that is not a web URL",
+      (data) => {
+        data.run.status = {
+          state: "built",
+          prs: { [TOTAL]: "javascript:alert(1)" },
+        };
+      },
+      "run.status.prs must map candidate and not-now ids to http or https links.",
+    ],
+    [
+      "a pull decision for an unknown not-now id",
+      (data) => {
+        data.run.status = {
+          state: "built",
+          decisions: { pull: { missing: true } },
+        };
+      },
+      "run.status.decisions.pull must map not-now ids to true or false.",
+    ],
+    [
+      "a pull decision that is not true or false",
+      (data) => {
+        data.run.status = {
+          state: "built",
+          decisions: { pull: { [MONEY]: "yes" } },
+        };
+      },
+      "run.status.decisions.pull must map not-now ids to true or false.",
+    ],
+  ];
+
+  test.each(cases)("%s", async (_, mutate, message) => {
+    const data = await guardData();
+    mutate(data);
+
+    expectDataError(data, message);
   });
 });
 
@@ -1131,12 +1766,213 @@ describe("page", () => {
   });
 });
 
+/**
+ * Decides a candidate the way the user does, with its button.
+ */
+function press(
+  document: Awaited<ReturnType<typeof openPage>>["document"],
+  candidateId: string,
+  decision: "apply" | "skip" | "later",
+): void {
+  document
+    .querySelector<HTMLButtonElement>(
+      `.choice button[data-id="${candidateId}"][data-v="${decision}"]`,
+    )
+    ?.click();
+}
+
+describe("guard page", () => {
+  test("renders one card per candidate, with no preview", async () => {
+    const { window, document, errors } = await openPage(
+      await build(await guardData(), EXAMPLE),
+    );
+    const total = document.getElementById(`card-${TOTAL}`);
+
+    expect(errors).toEqual([]);
+    expect(document.querySelectorAll(".card.guard")).toHaveLength(5);
+    expect(document.getElementById("preview")?.hasAttribute("hidden")).toBe(
+      true,
+    );
+    expect(document.querySelector(".tabs")?.hasAttribute("hidden")).toBe(true);
+    expect(document.querySelector(".meter")).toBeNull();
+    expect(total?.querySelector(".badge")?.textContent).toBe("recommended");
+    expect(total?.querySelectorAll(".quotes li")).toHaveLength(3);
+    expect(total?.querySelector(".g-sec h4 span")?.textContent).toBe(
+      "3 reviews flagged this",
+    );
+    expect(total?.querySelector(".code.msg")?.textContent).toContain(
+      "Replace this sum over $order->lines with $order->total().",
+    );
+    expect(total?.querySelector(".choice")?.textContent).toContain("Build");
+    expect(document.getElementById(`card-${NOW}`)?.textContent).toContain(
+      "Rewrites the code on commit",
+    );
+    expect(
+      document.querySelector(`#card-${USERS} [data-diff]`)?.textContent,
+    ).toContain("look for a deleted one");
+    expect(document.querySelectorAll("[data-pull]")).toHaveLength(2);
+    expect(document.querySelectorAll(".none-list li")).toHaveLength(5);
+    expect(document.querySelector(".ships")?.textContent).toContain(
+      "labelled guardrail",
+    );
+    await window.happyDOM.close();
+  });
+
+  test("sends the decisions as a build message", async () => {
+    const { window, document, errors } = await openPage(
+      await build(await guardData(), EXAMPLE),
+    );
+
+    press(document, TOTAL, "apply");
+    press(document, STATUS, "later");
+    press(document, NOW, "apply");
+    press(document, USERS, "apply");
+    press(document, PAYMENTS, "skip");
+    const note = document.querySelector<HTMLTextAreaElement>(
+      `textarea[data-note="${PAYMENTS}"]`,
+    );
+    if (note !== null) {
+      note.value = "Fold it into the arch suite.";
+      note.dispatchEvent(new window.Event("input"));
+    }
+    document.querySelector<HTMLInputElement>(`[data-pull="${MONEY}"]`)?.click();
+
+    expect(document.getElementById("go")?.textContent).toBe(
+      "Build 4 guardrails",
+    );
+    document.querySelector<HTMLButtonElement>("#go")?.click();
+
+    expect(errors).toEqual([]);
+    expect(document.querySelector<HTMLTextAreaElement>("#export")?.value).toBe(
+      [
+        "Build the bonsai guard of acme/books#57, round 1, with these decisions:",
+        `- ${TOTAL} (rung 3 Static analysis, PHPStan custom rule): build`,
+        `- ${STATUS} (rung 1 Unwritable, Enum cast on Order::$status): later`,
+        `- ${NOW} (rung 2 Auto-fix, Rector FuncCallToStaticCallRector): build`,
+        `- ${USERS} (rung 8 CLAUDE.md line, app/Users/CLAUDE.md new file): build`,
+        `- ${PAYMENTS} (rung 4 Arch or guard test, Pest guard test): skip | note: Fold it into the arch suite.`,
+        `- not now ${MONEY}: build anyway`,
+      ].join("\n"),
+    );
+    expect(document.querySelector(".answers")?.textContent).toContain(
+      "Build 4",
+    );
+    await window.happyDOM.close();
+  });
+
+  test("builds the current card with b", async () => {
+    const { window, document } = await openPage(
+      await build(await guardData(), EXAMPLE),
+    );
+    const key = (name: string) => {
+      document.dispatchEvent(
+        new window.KeyboardEvent("keydown", { key: name }),
+      );
+    };
+
+    key("j");
+    key("b");
+
+    expect(
+      document.querySelector<HTMLElement>(`#card-${TOTAL}`)?.dataset.state,
+    ).toBe("apply");
+    await window.happyDOM.close();
+  });
+
+  test("reviews the candidates one by one", async () => {
+    const { window, document, errors } = await openPage(
+      await build(await guardData(), EXAMPLE),
+    );
+
+    document.querySelector<HTMLButtonElement>("#start-focus")?.click();
+
+    expect(errors).toEqual([]);
+    expect(document.querySelector("#f-body .card.guard")?.id).toBe(
+      `f-card-${TOTAL}`,
+    );
+    expect(document.getElementById("f-actions")?.textContent).toContain(
+      "Build",
+    );
+    await window.happyDOM.close();
+  });
+
+  test("shows the token meter for a line in a resident file", async () => {
+    const data = await guardData();
+    data.files = [{ path: "CLAUDE.md", resident: true }];
+    changeIn(data.changes, USERS).edits = [
+      { file: "CLAUDE.md", at: 30, write: ["- Restore a deleted user first."] },
+    ];
+    const { window, document, errors } = await openPage(
+      await build(data, EXAMPLE),
+    );
+
+    expect(errors).toEqual([]);
+    expect(document.querySelector(".meter")).not.toBeNull();
+    expect(document.getElementById("preview")?.hasAttribute("hidden")).toBe(
+      true,
+    );
+    await window.happyDOM.close();
+  });
+
+  test("renders a guard record with a PR per candidate", async () => {
+    const data = await guardData();
+    data.run.status = {
+      state: "built",
+      prs: {
+        [TOTAL]: "https://github.com/acme/books/pull/64",
+        [MONEY]: "https://github.com/acme/books/pull/65",
+      },
+      decisions: { d: { [TOTAL]: "apply" }, pull: { [MONEY]: true } },
+    };
+    const { window, document, errors } = await openPage(
+      await build(data, EXAMPLE),
+    );
+    const pull = document.querySelector<HTMLInputElement>(
+      `[data-pull="${MONEY}"]`,
+    );
+
+    expect(errors).toEqual([]);
+    expect(document.querySelector(".status-banner")?.textContent).toContain(
+      "Built",
+    );
+    expect(
+      document.querySelector(`#card-${TOTAL} a[href$="/pull/64"]`)?.textContent,
+    ).toBe("https://github.com/acme/books/pull/64");
+    expect(
+      document.querySelector('#h-notnow a[href$="/pull/65"]'),
+    ).not.toBeNull();
+    expect(pull?.checked).toBe(true);
+    expect(pull?.disabled).toBe(true);
+    await window.happyDOM.close();
+  });
+});
+
 describe("summary", () => {
   test("counts lanes, questions and resident tokens", async () => {
     const page = await build(await exampleData(), EXAMPLE);
 
     expect(summary(page)).toBe(
       "9 changes: 4 calls, 4 ready, 1 auto; 1 question; resident est. 361 tokens before",
+    );
+  });
+
+  test("counts guard candidates by recommendation", async () => {
+    const page = await build(await guardData(), EXAMPLE);
+
+    expect(summary(page)).toBe(
+      "5 candidates: 2 recommended, 2 close calls, 1 low value; 2 not now; 5 with no guardrail; 0 questions",
+    );
+  });
+
+  test("counts resident tokens when a guard line edits a resident file", async () => {
+    const data = await guardData();
+    data.files = [{ path: "CLAUDE.md", resident: true }];
+    changeIn(data.changes, USERS).edits = [
+      { file: "CLAUDE.md", at: "end", write: ["- Restore a deleted user."] },
+    ];
+
+    expect(summary(await build(data, EXAMPLE))).toEndWith(
+      "; resident est. 361 tokens before",
     );
   });
 
@@ -1161,6 +1997,13 @@ describe("command line", () => {
 
     expect(await proc.exited).toBe(0);
     expect(await proc.stdout.text()).toStartWith("9 changes:");
+  });
+
+  test("checks a guard run", async () => {
+    const result = await runCli(join(EXAMPLE, "guard-data.json"), "--check");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toStartWith("5 candidates:");
   });
 
   test("--check validates and writes nothing", async () => {

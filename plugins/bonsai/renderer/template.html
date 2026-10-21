@@ -54,6 +54,8 @@
   }
   code {
     font: 0.86em var(--mono);
+    /* Ligatures would draw -> and => as arrows the code does not hold. */
+    font-variant-ligatures: none;
     background: var(--sunk);
     padding: 0.05em 0.3em;
     overflow-wrap: anywhere;
@@ -64,7 +66,8 @@
   }
   h1,
   h2,
-  h3 {
+  h3,
+  h4 {
     margin: 0;
     text-wrap: balance;
     line-height: 1.2;
@@ -257,6 +260,9 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 470px);
     gap: 28px;
     align-items: start;
+  }
+  .split.solo {
+    grid-template-columns: minmax(0, 880px);
   }
   .decide {
     display: grid;
@@ -473,11 +479,197 @@
     font-size: 0.84rem;
   }
 
+  /* guard candidates: what the review caught, the mistake, the check, its cost */
+  .g-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+  .badge {
+    font: 600 0.7rem/1 var(--mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 4px 7px;
+    white-space: nowrap;
+  }
+  .badge.recommended {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .badge.close-call {
+    background: var(--call-bg);
+    color: var(--call);
+  }
+  .badge.low-value {
+    background: var(--sunk);
+    color: var(--body);
+  }
+  .g-sec {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--hair);
+  }
+  .g-sec h4 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    font: 600 0.72rem/1.3 var(--mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--body);
+  }
+  .g-sec h4 span {
+    font: 400 0.84rem var(--sans);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .quotes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+  .quotes blockquote {
+    margin: 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--hair-strong);
+    max-width: 68ch;
+  }
+  .quotes cite {
+    display: block;
+    padding-left: 15px;
+    font-style: normal;
+    font-size: 0.82rem;
+    color: var(--body);
+  }
+  .quotes cite b {
+    font: 600 0.8rem var(--mono);
+    color: var(--ink);
+  }
+  .pair {
+    display: grid;
+    gap: 8px;
+  }
+  .code {
+    margin: 0;
+    min-width: 0;
+    border: 1px solid var(--hair-strong);
+    background: var(--paper);
+  }
+  .code figcaption {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 10px;
+    font: 600 0.7rem/1.4 var(--mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--sunk);
+    color: var(--body);
+  }
+  .code figcaption span {
+    font-weight: 500;
+    text-transform: none;
+  }
+  .code.wrong figcaption {
+    background: var(--del-bg);
+    color: var(--del-ink);
+  }
+  .code.right figcaption {
+    background: var(--ins-bg);
+    color: var(--ins-ink);
+  }
+  .code pre {
+    margin: 0;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font: 0.8rem/1.55 var(--mono);
+    font-variant-ligatures: none;
+  }
+  .code pre code {
+    font: inherit;
+    background: none;
+    padding: 0;
+    overflow-wrap: normal;
+  }
+  .code.msg pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .g-note {
+    font-size: 0.9rem;
+    color: var(--body);
+    max-width: 68ch;
+  }
+  .kv {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+  .kv th,
+  .kv td {
+    padding: 5px 0;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--hair);
+  }
+  .kv tr:last-child > * {
+    border-bottom: 0;
+  }
+  .kv th {
+    width: 36%;
+    padding-right: 12px;
+    font-weight: 500;
+    color: var(--body);
+  }
+  .ships {
+    color: var(--body);
+    max-width: 68ch;
+  }
+  .ships b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .held,
+  .none-list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+  .held li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    align-items: start;
+  }
+  .held li > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .held .muted,
+  .none-list .muted {
+    font-size: 0.9rem;
+  }
+  .none-list li {
+    display: grid;
+    gap: 2px;
+    font-size: 0.94rem;
+  }
+
   /* diffs */
   .diff {
     border: 1px solid var(--hair-strong);
     overflow: hidden;
     font: 0.8rem/1.55 var(--mono);
+    font-variant-ligatures: none;
     min-width: 0;
     position: relative;
   }
@@ -558,6 +750,7 @@
     border: 1px solid var(--hair-strong);
     padding: 0 4px;
     color: var(--body);
+    background: transparent;
   }
   .choice button[aria-pressed="true"][data-v="apply"] {
     background: var(--accent);
@@ -898,6 +1091,7 @@
   .doc {
     overflow: auto;
     font: 0.76rem/1.55 var(--mono);
+    font-variant-ligatures: none;
     padding-block: 8px;
   }
   .doc .dl {
@@ -1269,6 +1463,16 @@
     const files = Object.fromEntries(D.files.map((f) => [f.path, f]));
     const resident = D.files.filter((f) => f.resident);
     const residentBefore = resident.reduce((n, f) => n + f.tokens, 0);
+    const GUARD = run.skill === "guard";
+    const notNow = D.notNow;
+    const none = D.none;
+    /* A guard run decides the same way, and Apply reads as Build. */
+    const APPLY = GUARD
+      ? { label: "Build", key: "b", word: "build" }
+      : { label: "Apply", key: "a", word: "apply" };
+    const NOUN = GUARD ? "candidate" : "change";
+    const SHIPS =
+      "Each candidate you build becomes its own pull request from the default branch, labelled `guardrail`.";
 
     /* ---------- state ---------- */
     function fresh() {
@@ -1279,6 +1483,7 @@
         custom: {},
         gnote: {},
         next: {},
+        pull: {},
         ship: D.ship?.default ?? null,
         pv: "changes",
         file: null,
@@ -1507,13 +1712,16 @@
       const auto = changes.filter((c) => c.lane === "auto").length;
       const minutes = Math.max(
         1,
-        Math.round((callIds.length * 35 + groupsIn("ready").length * 15) / 60),
+        Math.round(
+          (callIds.length * (GUARD ? 60 : 35) + groupsIn("ready").length * 15) /
+            60,
+        ),
       );
       const st = run.status;
       $("summary").innerHTML = `
       <p class="eyebrow">bonsai ${esc(run.skill)} · ${esc(run.target)} · ${esc(run.date)} · round ${run.round} of ${run.rounds}</p>
       <h1 id="title">${esc(run.heading)}${run.subject ? ` <span>${esc(run.subject)}</span>` : ""}</h1>
-      ${st ? `<div class="status-banner" role="status"><span><b>${esc(st.state === "applied" ? "Applied" : st.state)}</b>${st.date ? ` on ${esc(st.date)}` : ""}. ${prose(st.summary || "")}</span>${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">${esc(st.link)}</a>` : ""}<span class="muted">This page is now the record of the decisions.</span></div>` : ""}
+      ${st ? `<div class="status-banner" role="status"><span><b>${esc(st.state === "applied" ? "Applied" : st.state === "built" ? "Built" : st.state)}</b>${st.date ? ` on ${esc(st.date)}` : ""}. ${prose(st.summary || "")}</span>${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">${esc(st.link)}</a>` : ""}<span class="muted">This page is now the record of the decisions.</span></div>` : ""}
       <p class="outcome">${prose(run.outcome)}</p>
       ${resident.length ? `<div class="meter"><div class="bar" role="img" id="meter-bar"><span class="keep" id="m-keep"></span><span class="cut" id="m-cut"></span></div><div class="legend" aria-live="polite"><span id="m-text"></span><span id="m-pct"></span></div></div>` : ""}
       <div class="facts">
@@ -1521,9 +1729,12 @@
         ${ready ? `<span class="fact"><b>${ready}</b> ready to apply, in ${plural(groupsIn("ready").length, "group")}</span>` : ""}
         ${auto ? `<span class="fact"><b>${auto}</b> applied automatically</span>` : ""}
         ${D.kept.length ? `<span class="fact"><b>${D.kept.length}</b> stay as they are</span>` : ""}
+        ${notNow.length ? `<span class="fact"><b>${notNow.length}</b> not now</span>` : ""}
+        ${none.length ? `<span class="fact"><b>${none.length}</b> with no guardrail</span>` : ""}
         ${run.waiting ? `<span class="fact"><b>${run.waiting}</b> wait for the next round</span>` : ""}
         ${RECORD ? "" : `<span class="fact">about ${plural(minutes, "minute")}</span>`}
       </div>
+      ${GUARD ? `<p class="ships"><b>How they ship:</b> ${prose(run.prs || SHIPS)}</p>` : ""}
       ${RECORD || !callIds.length ? "" : `<div class="actions"><button class="btn primary" id="start-focus" type="button">Review one by one</button></div>`}`;
       $("start-focus")?.addEventListener("click", () => openFocus(0));
     }
@@ -1551,7 +1762,7 @@
       const v = S.d[id];
       const b = (val, label, key) =>
         `<button type="button" data-id="${id}" data-v="${val}" aria-pressed="${v === val}" ${disabled}>${label} <kbd>${key}</kbd></button>`;
-      return `<div class="choice" role="group" aria-label="Decision">${b("apply", "Apply", "a")}${b("skip", "Skip", "s")}${b("later", "Later", "l")}</div>`;
+      return `<div class="choice" role="group" aria-label="Decision">${b("apply", APPLY.label, APPLY.key)}${b("skip", "Skip", "s")}${b("later", "Later", "l")}</div>`;
     }
     function callCard(c, p = "") {
       return `
@@ -1568,11 +1779,103 @@
       ${checkHtml(c)}
       <p class="ifskip"><b>If you skip:</b> ${prose(c.skip)}</p>
       ${evidenceHtml(c)}
-      <textarea id="${p}note-${c.id}" data-note="${c.id}" rows="1" maxlength="600" placeholder="Note for Claude (optional)" ${disabled}>${esc(S.note[c.id] || "")}</textarea>
-      ${redraftable(c) && !RECORD ? `<div class="redraft-row" data-redraft="${c.id}" hidden><button class="btn small" type="button" data-redraft-go="${c.id}">Redraft with Claude</button><span class="muted">Turns your note into new wording. You approve it.</span></div><div class="redraft-out" data-redraft-out="${c.id}"></div>` : ""}
+      ${noteHtml(c, p)}
+      ${redraftHtml(c)}
       ${p ? "" : choiceHtml(c.id)}
     </article>`;
     }
+    const noteHtml = (c, p) =>
+      `<textarea id="${p}note-${c.id}" data-note="${c.id}" rows="1" maxlength="600" placeholder="Note for Claude (optional)" ${disabled}>${esc(S.note[c.id] || "")}</textarea>`;
+    const redraftHtml = (c) =>
+      redraftable(c) && !RECORD
+        ? `<div class="redraft-row" data-redraft="${c.id}" hidden><button class="btn small" type="button" data-redraft-go="${c.id}">Redraft with Claude</button><span class="muted">Turns your note into new wording. You approve it.</span></div><div class="redraft-out" data-redraft-out="${c.id}"></div>`
+        : "";
+
+    /* ---------- guard candidates ---------- */
+    const ext = (href, text) =>
+      `<a href="${esc(href)}" target="_blank" rel="noopener">${text}</a>`;
+    const prLabel = (url) => {
+      const pr = /\/pull\/(\d+)/.exec(url);
+      return pr ? `PR #${pr[1]}` : "open";
+    };
+    const kv = (pairs) =>
+      `<table class="kv"><tbody>${pairs.map(([label, value]) => `<tr><th scope="row">${label}</th><td>${value}</td></tr>`).join("")}</tbody></table>`;
+    const codeBlock = (kind, caption, lang, text) =>
+      `<figure class="code ${kind}"><figcaption>${caption}${lang ? `<span>${esc(lang)}</span>` : ""}</figcaption><pre><code>${esc(text)}</code></pre></figure>`;
+    const builtLink = (id) =>
+      run.status?.prs?.[id]
+        ? `<p class="g-note"><b>Pull request:</b> ${ext(run.status.prs[id], esc(run.status.prs[id]))}</p>`
+        : "";
+    /* Where a check lives, or, for a CLAUDE.md line, the files its edits write. */
+    const homes = (c) =>
+      c.guardrail.where.length
+        ? c.guardrail.where
+        : [...new Set(c.edits.map((e) => e.file))];
+    function guardCard(c, p = "") {
+      const g = c.guardrail,
+        m = c.mistake,
+        caught = c.caught,
+        line = g.rung === 8;
+      const flagged =
+        caught.count > 1
+          ? `<span>${caught.count} reviews flagged this${caught.count > caught.quotes.length ? `, ${caught.quotes.length} quoted` : ""}</span>`
+          : "";
+      const quotes = caught.quotes
+        .map(
+          (q) =>
+            `<li><blockquote>${prose(q.text)}</blockquote><cite><b>${esc(q.reviewer)}</b> · ${ext(q.url, prLabel(q.url))}</cite></li>`,
+        )
+        .join("");
+      const facts = [
+        ["Rung", `${g.rung} · ${esc(g.name)}`],
+        ...(g.tool ? [["Tool", prose(g.tool)]] : []),
+        [
+          "Lives in",
+          homes(c)
+            .map(
+              (f) =>
+                `<code>${esc(f)}</code>${files[f]?.new ? " (new file)" : ""}`,
+            )
+            .join("<br>"),
+        ],
+      ];
+      const shows = line
+        ? `<div data-diff="${c.id}">${diffHtml(c)}</div>`
+        : g.message
+          ? codeBlock(
+              "msg",
+              g.rung === 2 ? "It prints" : "It fails with",
+              "",
+              g.message,
+            )
+          : `<p class="g-note">Rewrites the code on commit, so it prints no message.</p>`;
+      return `
+    <article class="card guard" id="${p}card-${c.id}" data-id="${c.id}" tabindex="-1">
+      <div class="g-head"><h3>${prose(c.title)}</h3><span class="badge ${c.recommendation.replace(" ", "-")}">${esc(c.recommendation)}</span></div>
+      ${builtLink(c.id)}
+      <section class="g-sec"><h4>What the review caught ${flagged}</h4><ul class="quotes">${quotes}</ul></section>
+      <section class="g-sec"><h4>The mistake</h4><div class="pair">${codeBlock("wrong", "Wrong", m.lang, m.wrong)}${codeBlock("right", "Write instead", m.lang, m.right)}</div>${m.note ? `<p class="g-note">${prose(m.note)}</p>` : ""}</section>
+      <section class="g-sec"><h4>${line ? "The line" : "The check"}${line ? ` <span class="tok num" data-tok="${c.id}">${tokText(c)}</span>` : ""}</h4>${kv(facts)}${shows}</section>
+      <section class="g-sec"><h4>Cost</h4>${kv(c.cost.map((r) => [prose(r.label), prose(r.value)]))}</section>
+      <p class="ifskip"><b>If you skip:</b> ${prose(c.skip)}</p>
+      ${c.alternative ? `<p class="ifskip"><b>Alternative:</b> ${prose(c.alternative)}</p>` : ""}
+      ${checkHtml(c)}
+      ${evidenceHtml(c)}
+      ${noteHtml(c, p)}
+      ${redraftHtml(c)}
+      ${p ? "" : choiceHtml(c.id)}
+    </article>`;
+    }
+    const cardFor = (c, p) => (GUARD ? guardCard(c, p) : callCard(c, p));
+    /* The candidate as the apply message names it. */
+    const guardWhere = (c) =>
+      [
+        `rung ${c.guardrail.rung} ${c.guardrail.name}`,
+        c.guardrail.tool && plain(c.guardrail.tool),
+        ...c.edits.map((e) => `${e.file} ${where(e)}`),
+      ]
+        .filter(Boolean)
+        .join(", ");
     function questionCard(q, p = "") {
       const id = "q:" + q.id;
       const opts = q.options
@@ -1629,10 +1932,22 @@
         sections.push(`
       <section class="lane call" aria-labelledby="h-call">
         <div class="lane-head"><h2 id="h-call">Needs your call <span class="count">${callIds.length}</span></h2>
-        <p class="lede">Each one changes what a rule says, needs your intent, or a check found a problem. Nothing here applies until you decide.</p></div>
-        ${calls.map((c) => callCard(c)).join("")}
+        <p class="lede">${GUARD ? "Each one is a check, or a last-resort CLAUDE.md line, that stops a mistake the review caught. Nothing is built until you decide." : "Each one changes what a rule says, needs your intent, or a check found a problem. Nothing here applies until you decide."}</p></div>
+        ${calls.map((c) => cardFor(c)).join("")}
         ${questions.map((q) => questionCard(q)).join("")}
       </section>`);
+      }
+      if (notNow.length) {
+        sections.push(`
+      <details class="quiet" id="h-notnow" ${notNow.some((n) => S.pull[n.id]) ? "open" : ""}><summary>${plural(notNow.length, "candidate")} not now <span>· the cost gate stopped ${notNow.length === 1 ? "it" : "them"}. Pull one back in to build it anyway</span></summary>
+        <ul class="held">${notNow.map((n) => `<li><div><b>${prose(n.title)}</b><span class="muted">${prose(n.why)}</span>${n.threads.length ? `<span class="muted">${n.threads.map((u, i) => ext(u, n.threads.length > 1 ? `thread ${i + 1}` : "thread")).join(" · ")}</span>` : ""}${builtLink(n.id)}</div><label class="switch"><input type="checkbox" id="pull-${n.id}" data-pull="${n.id}" ${S.pull[n.id] ? "checked" : ""} ${disabled}> <span>Build anyway</span></label></li>`).join("")}</ul>
+      </details>`);
+      }
+      if (none.length) {
+        sections.push(`
+      <details class="quiet"><summary>${plural(none.length, "finding gets", "findings get")} no guardrail <span>· the reason for each</span></summary>
+        <ul class="none-list">${none.map((r) => `<li><span>${prose(r.finding)}</span><span class="muted">${prose(r.verdict)}${r.url ? ` ${ext(r.url, "open")}` : ""}</span></li>`).join("")}</ul>
+      </details>`);
       }
       if (ready.length) {
         sections.push(`
@@ -1676,7 +1991,7 @@
         );
       if (!RECORD)
         sections.push(
-          `<p class="keys"><span><kbd>j</kbd>/<kbd>k</kbd> move</span><span><kbd>a</kbd> apply</span><span><kbd>s</kbd> skip</span><span><kbd>l</kbd> later</span><span><kbd>n</kbd> note</span><span><kbd>f</kbd> one by one</span><span><kbd>p</kbd> preview</span></p>`,
+          `<p class="keys"><span><kbd>j</kbd>/<kbd>k</kbd> move</span><span><kbd>${APPLY.key}</kbd> ${APPLY.word}</span><span><kbd>s</kbd> skip</span><span><kbd>l</kbd> later</span><span><kbd>n</kbd> note</span><span><kbd>f</kbd> one by one</span>${PREVIEW ? "<span><kbd>p</kbd> preview</span>" : ""}</p>`,
         );
       $("decide").innerHTML = sections.join("");
     }
@@ -1685,7 +2000,10 @@
     const touched = [
       ...new Set(changes.flatMap((c) => c.edits.map((e) => e.file))),
     ];
+    /* A guard card shows the whole line it writes, so a guard run needs no preview. */
+    const PREVIEW = !GUARD && touched.length > 0;
     function renderPreviewHead() {
+      if (!PREVIEW) return;
       S.file = touched.includes(S.file) ? S.file : touched[0];
       const sel = $("pv-file");
       sel.hidden = touched.length < 2;
@@ -1701,6 +2019,7 @@
           : "After your decisions";
     }
     function renderDoc() {
+      if (!PREVIEW) return;
       const path = S.file,
         file = files[path],
         count = file.lines.length;
@@ -1765,7 +2084,7 @@
       document
         .querySelectorAll(".blk.hot")
         .forEach((b) => b.classList.remove("hot"));
-      if (!id) return;
+      if (!id || !PREVIEW) return;
       const ids = byId[id] ? [id] : inGroup(id).map((c) => c.id);
       const target = ids.flatMap((i) => byId[i].edits.map((e) => e.file))[0];
       if (target && target !== S.file) {
@@ -1855,17 +2174,22 @@
         (c) => c.lane !== "call" && S.d[c.id] === "apply",
       ).length;
       if (open) {
-        $("status").innerHTML =
-          `<b>${ready} ready</b> · ${callIds.length - open} of ${callIds.length} calls made`;
+        $("status").innerHTML = GUARD
+          ? `${callIds.length - open} of ${callIds.length} calls made`
+          : `<b>${ready} ready</b> · ${callIds.length - open} of ${callIds.length} calls made`;
         $("go").textContent = `Decide ${open} more`;
         $("go-sub").textContent = "";
         return;
       }
+      const pulled = notNow.filter((n) => S.pull[n.id]).length;
       $("status").innerHTML =
-        `<b>All decided.</b> ${t.apply.length} apply${t.skip.length ? ` · ${t.skip.length} skip` : ""}${t.later.length ? ` · ${t.later.length} later` : ""}${resident.length ? ` · ${t.tok >= 0 ? "−" : "+"}${Math.abs(t.tok)} tokens` : ""}`;
-      $("go").textContent = t.apply.length
-        ? `Apply ${plural(t.apply.length, "change")}`
-        : "Send decisions";
+        `<b>All decided.</b> ${t.apply.length} ${APPLY.word}${t.skip.length ? ` · ${t.skip.length} skip` : ""}${t.later.length ? ` · ${t.later.length} later` : ""}${pulled ? ` · ${pulled} not now pulled back` : ""}${resident.length ? ` · ${t.tok >= 0 ? "−" : "+"}${Math.abs(t.tok)} tokens` : ""}`;
+      const going = t.apply.length + pulled;
+      $("go").textContent = !going
+        ? "Send decisions"
+        : GUARD
+          ? `Build ${plural(going, "guardrail")}`
+          : `Apply ${plural(going, "change")}`;
       $("go-sub").textContent =
         channel === "send"
           ? "Sends to the waiting Claude session"
@@ -1929,12 +2253,15 @@
                 : ""),
           );
       }
-      const later = totals().later;
+      for (const n of notNow)
+        document
+          .querySelectorAll(`[data-pull="${n.id}"]`)
+          .forEach((cb) => (cb.checked = Boolean(S.pull[n.id])));
+      const waiting = totals().later.length + run.waiting;
       if ($("later-line"))
-        $("later-line").textContent =
-          later.length || run.waiting
-            ? `${plural(later.length + run.waiting, "change")} wait for the next round. Run /bonsai:${run.skill} again after this lands.`
-            : "";
+        $("later-line").textContent = waiting
+          ? `${plural(waiting, NOUN)} ${waiting === 1 ? "waits" : "wait"} for the next round. Run /bonsai:${run.skill} again after this lands.`
+          : "";
       syncMeter();
       syncDock();
       renderDoc();
@@ -1971,7 +2298,7 @@ Current lines:
 ${e.before.map((l) => l.text).join("\n")}
 Proposed lines:
 ${written(c, e).join("\n")}
-Why the change was proposed: ${plain(c.why)}
+Why the change was proposed: ${plain(c.why || c.title)}
 Reviewer's note: ${note}
 Return only the new lines.`;
       try {
@@ -2013,10 +2340,15 @@ Return only the new lines.`;
     /* ---------- the message Claude applies ---------- */
     function message() {
       const out = [
-        `Apply the bonsai ${run.skill} of ${run.target}, round ${run.round}, with these decisions:`,
+        GUARD
+          ? `Build the bonsai guard of ${run.target}, round ${run.round}, with these decisions:`
+          : `Apply the bonsai ${run.skill} of ${run.target}, round ${run.round}, with these decisions:`,
       ];
       for (const c of changes) {
-        let l = `- ${c.id} (${c.edits.map((e) => `${e.file} ${where(e)}`).join(", ")}): ${S.d[c.id] || "undecided"}`;
+        const v = S.d[c.id];
+        let l = GUARD
+          ? `- ${c.id} (${guardWhere(c)}): ${v === "apply" ? "build" : v || "undecided"}`
+          : `- ${c.id} (${c.edits.map((e) => `${e.file} ${where(e)}`).join(", ")}): ${v || "undecided"}`;
         if (S.custom[c.id])
           l += `, new wording: ${S.custom[c.id].replace(/\n/g, " / ")}`;
         if (S.note[c.id]) l += ` | note: ${S.note[c.id]}`;
@@ -2029,6 +2361,8 @@ Return only the new lines.`;
       for (const g of groups)
         if (S.gnote[g.id])
           out.push(`- note on group ${g.id}: ${S.gnote[g.id]}`);
+      for (const n of notNow)
+        if (S.pull[n.id]) out.push(`- not now ${n.id}: build anyway`);
       for (const n of D.next)
         out.push(
           `- after: ${S.next[n.id] ? "yes" : "no"}, ${n.id}${n.command ? ` (${n.command})` : ""}`,
@@ -2047,15 +2381,21 @@ Return only the new lines.`;
         Object.values(S.note).filter(Boolean).length +
         Object.values(S.gnote).filter(Boolean).length;
       const queued = D.next.filter((n) => S.next[n.id]);
+      const pulled = notNow.filter((n) => S.pull[n.id]);
+      const builds = [
+        ...t.apply.map((c) => prose(c.title)),
+        ...pulled.map((n) => `${prose(n.title)} (not now)`),
+      ];
       $("sheet-in").innerHTML = `
       <h2 id="sheet-title">Check and send</h2>
       <dl class="answers">
-        ${row(`Apply ${t.apply.length}`, resident.length ? `Every session loads <b>${fmt(t.after)}</b> tokens instead of ${fmt(residentBefore)}.` : names(t.apply), groupsIn("ready").length ? "h-ready" : null)}
+        ${GUARD ? row(`Build ${builds.length}`, builds.join("; ") || "Nothing", null) : row(`Apply ${t.apply.length}`, resident.length ? `Every session loads <b>${fmt(t.after)}</b> tokens instead of ${fmt(residentBefore)}.` : names(t.apply), groupsIn("ready").length ? "h-ready" : null)}
         ${t.skip.length ? row(`Skip ${t.skip.length}`, names(t.skip), "card-" + t.skip[0].id) : ""}
         ${t.later.length ? row(`Later ${t.later.length}`, `${names(t.later)}. Next round.`, "card-" + t.later[0].id) : ""}
         ${questions.map((q) => row("Answer", `${prose(q.text)} <b>${prose(q.options.find((o) => o.id === S.q[q.id])?.label || "")}</b>`, "card-q-" + q.id)).join("")}
         ${notes ? row("Notes", `${plural(notes, "note")} for Claude`, null) : ""}
         ${D.ship ? row("Ships as", esc(D.ship.options.find((o) => o.id === S.ship)?.label || S.ship), "h-next") : ""}
+        ${GUARD ? row("Ships as", prose(run.prs || SHIPS), null) : ""}
         ${queued.length ? row("Then", queued.map((n) => prose(n.title)).join("; "), "h-next") : ""}
       </dl>
       <p class="outcome-msg" id="send-msg" aria-live="polite"></p>
@@ -2162,7 +2502,7 @@ Return only the new lines.`;
       $("f-count").textContent = `${fi + 1} of ${n}`;
       const s = st[fi];
       if (s.kind === "call") {
-        $("f-body").innerHTML = callCard(byId[s.id], "f-");
+        $("f-body").innerHTML = cardFor(byId[s.id], "f-");
         $("f-actions").innerHTML = choiceHtml(s.id);
       } else if (s.kind === "question") {
         $("f-body").innerHTML = questionCard(
@@ -2284,6 +2624,12 @@ Return only the new lines.`;
         S.ship = e.target.value;
         save();
       });
+      document.querySelectorAll("[data-pull]").forEach((cb) =>
+        cb.addEventListener("change", () => {
+          S.pull[cb.dataset.pull] = cb.checked;
+          sync();
+        }),
+      );
       if (sample)
         document
           .querySelectorAll("[data-redraft]")
@@ -2352,7 +2698,7 @@ Return only the new lines.`;
         if (!$("focus").hidden) return closeFocus();
       }
       if (typing || !$("sheet").hidden) return;
-      const keyed = { a: "apply", s: "skip", l: "later" }[e.key];
+      const keyed = { [APPLY.key]: "apply", s: "skip", l: "later" }[e.key];
       if (!$("focus").hidden) {
         if (keyed) focusDecide(keyed);
         else if (e.key === "n") {
@@ -2397,7 +2743,7 @@ Return only the new lines.`;
         e.preventDefault();
         cur.querySelector("textarea:not([hidden])")?.focus();
       } else if (e.key === "f" && callIds.length) openFocus(0);
-      else if (e.key === "p")
+      else if (e.key === "p" && PREVIEW)
         setTab($("split").dataset.tab === "preview" ? "decide" : "preview");
     });
 
@@ -2405,6 +2751,11 @@ Return only the new lines.`;
     if (RECORD) {
       document.body.classList.add("record");
       $("dock").hidden = true;
+    }
+    if (!PREVIEW) {
+      $("preview").hidden = true;
+      document.querySelector(".tabs").hidden = true;
+      $("split").classList.add("solo");
     }
     renderSummary();
     renderDecide();
