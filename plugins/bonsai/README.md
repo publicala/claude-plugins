@@ -1,6 +1,8 @@
 # bonsai
 
-Keeps CLAUDE.md files like a bonsai: small on purpose, shaped by continuous feeding and pruning. Six skills cover the lifecycle:
+Keeps CLAUDE.md files like a bonsai: small on purpose, shaped by continuous feeding and pruning.
+
+Every line in a CLAUDE.md loads in every session, so a line that changes nothing still costs context. And a rule a linter or a test can enforce does its job better as a check, because the check runs before review and its failure message teaches the fix. bonsai keeps only the lines that need judgment, in the scope of the sessions they govern. Six skills cover the lifecycle:
 
 | Skill | Role |
 | --- | --- |
@@ -11,7 +13,14 @@ Keeps CLAUDE.md files like a bonsai: small on purpose, shaped by continuous feed
 | `/bonsai:audit` | Prunes and verifies what remains, every cut backed by evidence |
 | `/bonsai:split` | Moves what remains to the load scope of the sessions it governs |
 
-Run `intake` after each review round (with `--search` once, to start from a reviewer's past PRs), `feed` after a working session, `bake` once enough rules have accumulated to be worth automating, `guard` after a review round whose findings a check could have caught before review, `audit` when CLAUDE.md files have grown without review, and `split` after an audit leaves a resident file carrying rules that govern one area.
+## When to run each one
+
+- **intake**: after each review round. Run it once with `--search` to start from a reviewer's past PRs
+- **feed**: after a working session
+- **bake**: once enough rules have accumulated to be worth automating
+- **guard**: after a review round whose findings a check could have caught before review
+- **audit**: when CLAUDE.md files have grown without review
+- **split**: after an audit leaves a resident file carrying rules that govern one area
 
 ## Evidence
 
