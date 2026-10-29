@@ -1,27 +1,29 @@
 # publicala/claude-plugins
 
-Marketplace of public Claude Code plugins by Publica.la. Add it once, then install any listed plugin by name.
+The Claude Code plugins we use every day at [Publica.la](https://publica.la), shared in public. Add the marketplace once, then install any plugin by name:
 
 ```
 /plugin marketplace add publicala/claude-plugins
-/plugin install <plugin-name>@publicala
+/plugin install bonsai@publicala
+/plugin install blueprint@publicala
 ```
 
 ## Plugins
 
 ### bonsai
 
-Keeps CLAUDE.md files like a bonsai: small on purpose, shaped by continuous feeding and pruning. Five skills cover the lifecycle:
+Every CLAUDE.md starts small and grows a line per mistake, until most of it is noise every session pays for. bonsai keeps it small on purpose: it grows rules from real review findings, turns the ones a tool can enforce into checks, and prunes the rest with evidence.
 
 | Skill | Role |
 | --- | --- |
 | `/bonsai:intake` | Records verified evidence from PR review threads outside the repo, shared only with `--export` |
 | `/bonsai:feed` | Adds rules from observed patterns (commits, in-session corrections, intake entries) |
 | `/bonsai:bake` | Converts crystallized rules into automated checks and removes the prose |
+| `/bonsai:guard` | Turns one review round's findings into checks, each its own PR from the default branch |
 | `/bonsai:audit` | Prunes and verifies what remains, every cut backed by evidence |
 | `/bonsai:split` | Moves what remains to the load scope of the sessions it governs |
 
-See [plugins/bonsai](plugins/bonsai) for details.
+See [plugins/bonsai](plugins/bonsai) for when to run each one.
 
 ### blueprint
 
