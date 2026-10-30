@@ -1,7 +1,7 @@
 ---
 name: guard
 description: >
-  Turns a review round's findings into guardrails, one pull request per check, cut from the default branch. Run with PR numbers or URLs after a review round, while the PR is open or after it merged. A follow-up pass over review threads hands its PRs here before replying. Opens pull requests and replies on review threads.
+  Turns review findings into guardrails, one pull request per check, cut from the default branch. Run with PR numbers or URLs after a review round, or once over every PR of a finished run, while the PRs are open or after they merged. A follow-up pass over review threads hands its PRs here before replying. Opens pull requests and replies on review threads.
 user-invocable: true
 disable-model-invocation: false
 argument-hint: "[<PR number or URL>...] [--no-reply]"
@@ -9,7 +9,7 @@ argument-hint: "[<PR number or URL>...] [--no-reply]"
 
 Judge every review finding against one question: **which check would have failed on this before a reviewer saw it?** A reviewer who catches a mistake by hand catches that one instance. A check catches the whole class, in every session, before review, and its failure message teaches the fix to the session that made it. One finding is enough to build one, when the check is cheap and the mistake is likely to come back: **one finding, one guardrail, one PR**.
 
-Guard differs from `/bonsai:bake` in its input and its output. Bake starts from CLAUDE.md rules and findings recorded by `/bonsai:intake` in two or more PRs, and ships one PR with a commit per rule. Guard starts from one review round, keeps nothing between runs, and ships each guardrail as its own PR that merges on its own.
+Guard differs from `/bonsai:bake` in its input and its output. Bake starts from CLAUDE.md rules and findings recorded by `/bonsai:intake` in two or more PRs, and ships one PR with a commit per rule. Guard starts from the reviews of the PRs it is given (one round, or every round of a finished run), keeps nothing between runs, and ships each guardrail as its own PR that merges on its own.
 
 Throughout, "build" means opening a pull request after the user approved the candidate. No branch, no PR and no reply before approval.
 
@@ -42,7 +42,7 @@ gh api graphql \
 
 Add the review bodies and PR comments from `gh pr view <number> --json reviews,comments`, and the diff from `gh pr diff <number>`. Every item a review body lists is a finding, including those it marks unposted or low signal, which rank lower. Skip empty review bodies and the status cards a bot posts.
 
-Read each whole thread before judging any comment in it. A thread can hold several findings: split them, since each may get its own verdict. A request the reviewer withdrew holds no finding. A part the author declined keeps its finding, and its verdict is usually a design choice or a scope dispute. A resolved thread still holds its finding, since a fixed instance says nothing about the next one. Mark a finding another review already raised as a duplicate of the first (`= T05`).
+Read each whole thread before judging any comment in it. A thread can hold several findings: split them, since each may get its own verdict. A request the reviewer withdrew holds no finding. A part the author declined keeps its finding, and its verdict is usually a design choice or a scope dispute. A resolved thread still holds its finding, since a fixed instance says nothing about the next one. Mark a finding another review already raised as a duplicate of the first (`= T05`), across rounds and PRs alike.
 
 The artifact is the findings list: one line per finding with its thread URL, the reviewer, and the mistake in one sentence.
 

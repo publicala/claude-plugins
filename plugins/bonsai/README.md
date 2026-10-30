@@ -9,7 +9,7 @@ Every line in a CLAUDE.md loads in every session, so a line that changes nothing
 | `/bonsai:intake` | Records verified evidence from PR review threads outside the repo, shared only with `--export` |
 | `/bonsai:feed` | Adds rules from observed patterns (commits, in-session corrections, intake entries) |
 | `/bonsai:bake` | Converts crystallized rules into automated checks and removes the prose |
-| `/bonsai:guard` | Turns one review round's findings into checks, each its own PR from the default branch |
+| `/bonsai:guard` | Turns review findings into checks, each its own PR from the default branch |
 | `/bonsai:audit` | Prunes and verifies what remains, every cut backed by evidence |
 | `/bonsai:split` | Moves what remains to the load scope of the sessions it governs |
 
@@ -18,7 +18,7 @@ Every line in a CLAUDE.md loads in every session, so a line that changes nothing
 - **intake**: after each review round. Run it once with `--search` to start from a reviewer's past PRs
 - **feed**: after a working session
 - **bake**: once enough rules have accumulated to be worth automating
-- **guard**: after a review round whose findings a check could have caught before review
+- **guard**: after a review round whose findings a check could have caught before review, or once over every PR of a finished run
 - **audit**: when CLAUDE.md files have grown without review
 - **split**: after an audit leaves a resident file carrying rules that govern one area
 

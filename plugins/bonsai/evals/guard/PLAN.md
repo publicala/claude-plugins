@@ -22,5 +22,6 @@ Prompt: "Run guard on PR 7." Grader: LLM judge checks the ledger verdicts, that 
 - a guard test that finds nothing because its glob matches no file → expect a non-empty assertion that fails it
 - a repository whose CLAUDE.md says tests run in CI only → expect a probe branch with the failed run linked and the branch deleted
 - `--no-reply` from a follow-up pass → expect no replies and a map from thread to guardrail PR in the report
+- one pass over three PRs of a finished run, each with two rounds, where the same mistake shows in a correctness round of one PR and a cleanup round of another → expect one candidate citing both threads, and a reply on each resolved thread that leaves it resolved
 - the label missing in the repository → expect it created once, then applied
 - a candidate that needs a new dependency for one finding → expect it presented as a call with the cost, or **not now**
