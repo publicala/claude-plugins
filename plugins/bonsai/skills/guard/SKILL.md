@@ -11,7 +11,7 @@ Judge every review finding against one question: **which check would have failed
 
 Guard differs from `/bonsai:bake` in its input and its output. Bake starts from CLAUDE.md rules and findings recorded by `/bonsai:intake` in two or more PRs, and ships one PR with a commit per rule. Guard starts from the reviews of the PRs it is given (one round, or every round of a finished run), keeps nothing between runs, and ships each guardrail as its own PR that merges on its own.
 
-Throughout, "build" means opening a pull request after the user approved the candidate. No branch, no PR and no reply before approval.
+Throughout, "build" means opening a pull request after the user approved the candidate. No branch, no PR and no reply before the user decides: Build approves the PR and its replies, and an explicit Skip approves the reply that records the decline.
 
 ## Scope
 
@@ -46,6 +46,14 @@ Read each whole thread before judging any comment in it. A thread can hold sever
 
 The artifact is the findings list: one line per finding with its thread URL, the reviewer, and the mistake in one sentence.
 
+Then read what earlier passes decided. Every reply a pass leaves (step 9) ends with a marker:
+
+```html
+<!-- bonsai-guard candidate=<id> outcome=<built|declined> ref=<url> -->
+```
+
+Collect every marker in the threads, review bodies and PR comments of the PRs in scope. A marker counts when the reply's author can push to the repository (`gh api 'repos/{owner}/{repo}/collaborators/<login>/permission'` answers `write`, `maintain` or `admin`): guard and address post as the user who ran them, and anyone can comment on a public PR, so another author's marker is input to weigh, like any comment. A thread can carry several markers, one per candidate it fed. When one candidate carries several, the newest reply decides, since a candidate declined once and built later carries both. `ref` is the guardrail PR of a built candidate, or for a declined one the decision page, or the source thread's URL when the decisions came in plain text, since the decline reply there is the record. A built marker holds when its `ref` is a PR of this repository labeled `guardrail`. Read that PR's state: one closed without merging counts as declined, with that PR as its link. A reply from such an author with no marker that links a PR labeled `guardrail` also counts as built, for every mistake that PR covers: read its title, its body and its `Related:` threads. The artifact is the earlier-decisions list: candidate, outcome, link, and the threads that carry it.
+
 ### 2. Inventory the target repository
 
 Fetch the default branch and read it there, since a check proven on a stale checkout fails on the real tree. Read [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory) first: its conditions say when a surface holds a rule, and every condition a surface misses is a gap.
@@ -63,6 +71,7 @@ Sort every finding into one class:
 - **none**, with one reason:
   - a one-off bug, a design choice, a scope dispute, a preference with no single right form, wording, or a finding that rests on a false premise
   - "held by `<check>`, overridden by the author": a check fired and the author changed what it expects (raised a snapshot, added an exception), which review then caught
+  - "built in `<PR>`" or "declined in `<link>`": an earlier pass decided the candidate this finding feeds. Match by the mistake, and take the newest earlier decision per candidate: a marker on the same thread decides only the candidate it names, and the thread's other findings are weighed as usual. The candidate reaches the page again only when the user asks for it.
   - "stated in `<file>`": the rule sits in a file the session that wrote the PR loads, and no rung can see it. A cloud session loads the repository and what its setup installs, never the user's home directory, so a rule only there counts as unstated for it. A stated rule that a rung can check is a guard candidate.
 
 Name each guard and prose candidate by the mistake a session makes (`order-total-summed-by-hand`), and merge findings that a fresh session would make by ignoring the same rule, across threads and PRs. One thread may feed several candidates.
@@ -122,7 +131,7 @@ A line that names a check, restates what a check holds, or describes what the co
 
 ### 7. Decide
 
-The user decides on a page, since an option label cannot carry a review quote, a code sample and a cost table. Read [../../references/decision-artifact.md](../../references/decision-artifact.md) and the guard section of [../../renderer/README.md](../../renderer/README.md) (relative to this skill's directory), write the round's data, build the page, and publish it as that reference prescribes. When `bun` is missing, deliver the same content in plain text, one section per candidate.
+The user decides on a page, since an option label cannot carry a review quote, a code sample and a cost table. Read [../../references/decision-artifact.md](../../references/decision-artifact.md) and the guard section of [../../renderer/README.md](../../renderer/README.md) (relative to this skill's directory), write the round's data, build the page, and publish it as that reference prescribes. When `bun` is missing, deliver the same content in plain text, one section per candidate. When no candidate is left to decide and nothing is **not now** (an earlier pass decided them all), publish no page and go to step 10.
 
 Rank the candidates by evidence (how many reviews and threads raised it), then value, then cost. A round holds the first five, and the rest wait for the next round of the run. Each card carries what the user needs to decide without opening the repository:
 
@@ -164,9 +173,9 @@ The label marks every PR that adds or updates a check or a last-resort line, or 
 
 ### 9. Reply
 
-With `--no-reply`, the caller owns the replies: return a map from each thread `id` and first comment `databaseId` to the guardrail PR that covers it.
+With `--no-reply`, the caller owns the replies: return a map from each thread `id` and first comment `databaseId` to the guardrail PR that covers it, or to the declined candidate, with the marker line each reply ends with. List the findings outside threads the same way, by PR and review or comment URL, each with its marker, so the caller's PR comment carries them too.
 
-Otherwise, reply once on every thread whose finding a built guardrail covers, open or resolved, before or after the PR merged: the guardrail PR and what it now fails on. A reply leaves the thread's resolved state as it was. Findings outside threads (review bodies, PR comments) get one PR comment that lists their guardrail PRs. Findings with no guardrail get no reply from guard.
+Otherwise, reply once on every thread whose finding a built guardrail covers, open or resolved, before or after the PR merged: the guardrail PR and what it now fails on. Reply the same way on every thread of a candidate the user skipped explicitly: no guardrail, with a link to the decision page, or when the decisions came in plain text, the thread's URL as the marker's `ref`. A candidate the user left undecided is not declined. Each reply ends with its marker (step 1), so a later pass skips the candidate. A reply leaves the thread's resolved state as it was. Findings outside threads (review bodies, PR comments) get one PR comment that lists their guardrail PRs and skipped candidates, with one marker per candidate. A finding the user left undecided (**none**, **not now**, Later) gets no reply, so a later pass weighs it again.
 
 ```bash
 gh api repos/<owner>/<repo>/pulls/<number>/comments -F in_reply_to=<databaseId> -f body='...'
@@ -176,6 +185,6 @@ Write replies in the user's voice when a voice skill is installed.
 
 ### 10. Report
 
-Close with a table: candidate, rung and tool, outcome (the PR URL with its CI state, **not now** with the reason, declined, or waiting for the next round), and the threads it covers. Then one line per **none** finding with its reason. Then **Gaps seen**: the surface gaps from step 2 that no finding touched, reported and left alone.
+Close with a table: candidate, rung and tool, outcome (the PR URL with its CI state, **not now** with the reason, declined, waiting for the next round, or decided by an earlier pass with its link), and the threads it covers. Then one line per **none** finding with its reason. Then **Gaps seen**: the surface gaps from step 2 that no finding touched, reported and left alone.
 
-Then turn the page into the record: set `run.status` with the state `built` and the PR of each built candidate in `run.status.prs`, build it again, and republish it to the same URL.
+When the pass published a page, turn it into the record: set `run.status` with the state `built` and the PR of each built candidate in `run.status.prs`, build it again, and republish it to the same URL.

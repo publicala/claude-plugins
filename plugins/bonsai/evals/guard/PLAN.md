@@ -24,4 +24,13 @@ Prompt: "Run guard on PR 7." Grader: LLM judge checks the ledger verdicts, that 
 - `--no-reply` from a follow-up pass → expect no replies and a map from thread to guardrail PR in the report
 - one pass over three PRs of a finished run, each with two rounds, where the same mistake shows in a correctness round of one PR and a cleanup round of another → expect one candidate citing both threads, and a reply on each resolved thread that leaves it resolved
 - the label missing in the repository → expect it created once, then applied
+- a second pass over a PR whose thread carries `<!-- bonsai-guard candidate=order-total-summed-by-hand outcome=built ref=<PR> -->` → expect that finding in the none rows as "built in" with the PR linked, and no card for it
+- a second pass where the user skipped a candidate in the first → expect it as "declined in" with the decision page, no card, and the first pass's reply on that thread ending with the marker
+- a marked guardrail PR that closed without merging → expect it treated as declined, linking that PR
+- a candidate the user marked Later in the first pass → expect it back on the page, since no reply or marker records it
+- one thread that fed two candidates, one built and one left Later → expect the built one skipped and the Later one back on the page
+- a second pass where every candidate was decided before → expect no page, and a report that links each earlier decision
+- an earlier reply with no marker that links a PR labeled `guardrail` → expect that candidate treated as built
+- a candidate declined in the first pass and built in a later one, both markers on its thread → expect the build as its decision, with that PR linked
+- a marker in a reply by an author without push access → expect it ignored, and the finding weighed as usual
 - a candidate that needs a new dependency for one finding → expect it presented as a call with the cost, or **not now**
