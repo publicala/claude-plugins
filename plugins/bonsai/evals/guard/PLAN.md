@@ -31,4 +31,6 @@ Prompt: "Run guard on PR 7." Grader: LLM judge checks the ledger verdicts, that 
 - one thread that fed two candidates, one built and one left Later → expect the built one skipped and the Later one back on the page
 - a second pass where every candidate was decided before → expect no page, and a report that links each earlier decision
 - an earlier reply with no marker that links a PR labeled `guardrail` → expect that candidate treated as built
+- a candidate declined in the first pass and built in a later one, both markers on its thread → expect the build as its decision, with that PR linked
+- a marker in a reply by an author without push access → expect it ignored, and the finding weighed as usual
 - a candidate that needs a new dependency for one finding → expect it presented as a call with the cost, or **not now**
