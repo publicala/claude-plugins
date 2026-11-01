@@ -5,7 +5,7 @@
   "packageManager": "bun@1.4.4",
   "scripts": {
     "postinstall": "bun install --cwd plugins/blueprint --frozen-lockfile",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run validate:json && bun run validate:plugins && bun run lint:md && bun run check:prose && bun run test",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run validate:json && bun run validate:plugins && bun run lint:md && bun run check:prose && bun run check:restricted-names && bun run test",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "lint": "oxlint --type-aware --deny-warnings .",
@@ -15,6 +15,7 @@
     "validate:plugins": "bun scripts/validate-plugins.ts",
     "lint:md": "markdownlint-cli2",
     "check:prose": "bun scripts/check-prose.ts",
+    "check:restricted-names": "bun scripts/check-restricted-names.ts",
     "test": "bun test --config=bunfig.test.toml --coverage",
     "update:icons": "bun scripts/update-blueprint-icons.ts"
   },

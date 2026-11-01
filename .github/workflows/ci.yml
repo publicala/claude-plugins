@@ -154,6 +154,20 @@ jobs:
       - name: Markdown prose follows the writing rules in CLAUDE.md
         run: bun run check:prose
 
+  restricted-names:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: No file names a restricted project
+        run: bun run check:restricted-names
+
   # Workflow syntax and expressions (actionlint), and the security audit of
   # the workflows and dependabot.yml (zizmor). Any finding fails the job.
   actions:
@@ -198,6 +212,7 @@ jobs:
         validate-json,
         validate-plugins,
         docs,
+        restricted-names,
         actions,
       ]
     runs-on: ubuntu-latest
