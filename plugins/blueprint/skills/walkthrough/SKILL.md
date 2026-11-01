@@ -1,7 +1,6 @@
 ---
 name: walkthrough
-description: >
-  Makes a short, silent walkthrough video in Blueprint (about 30 s, a 1920x1080 mp4) that explains a fix, a feature, an incident or a design: a few scenes, each one a figure that builds up on screen. Use when someone wants to show or explain a change in a video, for Slack, a demo or a PR.
+description: "Makes a short, silent walkthrough video in Blueprint (about 30 s, a 1920x1080 mp4) that explains a fix, a feature, an incident or a design: a few scenes, each one a figure that builds up on screen. Use when someone wants to show or explain a change in a video, for Slack, a demo or a PR."
 argument-hint: "[what to explain, and to whom]"
 user-invocable: true
 disable-model-invocation: false

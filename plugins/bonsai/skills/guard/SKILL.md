@@ -1,7 +1,6 @@
 ---
 name: guard
-description: >
-  Turns review findings into guardrails, one pull request per check, cut from the default branch. Run with PR numbers or URLs after a review round, or once over every PR of a finished run, while the PRs are open or after they merged. A follow-up pass over review threads hands its PRs here before replying. Opens pull requests and replies on review threads.
+description: Turns review findings into guardrails, one pull request per check, cut from the default branch. Run with PR numbers or URLs after a review round, or once over every PR of a finished run, while the PRs are open or after they merged. A follow-up pass over review threads hands its PRs here before replying. Opens pull requests and replies on review threads.
 user-invocable: true
 disable-model-invocation: false
 argument-hint: "[<PR number or URL>...] [--no-reply]"

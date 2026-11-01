@@ -1,7 +1,6 @@
 ---
 name: intake
-description: >
-  Records pull request review threads as local evidence for feed and bake. Run after a review round with the PR number or URL, or with `--search` over a reviewer's past PRs to start from history, `--export` to share candidates through the repo. Never commits, never touches the threads.
+description: Records pull request review threads as local evidence for feed and bake. Run after a review round with the PR number or URL, or with `--search` over a reviewer's past PRs to start from history, `--export` to share candidates through the repo. Never commits, never touches the threads.
 user-invocable: true
 disable-model-invocation: true
 ---

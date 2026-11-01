@@ -1,7 +1,6 @@
 ---
 name: split
-description: >
-  Moves CLAUDE.md rules to the load scope of the sessions they govern (nested files, path-scoped rules, or root). Run after an audit, or when a resident file carries rules that bind one area.
+description: Moves CLAUDE.md rules to the load scope of the sessions they govern (nested files, path-scoped rules, or root). Run after an audit, or when a resident file carries rules that bind one area.
 user-invocable: true
 disable-model-invocation: true
 ---

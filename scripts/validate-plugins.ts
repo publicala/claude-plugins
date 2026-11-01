@@ -17,12 +17,39 @@ import { unquoteSkillVariables } from "./skill-variables";
 
 const ROOT = join(import.meta.dir, "..");
 
-const REQUIRED_FRONTMATTER_KEYS = [
+// Every key a SKILL.md can set, per https://code.claude.com/docs/en/skills.
+const FRONTMATTER_KEYS = [
   "name",
   "description",
-  "user-invocable",
+  "when_to_use",
+  "argument-hint",
+  "arguments",
   "disable-model-invocation",
+  "user-invocable",
+  "allowed-tools",
+  "disallowed-tools",
+  "model",
+  "effort",
+  "context",
+  "agent",
+  "background",
+  "hooks",
+  "paths",
+  "shell",
+  "metadata",
+  "license",
+  "compatibility",
 ];
+
+// The example line each required key's message offers.
+const REQUIRED_FRONTMATTER = {
+  name: (directory: string) => `name: ${directory}`,
+  description: () => "description: <what the skill does and when to use it>",
+  "user-invocable": () => "user-invocable: true",
+  "disable-model-invocation": () => "disable-model-invocation: false",
+};
+
+const BOOLEAN_KEYS = ["user-invocable", "disable-model-invocation"];
 
 /**
  * Collects link and image destinations as a Markdown parser reads
@@ -162,11 +189,21 @@ export function validateSkillPaths(
   );
 }
 
+function isMapping(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export function validateFrontmatter(file: string, text: string): Finding[] {
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)?.[1];
 
   if (frontmatter === undefined) {
-    return [{ line: 1, message: "missing frontmatter" }];
+    return [
+      {
+        line: 1,
+        message:
+          "has no frontmatter. Open the file with a --- block that sets name, description, user-invocable and disable-model-invocation.",
+      },
+    ];
   }
 
   let fields: unknown;
@@ -177,30 +214,116 @@ export function validateFrontmatter(file: string, text: string): Finding[] {
     return [
       {
         line: 1,
-        message: `frontmatter is not valid YAML: ${(error as Error).message}`,
+        message: `frontmatter is not valid YAML (${error instanceof Error ? error.message : String(error)}). Fix the syntax between the --- lines.`,
       },
     ];
   }
 
-  if (typeof fields !== "object" || fields === null || Array.isArray(fields)) {
-    return [{ line: 1, message: "frontmatter is not a YAML mapping" }];
+  if (!isMapping(fields)) {
+    return [
+      {
+        line: 2,
+        message:
+          "frontmatter is not a YAML mapping. Write one key: value pair per line.",
+      },
+    ];
   }
 
-  const errors: Finding[] = REQUIRED_FRONTMATTER_KEYS.filter(
-    (key) => !(key in fields),
-  ).map((key) => ({ line: 1, message: `frontmatter lacks ${key}` }));
+  // The frontmatter starts on line 2, after the opening ---.
+  const lines = frontmatter.split(/\r?\n/);
+  const lineOf = (key: string): number | undefined => {
+    const index = lines.findIndex((line) => line.startsWith(`${key}:`));
 
-  const name = (fields as Record<string, unknown>).name;
+    return index === -1 ? undefined : index + 2;
+  };
+
   const directory = basename(dirname(file));
-
-  if (name !== undefined && name !== directory) {
-    errors.push({
+  const findings: Finding[] = Object.entries(REQUIRED_FRONTMATTER)
+    .filter(([key]) => !(key in fields))
+    .map(([key, example]) => ({
       line: 1,
-      message: `name ${JSON.stringify(name)} differs from directory "${directory}"`,
+      message: `frontmatter lacks ${key}. Add the line "${example(directory)}".`,
+    }));
+
+  findings.push(
+    ...Object.keys(fields)
+      .filter((key) => !FRONTMATTER_KEYS.includes(key))
+      .map((key) => ({
+        line: lineOf(key),
+        message: `frontmatter has the unknown key "${key}". Remove it, or use a key Claude Code reads: ${FRONTMATTER_KEYS.join(", ")}.`,
+      })),
+  );
+
+  if ("name" in fields && fields.name !== directory) {
+    findings.push({
+      line: lineOf("name"),
+      message: `name ${JSON.stringify(fields.name)} differs from the directory "${directory}". Write "name: ${directory}" or rename the directory.`,
     });
   }
 
-  return errors;
+  if ("description" in fields) {
+    findings.push(...validateDescription(fields.description, lines));
+  }
+
+  findings.push(
+    ...BOOLEAN_KEYS.filter(
+      (key) => key in fields && typeof fields[key] !== "boolean",
+    ).map((key) => ({
+      line: lineOf(key),
+      message: `${key} is ${JSON.stringify(fields[key])}. Write "${key}: true" or "${key}: false".`,
+    })),
+  );
+
+  if (
+    "argument-hint" in fields &&
+    typeof fields["argument-hint"] !== "string"
+  ) {
+    findings.push({
+      line: lineOf("argument-hint"),
+      message: `argument-hint is ${JSON.stringify(fields["argument-hint"])}. Write it as a quoted string, like argument-hint: "[issue-number]".`,
+    });
+  }
+
+  return findings;
+}
+
+/**
+ * Claude Code reads the description to decide when to load the skill. It
+ * stays one plain line, so it reads the same in the file and in a diff.
+ */
+function validateDescription(value: unknown, lines: string[]): Finding[] {
+  const index = lines.findIndex((line) => line.startsWith("description:"));
+  const line = index + 2;
+  const blockScalar = /^description:\s*([>|])/.exec(lines[index] ?? "")?.[1];
+
+  if (blockScalar !== undefined) {
+    return [
+      {
+        line,
+        message: `description is a ${blockScalar === ">" ? "folded" : "literal"} block scalar (${blockScalar}). Write it on one line after "description:", in double quotes when it holds ": ".`,
+      },
+    ];
+  }
+
+  if (typeof value !== "string" || value.trim() === "") {
+    return [
+      {
+        line,
+        message: `description is ${JSON.stringify(value)}. Write what the skill does and when to use it, on one line after "description:".`,
+      },
+    ];
+  }
+
+  if (/^\s+\S/.test(lines[index + 1] ?? "")) {
+    return [
+      {
+        line,
+        message: `description continues on line ${line + 1}. Write it on one line after "description:".`,
+      },
+    ];
+  }
+
+  return [];
 }
 
 export async function validatePlugins(root: string): Promise<{

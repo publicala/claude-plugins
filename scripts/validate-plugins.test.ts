@@ -194,13 +194,51 @@ describe("validateFrontmatter", () => {
     expect(validateFrontmatter(SKILL, complete)).toEqual([]);
   });
 
-  test("names missing keys", () => {
+  test("accepts every key Claude Code reads, and a quoted one-line description", () => {
+    const text = complete.replace(
+      "description: Prunes.",
+      [
+        'description: "Prunes: one cut per line."',
+        'argument-hint: "[path]"',
+        "allowed-tools: Bash(git *)",
+        "model: inherit",
+        "effort: high",
+        "context: fork",
+        "agent: Explore",
+        "paths: [src/**]",
+        "license: MIT",
+      ].join("\n"),
+    );
+
+    expect(validateFrontmatter(SKILL, text)).toEqual([]);
+  });
+
+  test("names missing keys and the line to add", () => {
     expect(
       validateFrontmatter(
         SKILL,
         complete.replace("user-invocable: true\n", ""),
       ),
-    ).toEqual([{ line: 1, message: "frontmatter lacks user-invocable" }]);
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          'frontmatter lacks user-invocable. Add the line "user-invocable: true".',
+      },
+    ]);
+  });
+
+  test("names the line to add for every required key", () => {
+    expect(
+      validateFrontmatter(SKILL, "---\nlicense: MIT\n---\n").map(
+        ({ message }) => message,
+      ),
+    ).toEqual([
+      'frontmatter lacks name. Add the line "name: audit".',
+      'frontmatter lacks description. Add the line "description: <what the skill does and when to use it>".',
+      'frontmatter lacks user-invocable. Add the line "user-invocable: true".',
+      'frontmatter lacks disable-model-invocation. Add the line "disable-model-invocation: false".',
+    ]);
   });
 
   test("requires the name to match the directory", () => {
@@ -210,8 +248,120 @@ describe("validateFrontmatter", () => {
         complete.replace("name: audit", "name: prune"),
       ),
     ).toEqual([
-      { line: 1, message: 'name "prune" differs from directory "audit"' },
+      {
+        line: 2,
+        message:
+          'name "prune" differs from the directory "audit". Write "name: audit" or rename the directory.',
+      },
     ]);
+  });
+
+  test.each<[string, string]>([
+    [">", "folded"],
+    ["|", "literal"],
+  ])(
+    "flags a description written as the %p block scalar",
+    (indicator, kind) => {
+      expect(
+        validateFrontmatter(
+          SKILL,
+          complete.replace(
+            "description: Prunes.",
+            `description: ${indicator}\n  Prunes.`,
+          ),
+        ),
+      ).toEqual([
+        {
+          line: 3,
+          message: `description is a ${kind} block scalar (${indicator}). Write it on one line after "description:", in double quotes when it holds ": ".`,
+        },
+      ]);
+    },
+  );
+
+  test("flags a plain description that continues on the next line", () => {
+    expect(
+      validateFrontmatter(
+        SKILL,
+        complete.replace(
+          "description: Prunes.",
+          "description: Prunes\n  more.",
+        ),
+      ),
+    ).toEqual([
+      {
+        line: 3,
+        message:
+          'description continues on line 4. Write it on one line after "description:".',
+      },
+    ]);
+  });
+
+  test.each(["description:", 'description: ""', "description: [a, b]"])(
+    "flags %p, which is no text",
+    (line) => {
+      const [finding] = validateFrontmatter(
+        SKILL,
+        complete.replace("description: Prunes.", line),
+      );
+
+      expect(finding?.line).toBe(3);
+      expect(finding?.message).toEndWith(
+        'Write what the skill does and when to use it, on one line after "description:".',
+      );
+    },
+  );
+
+  test("requires booleans to be YAML booleans", () => {
+    expect(
+      validateFrontmatter(
+        SKILL,
+        complete
+          .replace("user-invocable: true", 'user-invocable: "true"')
+          .replace(
+            "disable-model-invocation: false",
+            "disable-model-invocation: no",
+          ),
+      ),
+    ).toEqual([
+      {
+        line: 4,
+        message:
+          'user-invocable is "true". Write "user-invocable: true" or "user-invocable: false".',
+      },
+      {
+        line: 5,
+        message:
+          'disable-model-invocation is "no". Write "disable-model-invocation: true" or "disable-model-invocation: false".',
+      },
+    ]);
+  });
+
+  test("requires argument-hint to be a string", () => {
+    expect(
+      validateFrontmatter(
+        SKILL,
+        complete.replace("false\n", "false\nargument-hint: [path]\n"),
+      ),
+    ).toEqual([
+      {
+        line: 6,
+        message:
+          'argument-hint is ["path"]. Write it as a quoted string, like argument-hint: "[issue-number]".',
+      },
+    ]);
+  });
+
+  test("names an unknown key and the keys Claude Code reads", () => {
+    const [finding] = validateFrontmatter(
+      SKILL,
+      complete.replace("false\n", "false\nversion: 2\n"),
+    );
+
+    expect(finding?.line).toBe(6);
+    expect(finding?.message).toStartWith(
+      'frontmatter has the unknown key "version". Remove it, or use a key Claude Code reads: name, description,',
+    );
   });
 
   test("reads frontmatter with CRLF line endings", () => {
@@ -226,18 +376,27 @@ describe("validateFrontmatter", () => {
       complete.replace("description: Prunes.", "description: [Prunes."),
     );
 
-    expect(error?.message).toStartWith("frontmatter is not valid YAML:");
+    expect(error?.message).toStartWith("frontmatter is not valid YAML (");
+    expect(error?.message).toEndWith("Fix the syntax between the --- lines.");
   });
 
   test("reports frontmatter that is not a mapping", () => {
     expect(validateFrontmatter(SKILL, "---\n- name\n---\n")).toEqual([
-      { line: 1, message: "frontmatter is not a YAML mapping" },
+      {
+        line: 2,
+        message:
+          "frontmatter is not a YAML mapping. Write one key: value pair per line.",
+      },
     ]);
   });
 
   test("requires frontmatter", () => {
     expect(validateFrontmatter(SKILL, "# Audit\n")).toEqual([
-      { line: 1, message: "missing frontmatter" },
+      {
+        line: 1,
+        message:
+          "has no frontmatter. Open the file with a --- block that sets name, description, user-invocable and disable-model-invocation.",
+      },
     ]);
   });
 });
@@ -331,6 +490,24 @@ describe("validatePlugins", () => {
     ]);
   });
 
+  test("flags a SKILL.md description written as a block scalar", async () => {
+    expect(
+      await problemsIn({
+        "plugins/demo/skills/audit/SKILL.md": COMPLIANT_SKILL.replace(
+          "description: Prunes.",
+          "description: >\n  Prunes.",
+        ),
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/skills/audit/SKILL.md",
+        line: 3,
+        message:
+          'description is a folded block scalar (>). Write it on one line after "description:", in double quotes when it holds ": ".',
+      },
+    ]);
+  });
+
   test("names the file whose frontmatter is not valid YAML", async () => {
     const problems = await problemsIn({
       "plugins/demo/skills/audit/SKILL.md": "---\nname: [audit\n---\n",
@@ -338,7 +515,7 @@ describe("validatePlugins", () => {
 
     expect(problems).toHaveLength(1);
     expect(problems[0]?.file).toBe("plugins/demo/skills/audit/SKILL.md");
-    expect(problems[0]?.message).toStartWith("frontmatter is not valid YAML:");
+    expect(problems[0]?.message).toStartWith("frontmatter is not valid YAML (");
   });
 });
 
