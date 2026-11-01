@@ -628,6 +628,22 @@ describe("validatePlugins", () => {
     ]);
   });
 
+  test("flags a plugin file that reads above the plugin's root", async () => {
+    expect(
+      await problemsIn({
+        "plugins/demo/renderer/build.ts":
+          'import { tempRepo } from "../../../scripts/temp-repo";\n',
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/renderer/build.ts",
+        line: 1,
+        message:
+          "reads ../../../scripts/temp-repo, which resolves to scripts/temp-repo, outside plugins/demo/. Install copies the plugin alone, so the path breaks for users. Move the file into the plugin, or commit a symlink inside the plugin that points at it.",
+      },
+    ]);
+  });
+
   test("flags a plugin.json that is not an object", async () => {
     expect(
       await problemsIn({ "plugins/demo/.claude-plugin/plugin.json": "[]" }),

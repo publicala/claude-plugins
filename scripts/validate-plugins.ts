@@ -2,7 +2,8 @@
 
 // Fails when a relative Markdown link points at a missing file, when a
 // SKILL.md names a bundled file that does not exist or breaks a
-// frontmatter rule, or when a plugin's manifests disagree with the tree.
+// frontmatter rule, when a plugin's manifests disagree with the tree, or
+// when a plugin file reads a path above the plugin's root.
 import { existsSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
@@ -18,6 +19,7 @@ import {
   validatePluginManifests,
   validatePostinstall,
 } from "./plugin-manifests";
+import { validatePluginPaths } from "./plugin-paths";
 import { repoFiles } from "./repo-files";
 import { unquoteSkillVariables } from "./skill-variables";
 
@@ -368,6 +370,7 @@ export async function validatePlugins(root: string): Promise<{
       ...validatePluginManifests(root, plugins),
       ...validateMarketplace(root, plugins),
       ...validatePostinstall(root, files),
+      ...(await validatePluginPaths(root, files)),
     ],
   };
 }
