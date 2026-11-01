@@ -93,6 +93,43 @@ describe("findEscapingPaths", () => {
     ]);
   });
 
+  test("reads the imports the transpiler reads, never one inside a string or a comment", () => {
+    expect(
+      escapes(BUILD, [
+        'const example = `import { x } from "../../../x";`;',
+        'const url = "https://example.com/a"; // import "../../../trailing"',
+        "const note = \"see // import '../../../in-string'\";",
+        '/* import "../../../block" */',
+        'export { y } from "../../../re-export";',
+        'import { z } from "../../../z"; // import "../../../comment"',
+        'const shared = join(import.meta.dir, "../../../shared");',
+        "const text = 'join(import.meta.dir, \"../../../quoted\")';",
+      ]),
+    ).toEqual([
+      "5 reads ../../../re-export",
+      "6 reads ../../../z",
+      '7 reads join(import.meta.dir, "../../../shared")',
+    ]);
+    expect(
+      escapes(BUILD, ['import { z } from "../page"; // import "../../../x"']),
+    ).toEqual([]);
+    expect(
+      escapes(BUILD, [
+        "const = ;",
+        'const up = join(import.meta.dir, "../../..");',
+      ]),
+    ).toEqual(['2 reads join(import.meta.dir, "../../..")']);
+    expect(
+      escapes(BUILD, [
+        "#!/usr/bin/env bun",
+        'import "../../../after-shebang";',
+      ]),
+    ).toEqual(["2 reads ../../../after-shebang"]);
+    expect(
+      escapes(BUILD, ["", 'import "..\\u002F..\\u002F..\\u002Fescaped";']),
+    ).toEqual(["1 reads ../../../escaped"]);
+  });
+
   test("reads the component paths of plugin.json, never its text", () => {
     const manifest = "plugins/demo/.claude-plugin/plugin.json";
     const text = JSON.stringify(

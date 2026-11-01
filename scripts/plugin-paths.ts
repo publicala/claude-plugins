@@ -7,6 +7,7 @@ import { type Node, parseTree } from "jsonc-parser";
 
 import { type Finding, lineAt, type Annotation } from "./workflow-command";
 import { unquoteSkillVariables } from "./skill-variables";
+import { readTypeScript } from "./typescript-source";
 
 const SCANNED = /\.(?:ts|md|json|html)$/;
 
@@ -35,16 +36,13 @@ const MANIFEST_PATH_KEYS = [
 ];
 const EXPERIMENTAL_PATH_KEYS = ["themes", "monitors", "evals"];
 
-// A module specifier: `from "x"`, `import "x"`, `import("x")`, `require("x")`,
-// or a URL built on the module's own.
-const SPECIFIER =
-  /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(["'])([^"'\n]+)\1|\bnew URL\(\s*(["'])([^"'\n]+)\3\s*,\s*import\.meta\.url\b/g;
-
-// What reads no file: Markdown code and TypeScript comments. Blanking it
-// keeps every line where it was.
+// What reads no file in Markdown: code blocks and code spans. Blanking
+// it keeps every line where it was.
 const MARKDOWN_CODE =
   /^ {0,3}(`{3,}|~{3,})[\s\S]*?(?:^ {0,3}\1|(?![\s\S]))|`[^`\n]+`/gm;
-const TYPESCRIPT_COMMENT = /\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm;
+
+// A URL built on the module's own, which names a file next to it.
+const MODULE_URL = /\bnew URL\(\s*(["'])[^"'\n]*\1\s*,\s*import\.meta\.url\b/g;
 
 // A template literal that starts at the source file's directory.
 const DIRECTORY_TEMPLATE =
@@ -145,7 +143,7 @@ function fileReferences(
         : source.replaceAll(ignored, (code) => code.replaceAll(/[^\n]/g, " "))
       ).matchAll(pattern),
     ].map((match) => {
-      const written = match[group] ?? match[group + 2] ?? "";
+      const written = match[group] ?? "";
 
       return {
         index: match.index,
@@ -179,26 +177,90 @@ function fileReferences(
     return [];
   }
 
-  return [
-    ...relativeTo(SPECIFIER, 2, TYPESCRIPT_COMMENT),
-    ...relativeTo(DIRECTORY_TEMPLATE, 0).map((reference) => ({
-      ...reference,
-      relativePath: reference.written.replace(/^\$\{[\w.]+\}\/?/, ""),
-    })),
-    ...[...source.matchAll(DIRECTORY_CALL)].map(
-      ({ 0: written, 1: argumentList = "", index }) => ({
-        index,
-        written: written.replaceAll(/\s+/g, " ").replace("( ", "("),
-        base: directory,
-        relativePath: posix.join(
-          ".",
-          ...[...argumentList.matchAll(/(["'])([^"'\n]*)\1/g)].map(
-            ([, , segment = ""]) => segment,
-          ),
-        ),
-      }),
-    ),
-  ];
+  return codeReferences(source, directory);
+}
+
+/**
+ * The paths a TypeScript module reads from its own directory: its import,
+ * re-export, dynamic import and require specifiers as Bun's transpiler
+ * reads them, URLs built on `import.meta.url`, and templates and
+ * `join`/`resolve` calls on its directory. Comments and the contents of
+ * other strings are blanked before the patterns run, so an example of
+ * code inside a string or a comment reads nothing.
+ */
+// The module specifiers Bun's transpiler reads. A file it cannot parse
+// fails tsc, so it names no import here.
+function scanImports(source: string): { path: string }[] {
+  try {
+    return new Bun.Transpiler({ loader: "ts" }).scanImports(source);
+  } catch {
+    return [];
+  }
+}
+
+function codeReferences(source: string, directory: string): Reference[] {
+  const { masked, strings } = readTypeScript(source);
+  const stringAt = (start: number): string =>
+    strings.find((literal) => literal.start === start)?.value ?? "";
+  const claimed = new Set<number>();
+  const reference = (index: number, written: string): Reference => ({
+    index,
+    written,
+    base: directory,
+    relativePath: written,
+  });
+
+  // The transpiler refuses a shebang, which a script's first line may hold.
+  const scanned = source.replace(/^#!.*/, (line) => " ".repeat(line.length));
+  const specifiers = scanImports(scanned).flatMap(({ path }) => {
+    const literal = strings.find(
+      ({ start, value }) => value === path && !claimed.has(start),
+    );
+
+    // A specifier written with escapes has no literal of the same text,
+    // so it is reported on the first line.
+    if (literal === undefined) {
+      return [reference(0, path)];
+    }
+
+    claimed.add(literal.start);
+
+    return [reference(literal.start, path)];
+  });
+
+  const urls = [...masked.matchAll(MODULE_URL)].map(({ 0: call, index }) => {
+    const start = index + call.search(/["']/);
+
+    return reference(start, stringAt(start));
+  });
+
+  const templates = [...masked.matchAll(DIRECTORY_TEMPLATE)].map(
+    ({ 0: written, index }) => ({
+      ...reference(index, written),
+      relativePath: written.replace(/^\$\{[\w.]+\}\/?/, ""),
+    }),
+  );
+
+  const calls = [...masked.matchAll(DIRECTORY_CALL)].map(
+    ({ 0: written, index }) => {
+      const segments = strings
+        .filter(
+          ({ start, end }) => start >= index && end <= index + written.length,
+        )
+        .map(({ value }) => value);
+
+      return {
+        ...reference(index, source.slice(index, index + written.length)),
+        written: source
+          .slice(index, index + written.length)
+          .replaceAll(/\s+/g, " ")
+          .replace("( ", "("),
+        relativePath: posix.join(".", ...segments),
+      };
+    },
+  );
+
+  return [...specifiers, ...urls, ...templates, ...calls];
 }
 
 /**
