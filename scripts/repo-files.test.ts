@@ -56,6 +56,31 @@ describe("repoFiles", () => {
     }
   });
 
+  test("never applies another repository's info/exclude through GIT_COMMON_DIR", async () => {
+    const other = await tempRepo({});
+    const root = await tempRepo({ "a.md": "", "b.md": "" });
+    await Bun.write(join(other, ".git", "info", "exclude"), "a.md\n");
+
+    try {
+      // The compliant twin: without the variable, both files are listed.
+      expect(repoFiles(root, "*.md")).toEqual(["a.md", "b.md"]);
+
+      const listed = Bun.spawnSync(
+        [
+          process.execPath,
+          "-e",
+          `const { repoFiles } = await import(${JSON.stringify(join(import.meta.dir, "repo-files.ts"))}); console.log(JSON.stringify(repoFiles(${JSON.stringify(root)}, "*.md")));`,
+        ],
+        { env: { ...process.env, GIT_COMMON_DIR: join(other, ".git") } },
+      );
+
+      expect(JSON.parse(listed.stdout.toString())).toEqual(["a.md", "b.md"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+      await rm(other, { recursive: true, force: true });
+    }
+  });
+
   test("names the folder when git cannot list it", async () => {
     const root = await mkdtemp(join(tmpdir(), "repo-files-"));
 
