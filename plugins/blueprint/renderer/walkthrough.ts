@@ -12,7 +12,8 @@ import sharp from "sharp";
 
 import { findFigureProblems, type Measurement } from "./checks";
 import { measureFigure } from "./measure";
-import { bundlePageScript, outputPathFor } from "./page";
+import { outputPathFor } from "./page";
+import { bundlePageScript } from "./page-script";
 import { buildFigurePage, launchBrowser, openPage } from "./renderer";
 import {
   installTimeline,

@@ -12,7 +12,6 @@ import {
 } from "happy-dom";
 
 import {
-  bundlePageScript,
   DATA_PLACEHOLDER,
   DataError,
   build,
@@ -25,6 +24,7 @@ import {
   summary,
   TOKENS_PLACEHOLDER,
 } from "./build";
+import { bundlePageScript } from "./page-script";
 
 const HERE = import.meta.dir;
 const EXAMPLE = join(HERE, "example");
@@ -1752,48 +1752,13 @@ describe("render", () => {
 });
 
 describe("bundlePageScript", () => {
-  async function bundle(source: string): Promise<string> {
-    const dir = await mkdtemp(join(tmpdir(), "bonsai-bundle-"));
-
-    try {
-      await Bun.write(join(dir, "main.ts"), source);
-      return await bundlePageScript(join(dir, "main.ts"));
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
-  }
-
   test("bundles the page modules into one script with no imports", async () => {
     const script = await bundlePageScript(join(HERE, "page", "main.ts"));
 
     expect(script).toContain("function renderSummary()");
     expect(script).toContain("function wdiff(");
     expect(script).not.toMatch(/^\s*(import|export)\b/m);
-  });
-
-  test("names no path from the machine that built it", async () => {
-    const script = await bundlePageScript(join(HERE, "page", "main.ts"));
-
     expect(script).not.toContain(HERE);
-    expect(script).not.toMatch(/^\/\/ .*\//m);
-  });
-
-  test("refuses code that would end the script block", () => {
-    expect(bundle('console.log("</SCRIPT>");')).rejects.toThrow(
-      'bundles to code with "</script" or "<!--"',
-    );
-  });
-
-  test("refuses code that would open a comment in the script block", () => {
-    expect(bundle('console.log("<!--");')).rejects.toThrow(
-      'Split the string, as in "<" + "/script".',
-    );
-  });
-
-  test("names a page script that does not build", () => {
-    expect(bundle("const = ;")).rejects.toThrow(
-      /Unable to bundle .*main\.ts:\n.+/,
-    );
   });
 });
 

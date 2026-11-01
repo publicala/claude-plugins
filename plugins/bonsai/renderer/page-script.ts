@@ -1,0 +1,1 @@
+../../blueprint/renderer/page-script.ts

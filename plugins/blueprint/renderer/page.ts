@@ -1,8 +1,6 @@
 // Turns a figure source into a complete, self-contained HTML page. A source
 // is the markup of one `.canvas` element. The page carries the stylesheet,
 // the fonts, the logo and every icon inline.
-import { basename, dirname } from "node:path";
-
 const ICON_TAG =
   /<i\b[^>]*?\bdata-icon\s*=\s*(["'])([^"']*)\1[^>]*?\/?>(?:\s*<\/i\s*>)?/g;
 const LOGO_TAG = /<i\b[^>]*?\bdata-logo\b[^>]*?\/?>(?:\s*<\/i\s*>)?/g;
@@ -113,37 +111,6 @@ export function buildPage({
 <style>${fontFaceCss}${stylesheet}</style>${head}</head>
 <body${bodyClass === undefined ? "" : ` class="${bodyClass}"`}>${body}</body></html>
 `;
-}
-
-/**
- * Bundles a page script for the browser, to inline in a <script> block.
- * Refuses code that would end the block or open a comment in it.
- */
-export async function bundlePageScript(entry: string): Promise<string> {
-  // The bundler names each module in a comment, relative to its working
-  // directory. Run from the entry's own directory, the comments name the
-  // modules alone, the same on every machine.
-  const bundler = Bun.spawn(
-    [process.execPath, "build", basename(entry), "--target=browser"],
-    { cwd: dirname(entry), stdout: "pipe", stderr: "pipe" },
-  );
-  const [code, errors, exitCode] = await Promise.all([
-    new Response(bundler.stdout).text(),
-    new Response(bundler.stderr).text(),
-    bundler.exited,
-  ]);
-
-  if (exitCode !== 0) {
-    throw new Error(`Unable to bundle ${entry}:\n${errors.trim()}`);
-  }
-
-  if (/<\/script|<!--/i.test(code)) {
-    throw new Error(
-      `${entry} bundles to code with "</script" or "<!--", which breaks the page's script block. Split the string, as in "<" + "/script".`,
-    );
-  }
-
-  return code;
 }
 
 export function outputPathFor(
