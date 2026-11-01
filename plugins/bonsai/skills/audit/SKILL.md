@@ -1,7 +1,6 @@
 ---
 name: audit
-description: >
-  Prunes CLAUDE.md files to the lines a fresh session cannot derive, every cut backed by evidence. Run when the files have grown without review.
+description: Prunes CLAUDE.md files to the lines a fresh session cannot derive, every cut backed by evidence. Run when the files have grown without review.
 user-invocable: true
 disable-model-invocation: true
 ---

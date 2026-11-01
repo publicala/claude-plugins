@@ -3,8 +3,14 @@
 // Fails when the prose in a Markdown file breaks a writing rule that a
 // pattern can catch. Code, code spans, HTML and link destinations are
 // not prose, so they never count.
-import { existsSync } from "node:fs";
 import { join } from "node:path";
+
+import {
+  errorAnnotation,
+  type Finding,
+  type Annotation,
+} from "./workflow-command";
+import { repoFiles } from "./repo-files";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -14,17 +20,20 @@ const CODE_CLOSE = /^<\/(?:code|kbd|samp|pre)\s*>$/i;
 interface Rule {
   pattern: RegExp;
   message: (match: string) => string;
+  separator?: boolean;
 }
 
 const RULES: Rule[] = [
   {
     pattern: /—/g,
     message: () => "has an em dash. Use parentheses or split the sentence.",
+    separator: true,
   },
   {
     pattern: / [-–] /g,
     message: (match) =>
       `uses "${match.trim()}" as a separator. Use parentheses or split the sentence.`,
+    separator: true,
   },
   {
     pattern: /;/g,
@@ -80,8 +89,79 @@ export function proseFragments(markdown: string): string[] {
   return prose;
 }
 
-export function findProseProblems(markdown: string): string[] {
-  const problems: string[] = [];
+// A list item that opens with a short label followed by " - ", " – ",
+// " — " or ". ", in bold or plain, where the house style takes a colon.
+const LABELED_BULLETS = [
+  /^\s*(?:[-*+]|\d+[.)])\s+(\*\*([^*]+)\*\*\s*(?:[-–—]|\.))\s+\S/d,
+  /^\s*(?:[-*+]|\d+[.)])\s+(\*\*([^*]+?)\.\*\*)\s+\S/d,
+  /^\s*(?:[-*+]|\d+[.)])\s+(([^\s*`#[]\S*(?: \S+){0,3}?) [-–—])\s\S/d,
+];
+
+/**
+ * Finds the labeled bullets that use a dash or a period where the house
+ * style takes a colon. Each candidate gets a numbered tag right after its
+ * separator, and only the tags that reach the prose survive the parser's
+ * code, HTML and quote exclusions, a code span around the separator too.
+ */
+function labeledBullets(
+  markdown: string,
+): (Finding & { line: number; delimiter: string })[] {
+  const lines = markdown.split("\n");
+  const frontmatterEnd = lines[0] === "---" ? lines.indexOf("---", 1) : -1;
+
+  const candidates = lines.flatMap((text, index) => {
+    const match = LABELED_BULLETS.map((pattern) => pattern.exec(text)).find(
+      (found) => found !== null,
+    );
+    const [, written, label] = match ?? [];
+    const separatorEnd = match?.indices?.[1]?.[1];
+
+    return index > frontmatterEnd &&
+      written !== undefined &&
+      label !== undefined &&
+      separatorEnd !== undefined
+      ? [{ index, written, label, separatorEnd }]
+      : [];
+  });
+
+  const tag = (index: number): string => `\uE010${index}\uE011`;
+  const tagged = lines.map((text, index) => {
+    const candidate = candidates.find((found) => found.index === index);
+
+    return candidate === undefined
+      ? text
+      : `${text.slice(0, candidate.separatorEnd)}${tag(index)}${text.slice(candidate.separatorEnd)}`;
+  });
+  const prose = proseFragments(tagged.join("\n")).join("");
+
+  return candidates
+    .filter(({ index }) => prose.includes(tag(index)))
+    .map(({ index, written, label }) => ({
+      line: index + 1,
+      // The last character of what the label is written with: a dash or a period.
+      delimiter: written.at(-1) === "*" ? "." : (written.at(-1) ?? ""),
+      message: `labels a bullet with "${written}". Write "**${label}**: text", with a colon.`,
+    }));
+}
+
+export function findLabeledBullets(markdown: string): Finding[] {
+  return labeledBullets(markdown).map(({ line, message }) => ({
+    line,
+    message,
+  }));
+}
+
+export function findProseProblems(markdown: string): Finding[] {
+  const labeled = labeledBullets(markdown);
+  // A labeled bullet's message names its own delimiter, so the separator
+  // rules skip that one dash. Another dash on the line still counts.
+  const exempt = new Map(
+    labeled.map(({ line, delimiter }) => [line, delimiter] as const),
+  );
+  const problems: Finding[] = labeled.map(({ line, message }) => ({
+    line,
+    message,
+  }));
   let cursor = 0;
 
   for (const fragment of proseFragments(markdown)) {
@@ -95,71 +175,46 @@ export function findProseProblems(markdown: string): string[] {
       .slice(0, position === -1 ? cursor : position)
       .split("\n").length;
 
-    for (const { pattern, message } of RULES) {
+    for (const { pattern, message, separator } of RULES) {
       for (const [match] of fragment.matchAll(pattern)) {
-        problems.push(`line ${line} ${message(match)}`);
+        if (separator && exempt.get(line) === match.trim()) {
+          exempt.delete(line);
+          continue;
+        }
+
+        problems.push({ line, message: message(match) });
       }
     }
   }
 
-  return problems;
-}
-
-/**
- * Every Markdown file a commit could carry: tracked, or untracked and not
- * ignored, in any directory.
- */
-export function markdownFiles(root: string): string[] {
-  const listed = Bun.spawnSync(
-    [
-      "git",
-      "ls-files",
-      "--cached",
-      "--others",
-      "--exclude-standard",
-      "-z",
-      "--",
-      "*.md",
-    ],
-    { cwd: root },
-  );
-
-  if (!listed.success) {
-    throw new Error(
-      `Unable to list the Markdown files with git in ${root}: ${listed.stderr.toString().trim()}`,
-    );
-  }
-
-  return [...new Set(listed.stdout.toString().split("\0"))]
-    .filter((path) => path !== "" && existsSync(join(root, path)))
-    .toSorted();
+  return problems.toSorted((a, b) => (a.line ?? 0) - (b.line ?? 0));
 }
 
 export async function checkProse(root: string): Promise<{
   checked: number;
-  errors: string[];
+  problems: Annotation[];
 }> {
-  const paths = markdownFiles(root);
+  const paths = repoFiles(root, "*.md");
 
-  const errors = await Promise.all(
-    paths.map(async (path) =>
-      findProseProblems(await Bun.file(join(root, path)).text()).map(
-        (problem) => `${path}: ${problem}`,
+  const problems = await Promise.all(
+    paths.map(async (file) =>
+      findProseProblems(await Bun.file(join(root, file)).text()).map(
+        (finding) => ({ file, ...finding }),
       ),
     ),
   );
 
-  return { checked: paths.length, errors: errors.flat() };
+  return { checked: paths.length, problems: problems.flat() };
 }
 
 export async function main(root = ROOT): Promise<number> {
-  const { checked, errors } = await checkProse(root);
+  const { checked, problems } = await checkProse(root);
 
-  for (const error of errors) {
-    console.error(`::error::${error}`);
+  for (const problem of problems) {
+    console.error(errorAnnotation(problem));
   }
 
-  if (errors.length > 0) {
+  if (problems.length > 0) {
     return 1;
   }
 

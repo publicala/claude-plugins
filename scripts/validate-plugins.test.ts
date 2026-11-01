@@ -1,15 +1,17 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 
+import type { Annotation } from "./workflow-command";
 import {
   linkTargets,
   main,
   validateFrontmatter,
   validateLinks,
   validatePlugins,
+  validateSkillPaths,
 } from "./validate-plugins";
+import { tempRepo } from "./temp-repo";
 
 const SKILL = "/repo/plugins/demo/skills/audit/SKILL.md";
 
@@ -50,7 +52,129 @@ describe("validateLinks", () => {
       "[a](https://example.com) [b](#top) [c](validate-plugins.ts#L1) [d](missing.md)";
 
     expect(validateLinks(join(import.meta.dir, "README.md"), text)).toEqual([
-      "link target not found: missing.md",
+      {
+        line: 1,
+        message:
+          "links to missing.md, which does not exist. Fix the path or remove the link.",
+      },
+    ]);
+  });
+
+  test("names the line of the link, past a copy of it in a code example", () => {
+    const text = [
+      "```md",
+      "[a](gone.md)",
+      "```",
+      "",
+      "See `[b](gone.md)` and [c](dir/gone.md), then [d](gone.md).",
+      "",
+      "[e][ref]",
+      "",
+      "[ref]: gone.md",
+    ].join("\n");
+
+    expect(
+      validateLinks(join(import.meta.dir, "README.md"), text).map(
+        ({ line, message }) => `${line} ${message.split(",")[0]}`,
+      ),
+    ).toEqual([
+      "5 links to dir/gone.md",
+      "5 links to gone.md",
+      "9 links to gone.md",
+    ]);
+  });
+
+  test("keeps a reference whose label is its destination", () => {
+    expect(
+      validateLinks(
+        join(import.meta.dir, "README.md"),
+        "See [missing.md].\n\n[missing.md]: missing.md\n",
+      ),
+    ).toEqual([
+      {
+        line: 3,
+        message:
+          "links to missing.md, which does not exist. Fix the path or remove the link.",
+      },
+    ]);
+  });
+
+  test("names the line of each occurrence of a repeated target", () => {
+    const text = "[a](gone.md)\n\n[b](gone.md)\n";
+
+    expect(
+      validateLinks(join(import.meta.dir, "README.md"), text).map(
+        ({ line }) => line,
+      ),
+    ).toEqual([1, 3]);
+  });
+});
+
+describe("validateSkillPaths", () => {
+  const ROOT = join(import.meta.dir, "..");
+  const DIAGRAM = "plugins/blueprint/skills/diagram/SKILL.md";
+
+  test("resolves the skill directory and the plugin root, in code spans and fenced blocks", () => {
+    const text = [
+      "Start from `${CLAUDE_SKILL_DIR}/examples/flow.diagram.html`.",
+      "",
+      "```bash",
+      "bun ${CLAUDE_PLUGIN_ROOT}/renderer/render.ts figure.html",
+      "bun install --cwd ${CLAUDE_PLUGIN_ROOT}",
+      "```",
+    ].join("\n");
+
+    expect(validateSkillPaths(ROOT, DIAGRAM, text)).toEqual([]);
+  });
+
+  test("checks the part before a placeholder, and ignores the period that ends a sentence", () => {
+    const text = [
+      "Copy `${CLAUDE_SKILL_DIR}/examples/<name>.diagram.html` or `${CLAUDE_SKILL_DIR}/examples/*.png`.",
+      "Run ${CLAUDE_PLUGIN_ROOT}/renderer/render.ts.",
+    ].join("\n");
+
+    expect(validateSkillPaths(ROOT, DIAGRAM, text)).toEqual([]);
+  });
+
+  test("names the variable, the resolved path and the fix", () => {
+    const text = [
+      "Intro.",
+      "",
+      "```bash",
+      "bun ${CLAUDE_PLUGIN_ROOT}/renderer/gone.ts",
+      "```",
+      "",
+      "See `${CLAUDE_SKILL_DIR}/examples/gone-<name>.html`.",
+    ].join("\n");
+
+    expect(validateSkillPaths(ROOT, DIAGRAM, text)).toEqual([
+      {
+        line: 4,
+        message:
+          "${CLAUDE_PLUGIN_ROOT}/renderer/gone.ts resolves to plugins/blueprint/renderer/gone.ts, which does not exist. Fix the path or restore the file.",
+      },
+    ]);
+    expect(
+      validateSkillPaths(
+        ROOT,
+        DIAGRAM,
+        "Run `bun \"${CLAUDE_PLUGIN_ROOT}\"/renderer/gone.ts` or `bun '${CLAUDE_PLUGIN_ROOT}'/renderer/render.ts`.",
+      ),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "${CLAUDE_PLUGIN_ROOT}/renderer/gone.ts resolves to plugins/blueprint/renderer/gone.ts, which does not exist. Fix the path or restore the file.",
+      },
+    ]);
+    expect(
+      validateSkillPaths(ROOT, DIAGRAM, "`${CLAUDE_SKILL_DIR}/gone/<name>.md`"),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "${CLAUDE_SKILL_DIR}/gone resolves to plugins/blueprint/skills/diagram/gone, which does not exist. Fix the path or restore the file.",
+      },
     ]);
   });
 });
@@ -70,13 +194,51 @@ describe("validateFrontmatter", () => {
     expect(validateFrontmatter(SKILL, complete)).toEqual([]);
   });
 
-  test("names missing keys", () => {
+  test("accepts every key Claude Code reads, and a quoted one-line description", () => {
+    const text = complete.replace(
+      "description: Prunes.",
+      [
+        'description: "Prunes: one cut per line."',
+        'argument-hint: "[path]"',
+        "allowed-tools: Bash(git *)",
+        "model: inherit",
+        "effort: high",
+        "context: fork",
+        "agent: Explore",
+        "paths: [src/**]",
+        "license: MIT",
+      ].join("\n"),
+    );
+
+    expect(validateFrontmatter(SKILL, text)).toEqual([]);
+  });
+
+  test("names missing keys and the line to add", () => {
     expect(
       validateFrontmatter(
         SKILL,
         complete.replace("user-invocable: true\n", ""),
       ),
-    ).toEqual(["frontmatter lacks user-invocable"]);
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          'frontmatter lacks user-invocable. Add the line "user-invocable: true".',
+      },
+    ]);
+  });
+
+  test("names the line to add for every required key", () => {
+    expect(
+      validateFrontmatter(SKILL, "---\nlicense: MIT\n---\n").map(
+        ({ message }) => message,
+      ),
+    ).toEqual([
+      'frontmatter lacks name. Add the line "name: audit".',
+      'frontmatter lacks description. Add the line "description: <what the skill does and when to use it>".',
+      'frontmatter lacks user-invocable. Add the line "user-invocable: true".',
+      'frontmatter lacks disable-model-invocation. Add the line "disable-model-invocation: false".',
+    ]);
   });
 
   test("requires the name to match the directory", () => {
@@ -85,7 +247,133 @@ describe("validateFrontmatter", () => {
         SKILL,
         complete.replace("name: audit", "name: prune"),
       ),
-    ).toEqual(['name "prune" differs from directory "audit"']);
+    ).toEqual([
+      {
+        line: 2,
+        message:
+          'name "prune" differs from the directory "audit". Write "name: audit" or rename the directory.',
+      },
+    ]);
+  });
+
+  test.each<[string, string]>([
+    [">", "folded"],
+    ["|", "literal"],
+  ])(
+    "flags a description written as the %p block scalar",
+    (indicator, kind) => {
+      expect(
+        validateFrontmatter(
+          SKILL,
+          complete.replace(
+            "description: Prunes.",
+            `description: ${indicator}\n  Prunes.`,
+          ),
+        ),
+      ).toEqual([
+        {
+          line: 3,
+          message: `description is a ${kind} block scalar (${indicator}). Write it on one line after "description:", in double quotes when it holds ": ".`,
+        },
+      ]);
+    },
+  );
+
+  test("reads an indented comment after the description as a comment", () => {
+    expect(
+      validateFrontmatter(
+        SKILL,
+        complete.replace(
+          "description: Prunes.",
+          "description: Prunes.\n  # Keep it under 200 characters.",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  test("flags a plain description that continues on the next line", () => {
+    expect(
+      validateFrontmatter(
+        SKILL,
+        complete.replace(
+          "description: Prunes.",
+          "description: Prunes\n  more.",
+        ),
+      ),
+    ).toEqual([
+      {
+        line: 3,
+        message:
+          'description continues on line 4. Write it on one line after "description:".',
+      },
+    ]);
+  });
+
+  test.each(["description:", 'description: ""', "description: [a, b]"])(
+    "flags %p, which is no text",
+    (line) => {
+      const [finding] = validateFrontmatter(
+        SKILL,
+        complete.replace("description: Prunes.", line),
+      );
+
+      expect(finding?.line).toBe(3);
+      expect(finding?.message).toEndWith(
+        'Write what the skill does and when to use it, on one line after "description:".',
+      );
+    },
+  );
+
+  test("requires booleans to be YAML booleans", () => {
+    expect(
+      validateFrontmatter(
+        SKILL,
+        complete
+          .replace("user-invocable: true", 'user-invocable: "true"')
+          .replace(
+            "disable-model-invocation: false",
+            "disable-model-invocation: no",
+          ),
+      ),
+    ).toEqual([
+      {
+        line: 4,
+        message:
+          'user-invocable is "true". Write "user-invocable: true" or "user-invocable: false".',
+      },
+      {
+        line: 5,
+        message:
+          'disable-model-invocation is "no". Write "disable-model-invocation: true" or "disable-model-invocation: false".',
+      },
+    ]);
+  });
+
+  test("requires argument-hint to be a string", () => {
+    expect(
+      validateFrontmatter(
+        SKILL,
+        complete.replace("false\n", "false\nargument-hint: [path]\n"),
+      ),
+    ).toEqual([
+      {
+        line: 6,
+        message:
+          'argument-hint is ["path"]. Write it as a quoted string, like argument-hint: "[issue-number]".',
+      },
+    ]);
+  });
+
+  test("names an unknown key and the keys Claude Code reads", () => {
+    const [finding] = validateFrontmatter(
+      SKILL,
+      complete.replace("false\n", "false\nversion: 2\n"),
+    );
+
+    expect(finding?.line).toBe(6);
+    expect(finding?.message).toStartWith(
+      'frontmatter has the unknown key "version". Remove it, or use a key Claude Code reads: name, description,',
+    );
   });
 
   test("reads frontmatter with CRLF line endings", () => {
@@ -100,72 +388,327 @@ describe("validateFrontmatter", () => {
       complete.replace("description: Prunes.", "description: [Prunes."),
     );
 
-    expect(error).toStartWith("frontmatter is not valid YAML:");
+    expect(error?.message).toStartWith("frontmatter is not valid YAML (");
+    expect(error?.message).toEndWith("Fix the syntax between the --- lines.");
   });
 
   test("reports frontmatter that is not a mapping", () => {
     expect(validateFrontmatter(SKILL, "---\n- name\n---\n")).toEqual([
-      "frontmatter is not a YAML mapping",
+      {
+        line: 2,
+        message:
+          "frontmatter is not a YAML mapping. Write one key: value pair per line.",
+      },
     ]);
   });
 
   test("requires frontmatter", () => {
     expect(validateFrontmatter(SKILL, "# Audit\n")).toEqual([
-      "missing frontmatter",
+      {
+        line: 1,
+        message:
+          "has no frontmatter. Open the file with a --- block that sets name, description, user-invocable and disable-model-invocation.",
+      },
     ]);
   });
 });
+
+// A repository that passes every check, for a test to plant one problem in.
+// A file set to null is left out.
+const COMPLIANT_SKILL = [
+  "---",
+  "name: audit",
+  "description: Prunes.",
+  "user-invocable: true",
+  "disable-model-invocation: false",
+  "---",
+  "",
+  "Read [the README](../../README.md).",
+  "",
+].join("\n");
+
+const COMPLIANT_MARKETPLACE = JSON.stringify(
+  {
+    name: "acme-books",
+    plugins: [
+      {
+        name: "demo",
+        description: "Prunes.",
+        source: "./plugins/demo",
+        homepage:
+          "https://github.com/publicala/claude-plugins/tree/main/plugins/demo",
+      },
+    ],
+  },
+  null,
+  2,
+);
+
+const COMPLIANT: Record<string, string> = {
+  "README.md": "See [the demo plugin](plugins/demo).\n",
+  "plugins/demo/skills/audit/SKILL.md": COMPLIANT_SKILL,
+  "plugins/demo/README.md": "# Demo\n",
+  "plugins/demo/.claude-plugin/plugin.json": JSON.stringify(
+    { name: "demo", description: "Prunes." },
+    null,
+    2,
+  ),
+  ".claude-plugin/marketplace.json": COMPLIANT_MARKETPLACE,
+};
+
+async function problemsIn(
+  files: Record<string, string | null>,
+): Promise<Annotation[]> {
+  const root = await tempRepo(
+    Object.fromEntries(
+      Object.entries({ ...COMPLIANT, ...files }).filter(
+        (entry): entry is [string, string] => entry[1] !== null,
+      ),
+    ),
+  );
+
+  try {
+    return (await validatePlugins(root)).problems;
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+// The parser's own words change with Bun, so a test checks only that some are there.
+function withParserTextHidden(problems: Annotation[]): Annotation[] {
+  return problems.map((problem) => ({
+    ...problem,
+    message: problem.message.replace(
+      /^is not valid JSON \(.+\)\./,
+      "is not valid JSON (<parser text>).",
+    ),
+  }));
+}
 
 describe("validatePlugins", () => {
   test("passes on this repository", async () => {
     const result = await validatePlugins(join(import.meta.dir, ".."));
 
-    expect(result.errors).toEqual([]);
-    expect(result.checked).toBeGreaterThan(0);
+    expect(result.problems).toEqual([]);
+    expect(result.checked.markdown).toBeGreaterThan(0);
+    expect(result.checked.plugins).toBeGreaterThan(0);
   });
 
-  test("reports problems with the repo-relative path, never in node_modules", async () => {
-    const root = await mkdtemp(join(tmpdir(), "validate-plugins-"));
+  test("passes on the compliant fixture", async () => {
+    expect(await problemsIn({})).toEqual([]);
+  });
 
-    try {
-      const skill = join(root, "plugins", "demo", "skills", "audit");
-      await mkdir(skill, { recursive: true });
-      await Bun.write(join(skill, "SKILL.md"), "[a](gone.md)\n");
+  test("checks the links in every Markdown file git would commit, never ignored ones", async () => {
+    expect(
+      await problemsIn({
+        ".gitignore": "node_modules\n",
+        "README.md": "See [the guide](docs/gone.md).\n",
+        "docs/intro.md": "# Intro\n\nRead [the setup](setup.md).\n",
+        "plugins/demo/node_modules/dep/README.md": "[a](gone.md)\n",
+      }),
+    ).toEqual([
+      {
+        file: "README.md",
+        line: 1,
+        message:
+          "links to docs/gone.md, which does not exist. Fix the path or remove the link.",
+      },
+      {
+        file: "docs/intro.md",
+        line: 3,
+        message:
+          "links to setup.md, which does not exist. Fix the path or remove the link.",
+      },
+    ]);
+  });
 
-      await mkdir(join(root, "plugins", "demo", "node_modules", "dep"), {
-        recursive: true,
-      });
-      await Bun.write(
-        join(root, "plugins", "demo", "node_modules", "dep", "README.md"),
-        "[a](gone.md)\n",
+  test("resolves the bundled paths a SKILL.md names", async () => {
+    expect(
+      await problemsIn({
+        "plugins/demo/skills/audit/SKILL.md": `${COMPLIANT_SKILL}\n\`\`\`bash\nbun \${CLAUDE_PLUGIN_ROOT}/scripts/prune.ts\n\`\`\`\n`,
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/skills/audit/SKILL.md",
+        line: 11,
+        message:
+          "${CLAUDE_PLUGIN_ROOT}/scripts/prune.ts resolves to plugins/demo/scripts/prune.ts, which does not exist. Fix the path or restore the file.",
+      },
+    ]);
+  });
+
+  test("flags a SKILL.md description written as a block scalar", async () => {
+    expect(
+      await problemsIn({
+        "plugins/demo/skills/audit/SKILL.md": COMPLIANT_SKILL.replace(
+          "description: Prunes.",
+          "description: >\n  Prunes.",
+        ),
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/skills/audit/SKILL.md",
+        line: 3,
+        message:
+          'description is a folded block scalar (>). Write it on one line after "description:", in double quotes when it holds ": ".',
+      },
+    ]);
+  });
+
+  test("names the line of the top-level name, past an author's name", async () => {
+    const manifest = (name: string): string =>
+      JSON.stringify(
+        { author: { name: "Acme Books" }, name, description: "Prunes." },
+        null,
+        2,
       );
 
-      expect((await validatePlugins(root)).errors).toEqual([
-        "plugins/demo/skills/audit/SKILL.md: link target not found: gone.md",
-        "plugins/demo/skills/audit/SKILL.md: missing frontmatter",
-      ]);
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    expect(
+      await problemsIn({
+        "plugins/demo/.claude-plugin/plugin.json": manifest("demo"),
+      }),
+    ).toEqual([]);
+    expect(
+      await problemsIn({
+        "plugins/demo/.claude-plugin/plugin.json": manifest("prune"),
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/.claude-plugin/plugin.json",
+        line: 5,
+        message:
+          '"name" is "prune", and the plugin\'s directory is "demo". Write "name": "demo".',
+      },
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 5,
+        message:
+          '"name" of plugins/demo is "demo", and plugins/demo/.claude-plugin/plugin.json says "prune". Copy the plugin.json value here.',
+      },
+    ]);
+  });
+
+  test("flags a plugin.json that carries a version", async () => {
+    expect(
+      await problemsIn({
+        "plugins/demo/.claude-plugin/plugin.json": JSON.stringify(
+          { name: "demo", version: "1.2.0", description: "Prunes." },
+          null,
+          2,
+        ),
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/.claude-plugin/plugin.json",
+        line: 3,
+        message:
+          'carries "version", and CLAUDE.md says: "plugin.json carries no version, so every merge reaches users." Remove the "version" key.',
+      },
+    ]);
+  });
+
+  test("flags a plugin without a plugin.json, or with one that does not parse", async () => {
+    expect(
+      withParserTextHidden(
+        await problemsIn({
+          "plugins/demo/.claude-plugin/plugin.json": "{ name: demo }",
+          "plugins/extra/README.md": "# Extra\n",
+        }),
+      ),
+    ).toEqual([
+      {
+        file: "plugins/demo/.claude-plugin/plugin.json",
+        line: 1,
+        message: "is not valid JSON (<parser text>). Fix the syntax.",
+      },
+      {
+        file: "plugins/extra/.claude-plugin/plugin.json",
+        message:
+          'is missing, so Claude Code cannot install plugins/extra. Add it with "name": "extra" and a "description".',
+      },
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 3,
+        message:
+          'does not list plugins/extra, so it cannot be installed. Add an entry with its name, description, "source": "./plugins/extra" and "homepage": "https://github.com/publicala/claude-plugins/tree/main/plugins/extra".',
+      },
+    ]);
+  });
+
+  test("flags a marketplace entry whose description drifted from plugin.json", async () => {
+    expect(
+      await problemsIn({
+        ".claude-plugin/marketplace.json": COMPLIANT_MARKETPLACE.replace(
+          '"Prunes."',
+          '"Prunes old rules."',
+        ),
+      }),
+    ).toEqual([
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 6,
+        message:
+          '"description" of plugins/demo is "Prunes old rules.", and plugins/demo/.claude-plugin/plugin.json says "Prunes.". Copy the plugin.json value here.',
+      },
+    ]);
+  });
+
+  test("flags a plugin package the root postinstall does not install", async () => {
+    expect(
+      await problemsIn({
+        "package.json": JSON.stringify(
+          { name: "acme-books", scripts: { postinstall: "echo ready" } },
+          null,
+          2,
+        ),
+        "plugins/demo/package.json": JSON.stringify({ name: "demo" }),
+      }),
+    ).toEqual([
+      {
+        file: "package.json",
+        line: 4,
+        message:
+          'postinstall does not install plugins/demo/package.json. Add "bun install --cwd plugins/demo --frozen-lockfile" to it, joined with &&.',
+      },
+    ]);
+  });
+
+  test("flags a plugin file that reads above the plugin's root", async () => {
+    expect(
+      await problemsIn({
+        "plugins/demo/renderer/build.ts":
+          'import { tempRepo } from "../../../scripts/temp-repo";\n',
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/renderer/build.ts",
+        line: 1,
+        message:
+          "reads ../../../scripts/temp-repo, which resolves to scripts/temp-repo, outside plugins/demo/. Install copies the plugin alone, so the path breaks for users. Move the file into the plugin, or commit a symlink inside the plugin that points at it.",
+      },
+    ]);
+  });
+
+  test("flags a plugin.json that is not an object", async () => {
+    expect(
+      await problemsIn({ "plugins/demo/.claude-plugin/plugin.json": "[]" }),
+    ).toEqual([
+      {
+        file: "plugins/demo/.claude-plugin/plugin.json",
+        line: 1,
+        message: "is not a JSON object. Write its keys inside { }.",
+      },
+    ]);
   });
 
   test("names the file whose frontmatter is not valid YAML", async () => {
-    const root = await mkdtemp(join(tmpdir(), "validate-plugins-"));
+    const problems = await problemsIn({
+      "plugins/demo/skills/audit/SKILL.md": "---\nname: [audit\n---\n",
+    });
 
-    try {
-      const skill = join(root, "plugins", "demo", "skills", "audit");
-      await mkdir(skill, { recursive: true });
-      await Bun.write(join(skill, "SKILL.md"), "---\nname: [audit\n---\n");
-
-      const { errors } = await validatePlugins(root);
-
-      expect(errors).toHaveLength(1);
-      expect(errors[0]).toStartWith(
-        "plugins/demo/skills/audit/SKILL.md: frontmatter is not valid YAML:",
-      );
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    expect(problems).toHaveLength(1);
+    expect(problems[0]?.file).toBe("plugins/demo/skills/audit/SKILL.md");
+    expect(problems[0]?.message).toStartWith("frontmatter is not valid YAML (");
   });
 });
 
@@ -175,22 +718,24 @@ describe("main", () => {
 
     try {
       expect(await main()).toBe(0);
-      expect(log.mock.calls[0]?.[0]).toMatch(/^checked \d+ Markdown files/);
+      expect(log.mock.calls[0]?.[0]).toMatch(
+        /^checked \d+ Markdown files and \d+ plugins$/,
+      );
     } finally {
       log.mockRestore();
     }
   });
 
   test("prints each problem as a GitHub annotation and exits 1", async () => {
-    const root = await mkdtemp(join(tmpdir(), "validate-plugins-"));
+    const root = await tempRepo({ "README.md": "One.\n\n[a](gone.md)\n" });
     const error = spyOn(console, "error").mockImplementation(() => undefined);
 
     try {
-      await Bun.write(join(root, "plugins", "README.md"), "[a](gone.md)\n");
-
       expect(await main(root)).toBe(1);
       expect(error.mock.calls).toEqual([
-        ["::error::plugins/README.md: link target not found: gone.md"],
+        [
+          "::error file=README.md,line=3::links to gone.md, which does not exist. Fix the path or remove the link.",
+        ],
       ]);
     } finally {
       error.mockRestore();

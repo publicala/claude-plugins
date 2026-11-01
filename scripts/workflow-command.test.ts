@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { main } from "./validate-json";
-import { errorAnnotation } from "./workflow-command";
+import { errorAnnotation, lineAt } from "./workflow-command";
 
 const at = { line: 3, col: 7 };
 
@@ -42,6 +42,23 @@ describe("errorAnnotation", () => {
         message: "Expected a, b: c",
       }),
     ).toBe("::error file=a%2Cline=1%3Ab.json,line=3,col=7::Expected a, b: c");
+  });
+
+  test("leaves out the line and the column when they are unknown", () => {
+    expect(errorAnnotation({ file: "package.json", message: "Broken" })).toBe(
+      "::error file=package.json::Broken",
+    );
+    expect(
+      errorAnnotation({ file: "README.md", line: 3, message: "Broken" }),
+    ).toBe("::error file=README.md,line=3::Broken");
+  });
+});
+
+describe("lineAt", () => {
+  test("counts lines from 1", () => {
+    expect(lineAt("one\ntwo\nthree", 0)).toBe(1);
+    expect(lineAt("one\ntwo\nthree", 4)).toBe(2);
+    expect(lineAt("one\ntwo\nthree", 8)).toBe(3);
   });
 });
 

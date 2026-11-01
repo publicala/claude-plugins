@@ -1,7 +1,6 @@
 ---
 name: feed
-description: >
-  Turns recurring corrections (conversation, intake entries, recent commits) into CLAUDE.md rules. Run after a working session or a review round.
+description: Turns recurring corrections (conversation, intake entries, recent commits) into CLAUDE.md rules. Run after a working session or a review round.
 user-invocable: true
 disable-model-invocation: true
 ---

@@ -1,7 +1,6 @@
 ---
 name: bake
-description: >
-  Converts CLAUDE.md rules and recurring review findings into automated checks, and removes the prose once a check holds the rule. Run once enough rules have accumulated to be worth automating.
+description: Converts CLAUDE.md rules and recurring review findings into automated checks, and removes the prose once a check holds the rule. Run once enough rules have accumulated to be worth automating.
 user-invocable: true
 disable-model-invocation: true
 ---

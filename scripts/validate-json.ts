@@ -3,11 +3,11 @@
 // Fails when a JSON file does not parse, and names the line and column
 // where the parser stopped. A `.json` file is strict JSON. A `.jsonc` file
 // may carry comments and trailing commas.
-import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
 
+import { repoFiles } from "./repo-files";
 import { errorAnnotation } from "./workflow-command";
 
 const ROOT = join(import.meta.dir, "..");
@@ -56,42 +56,11 @@ function describeError(code: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/**
- * Every JSON file a commit could carry: tracked, or untracked and not
- * ignored, in any directory.
- */
-export function jsonFiles(root: string): string[] {
-  const listed = Bun.spawnSync(
-    [
-      "git",
-      "ls-files",
-      "--cached",
-      "--others",
-      "--exclude-standard",
-      "-z",
-      "--",
-      "*.json",
-      "*.jsonc",
-    ],
-    { cwd: root },
-  );
-
-  if (!listed.success) {
-    throw new Error(
-      `Unable to list the JSON files with git in ${root}: ${listed.stderr.toString().trim()}`,
-    );
-  }
-
-  return [...new Set(listed.stdout.toString().split("\0"))]
-    .filter((path) => path !== "" && existsSync(join(root, path)))
-    .toSorted();
-}
-
 export async function validateJson(root: string): Promise<{
   checked: number;
   problems: (JsonProblem & { path: string })[];
 }> {
-  const paths = jsonFiles(root);
+  const paths = repoFiles(root, "*.json", "*.jsonc");
 
   const problems = await Promise.all(
     paths.map(async (path) => {

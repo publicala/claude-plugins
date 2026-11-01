@@ -1,7 +1,6 @@
 ---
 name: diagram
-description: >
-  Makes standalone figures in Blueprint, publica.la's house style for engineering visuals, rendered to PNG and PDF. Use for system overviews, figures for customer documents and security reviews, spec sheets, social cards and 16:9 slides. Sequence, state and flow diagrams inside a doc whose site renders Mermaid stay in Mermaid.
+description: Makes standalone figures in Blueprint, publica.la's house style for engineering visuals, rendered to PNG and PDF. Use for system overviews, figures for customer documents and security reviews, spec sheets, social cards and 16:9 slides. Sequence, state and flow diagrams inside a doc whose site renders Mermaid stay in Mermaid.
 argument-hint: "[what the figure shows]"
 user-invocable: true
 disable-model-invocation: false
