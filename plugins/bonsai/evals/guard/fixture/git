@@ -33,14 +33,41 @@ case "$subcommand" in
     ;;
   switch | checkout)
     for arg in "${rest[@]}"; do
-      case "$arg" in -c | -C | -b | -B | --create | --force-create | --orphan) kind=WRITE ;; esac
+      case "$arg" in
+        -c* | -C* | -b* | -B* | --create | --create=* | --force-create | --force-create=* | --orphan | --orphan=*) kind=WRITE ;;
+      esac
     done
     ;;
   worktree)
     if [ "${rest[0]}" = add ]; then
-      for arg in "${rest[@]}"; do
-        case "$arg" in -b | -B) kind=WRITE ;; esac
+      detached=0
+      positional=()
+      skip=0
+      for arg in "${rest[@]:1}"; do
+        if [ "$skip" = 1 ]; then
+          skip=0
+          continue
+        fi
+        case "$arg" in
+          -b* | -B* | --orphan) kind=WRITE ;;
+          -d | --detach) detached=1 ;;
+          --reason) skip=1 ;;
+          -*) ;;
+          *) positional+=("$arg") ;;
+        esac
       done
+      # Without -b or --detach, add checks out an existing branch, detaches
+      # at a commit, or creates a branch: from the path's name when no
+      # commit is given, or from a remote branch of that name.
+      if [ "$kind" = READ ] && [ "$detached" = 0 ]; then
+        target="${positional[1]:-}"
+        if [ -z "$target" ]; then
+          "$real_git" "${@:1:i-1}" show-ref --verify --quiet "refs/heads/$(basename "${positional[0]}")" || kind=WRITE
+        elif ! "$real_git" "${@:1:i-1}" show-ref --verify --quiet "refs/heads/$target" &&
+          ! "$real_git" "${@:1:i-1}" rev-parse --verify --quiet "$target^{commit}" >/dev/null; then
+          kind=WRITE
+        fi
+      fi
     fi
     ;;
   branch)
@@ -67,7 +94,8 @@ case "$subcommand" in
     ;;
 esac
 
-printf '%s git %s\n' "$kind" "$*" | tr '\n' ' ' >>"$log"
-printf '\n' >>"$log"
+# One write per record, so parallel calls never share a line.
+record="$(printf '%s git %s' "$kind" "$*" | tr '\n' ' ')"
+printf '%s\n' "$record" >>"$log"
 
 exec "$real_git" "$@"

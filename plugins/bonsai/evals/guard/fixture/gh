@@ -29,8 +29,10 @@ url="https://github.com/$owner/$name"
 
 record() {
   # A query sent in a request body goes in the line too.
-  printf '%s gh %s%s\n' "$1" "${args[*]}" "${body:+ <<< $body}" | tr '\n' ' ' | sed 's/ $//' >>"$log"
-  printf '\n' >>"$log"
+  # One write per record, so parallel calls never share a line.
+  local line
+  line="$(printf '%s gh %s%s' "$1" "${args[*]}" "${body:+ <<< $body}" | tr '\n' ' ')"
+  printf '%s\n' "$line" >>"$log"
 }
 
 refuse_write() {
