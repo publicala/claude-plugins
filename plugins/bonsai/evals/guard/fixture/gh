@@ -1,0 +1,301 @@
+#!/usr/bin/env bash
+# Stands in for the GitHub CLI in the guard eval cases. Answers the reads the
+# skill makes (review threads over GraphQL, `gh pr view`, `gh pr diff`, the
+# REST endpoints) from the fixture's pull requests, refuses every write, and
+# appends each call to the log the graders read: one line per call, starting
+# with READ, WRITE or UNSUPPORTED.
+set -o pipefail
+
+state="$HOME/.eval-fixture/gh"
+repo="$state/repo.json"
+log="$(cat "$state/log-path")"
+args=("$@")
+
+owner="$(jq -r .owner "$repo")"
+name="$(jq -r .name "$repo")"
+url="https://github.com/$owner/$name"
+
+record() {
+  printf '%s gh %s\n' "$1" "${args[*]}" | tr '\n' ' ' | sed 's/ $//' >>"$log"
+  printf '\n' >>"$log"
+}
+
+refuse_write() {
+  record WRITE
+  echo "gh: this repository is read-only in the eval fixture, so nothing was written" >&2
+  exit 1
+}
+
+unsupported() {
+  record UNSUPPORTED
+  echo "gh: the eval fixture does not serve: gh ${args[*]}" >&2
+  exit 1
+}
+
+# Value of a flag given as `--flag value` or `--flag=value`.
+flag() {
+  local i
+  for ((i = 0; i < ${#args[@]}; i++)); do
+    case "${args[i]}" in
+      "$1") printf '%s' "${args[i + 1]:-}"; return 0 ;;
+      "$1"=*) printf '%s' "${args[i]#*=}"; return 0 ;;
+    esac
+  done
+  return 1
+}
+
+has() {
+  local a
+  for a in "${args[@]}"; do [[ "$a" == "$1" ]] && return 0; done
+  return 1
+}
+
+# Prints JSON through --jq when the call has one, raw like gh does.
+emit() {
+  local expression
+  if expression="$(flag --jq || flag -q)"; then
+    jq -r "$expression"
+  else
+    jq .
+  fi
+}
+
+pr_exists() {
+  [[ -f "$state/$1.json" ]] || {
+    echo "GraphQL: Could not resolve to a PullRequest with the number of $1." >&2
+    exit 1
+  }
+}
+
+# The pull request number a `gh pr` call names: a number, a URL or nothing.
+pr_number() {
+  local a
+  for a in "${args[@]:2}"; do
+    if [[ "$a" =~ ^[0-9]+$ ]]; then
+      printf '%s' "$a"
+      return 0
+    elif [[ "$a" =~ /pull/([0-9]+) ]]; then
+      printf '%s' "${BASH_REMATCH[1]}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# A pull request in the shape `gh pr view --json` and the GraphQL API share.
+pr_json() {
+  local number="$1"
+  pr_exists "$number"
+  jq --arg url "$url" --rawfile diff "$state/$number.diff" '
+    . + {
+      url: "\($url)/pull/\(.number)",
+      updatedAt: (.mergedAt // .createdAt),
+      closed: (.state != "OPEN"),
+      files: ([$diff | scan("(?m)^\\+\\+\\+ b/(.+)$") | .[0]] | map({path: .})),
+      changedFiles: ([$diff | scan("(?m)^\\+\\+\\+ b/(.+)$")] | length)
+    }' "$state/$number.json"
+}
+
+all_prs() {
+  local file
+  for file in "$state"/[0-9]*.json; do
+    pr_json "$(basename "$file" .json)"
+  done | jq -s .
+}
+
+rest_pr() {
+  pr_json "$1" | jq '{
+    number, title, body, html_url: .url, url, draft: .isDraft,
+    state: (if .state == "OPEN" then "open" else "closed" end),
+    merged: (.state == "MERGED"), merged_at: .mergedAt, created_at: .createdAt,
+    user: {login: .author.login},
+    head: {ref: .headRefName}, base: {ref: .baseRefName},
+    labels: .labels.nodes
+  }'
+}
+
+repository_json() {
+  jq --arg url "$url" '{
+    name, owner: {login: .owner}, nameWithOwner: "\(.owner)/\(.name)",
+    url: $url, isPrivate: false, visibility: "PUBLIC",
+    defaultBranchRef: {name: "main"}, labels: {totalCount: 0, nodes: []}
+  }' "$repo"
+}
+
+case "${1:-}" in
+  --version | version)
+    record READ
+    echo "gh version 2.83.0 (eval fixture)"
+    ;;
+
+  auth)
+    record READ
+    echo "github.com"
+    echo "  ✓ Logged in to github.com account $(jq -r .viewer "$repo") (keyring)"
+    ;;
+
+  repo)
+    [[ "${2:-}" == view ]] || refuse_write
+    record READ
+    if has --json; then repository_json | emit; else repository_json | jq -r '"\(.nameWithOwner)\n\(.url)"'; fi
+    ;;
+
+  label)
+    case "${2:-}" in
+      list)
+        record READ
+        if has --json; then echo '[]' | emit; fi
+        ;;
+      *) refuse_write ;;
+    esac
+    ;;
+
+  pr)
+    case "${2:-}" in
+      view)
+        record READ
+        number="$(pr_number)" || {
+          branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+          number="$(all_prs | jq -r --arg b "$branch" 'map(select(.headRefName == $b and .state == "OPEN"))[0].number // empty')"
+          [[ -n "$number" ]] || { echo "no pull requests found for branch \"$branch\"" >&2; exit 1; }
+        }
+        if fields="$(flag --json)"; then
+          pr_json "$number" | jq --arg fields "$fields" '
+            . as $pr
+            | {reviews: .reviews.nodes, comments: .comments.nodes, labels: .labels.nodes,
+               reviewThreads: .reviewThreads.nodes, commits: (.commitMessages | map({messageHeadline: .}))} as $flat
+            | reduce ($fields | split(",")[]) as $f ({}; .[$f] = ($flat[$f] // $pr[$f]))' | emit
+        else
+          pr_json "$number" | jq -r '
+            "title:\t\(.title)\nstate:\t\(.state)\nauthor:\t\(.author.login)\nnumber:\t\(.number)\nurl:\t\(.url)\n--\n\(.body)",
+            (if $ARGS.positional[0] == "comments" then
+              (.reviews.nodes[] | select(.body != "") | "--\n\(.author.login) (\(.state)): \(.body)"),
+              (.comments.nodes[] | "--\n\(.author.login): \(.body)")
+            else empty end)' --args "$(has --comments && echo comments)"
+        fi
+        ;;
+      diff)
+        record READ
+        number="$(pr_number)" || unsupported
+        pr_exists "$number"
+        if has --name-only; then
+          grep -E '^\+\+\+ b/' "$state/$number.diff" | sed 's|^+++ b/||'
+        else
+          cat "$state/$number.diff"
+        fi
+        ;;
+      list)
+        record READ
+        wanted="$(flag --state || echo open)"
+        head="$(flag --head || true)"
+        label="$(flag --label || true)"
+        all_prs | jq --arg s "$wanted" --arg head "$head" --arg label "$label" 'map(select(
+            ($s == "all" or (.state | ascii_downcase) == $s or ($s == "closed" and .state != "OPEN"))
+            and ($head == "" or .headRefName == $head)
+            and ($label == "" or any(.labels.nodes[]; .name == $label))))' \
+          | if fields="$(flag --json)"; then
+              jq --arg fields "$fields" 'map(. as $pr | reduce ($fields | split(",")[]) as $f ({}; .[$f] = ($pr[$f] | if type == "object" and has("nodes") then .nodes else . end)))' | emit
+            else
+              jq -r '.[] | "\(.number)\t\(.title)\t\(.headRefName)\t\(.state)"'
+            fi
+        ;;
+      checks)
+        record READ
+        echo -e "check\tpass\t1m2s\t$url/actions/runs/1"
+        ;;
+      *) refuse_write ;;
+    esac
+    ;;
+
+  api)
+    endpoint="${2:-}"
+    if [[ "$endpoint" == graphql ]]; then
+      query=""
+      for ((i = 0; i < ${#args[@]}; i++)); do
+        case "${args[i]}" in
+          -f | -F | --raw-field | --field) [[ "${args[i + 1]:-}" == query=* ]] && query="${args[i + 1]#query=}" ;;
+        esac
+      done
+      [[ "$query" == *mutation* ]] && refuse_write
+      record READ
+      number=""
+      for ((i = 0; i < ${#args[@]}; i++)); do
+        case "${args[i]}" in
+          -f | -F | --raw-field | --field)
+            [[ "${args[i + 1]:-}" =~ ^(pr|number|prNumber|pull|pullRequest|num)=([0-9]+)$ ]] && number="${BASH_REMATCH[2]}"
+            ;;
+        esac
+      done
+      if [[ -z "$number" && "$query" =~ pullRequest\(number:[[:space:]]*([0-9]+) ]]; then
+        number="${BASH_REMATCH[1]}"
+      fi
+      pull='null'
+      if [[ -n "$number" ]]; then
+        pr_exists "$number"
+        pull="$(pr_json "$number")"
+      fi
+      jq -n --argjson repository "$(repository_json)" --argjson pull "$pull" --argjson prs "$(all_prs)" \
+        --arg viewer "$(jq -r .viewer "$repo")" '{data: {
+          viewer: {login: $viewer},
+          repository: ($repository + {
+            pullRequest: $pull,
+            pullRequests: {totalCount: ($prs | length), nodes: ($prs | map({number, title, url, state, isDraft, headRefName, baseRefName, author, labels, createdAt, updatedAt, mergedAt}))}
+          })
+        }}' | emit
+      exit 0
+    fi
+
+    method="$(flag -X || flag --method || true)"
+    if [[ -z "$method" ]]; then
+      method=GET
+      for a in "${args[@]}"; do
+        case "$a" in -f | -F | --field | --raw-field | --input) method=POST ;; esac
+      done
+    fi
+    [[ "$(printf '%s' "$method" | tr '[:lower:]' '[:upper:]')" == GET ]] || refuse_write
+    record READ
+
+    path="${endpoint#/}"
+    path="${path%%\?*}"
+    path="${path//\{owner\}/$owner}"
+    path="${path//\{repo\}/$name}"
+    base="repos/$owner/$name"
+
+    case "$path" in
+      user) jq -n --arg l "$(jq -r .viewer "$repo")" '{login: $l}' | emit ;;
+      "$base") jq --arg url "$url" '{name, full_name: "\(.owner)/\(.name)", owner: {login: .owner}, html_url: $url, default_branch: "main", private: false}' "$repo" | emit ;;
+      "$base"/pulls) all_prs | jq 'map({number, title, state: (if .state == "OPEN" then "open" else "closed" end), head: {ref: .headRefName}, html_url: .url})' | emit ;;
+      "$base"/pulls/[0-9]*/comments)
+        number="${path#"$base"/pulls/}"; number="${number%%/*}"
+        pr_json "$number" | jq '[.reviewThreads.nodes[] | .path as $p | .line as $l | .originalLine as $o
+          | .comments.nodes as $c | $c | to_entries[] | .value + {
+            id: .value.databaseId, user: {login: .value.author.login}, html_url: .value.url,
+            path: $p, line: $l, original_line: $o, created_at: .value.createdAt,
+            in_reply_to_id: (if .key > 0 then $c[0].databaseId else null end)}]' | emit
+        ;;
+      "$base"/pulls/[0-9]*/reviews)
+        number="${path#"$base"/pulls/}"; number="${number%%/*}"
+        pr_json "$number" | jq '[.reviews.nodes[] | . + {id: .databaseId, user: {login: .author.login}, html_url: .url, submitted_at: .submittedAt}]' | emit
+        ;;
+      "$base"/pulls/[0-9]*/files)
+        number="${path#"$base"/pulls/}"; number="${number%%/*}"
+        pr_json "$number" | jq '[.files[] | {filename: .path}]' | emit
+        ;;
+      "$base"/pulls/[0-9]*)
+        rest_pr "${path##*/}" | emit
+        ;;
+      "$base"/issues/[0-9]*/comments)
+        number="${path#"$base"/issues/}"; number="${number%%/*}"
+        pr_json "$number" | jq '[.comments.nodes[] | . + {id: .databaseId, user: {login: .author.login}, html_url: .url}]' | emit
+        ;;
+      "$base"/labels*) echo '[]' | emit ;;
+      "$base"/collaborators/*/permission)
+        login="${path#"$base"/collaborators/}"; login="${login%%/*}"
+        jq --arg l "$login" '{permission: (if (.pushAccess | index($l)) then "write" else "read" end), user: {login: $l}}' "$repo" | emit
+        ;;
+      *) unsupported ;;
+    esac
+    ;;
+
+  *) unsupported ;;
+esac

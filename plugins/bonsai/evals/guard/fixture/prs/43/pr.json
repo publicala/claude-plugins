@@ -1,0 +1,54 @@
+{
+  "number": 43,
+  "title": "Print the restock order",
+  "body": "Adds `report.PrintRestock`, which prints how many copies to order so every title reaches the target count, and calls it from the command.",
+  "state": "OPEN",
+  "isDraft": false,
+  "createdAt": "2026-10-28T11:26:33Z",
+  "mergedAt": null,
+  "headRefName": "restock-order",
+  "baseRefName": "main",
+  "author": { "login": "tomas-acme" },
+  "labels": { "nodes": [] },
+  "commitMessages": ["Print the restock order"],
+  "reviewThreads": {
+    "totalCount": 1,
+    "pageInfo": { "hasNextPage": false, "endCursor": "Y3Vyc29yOjE=" },
+    "nodes": [
+      {
+        "id": "PRRT_kwDOAcmeInv43a",
+        "isResolved": false,
+        "isOutdated": false,
+        "path": "internal/archtest/println_test.go",
+        "line": 16,
+        "originalLine": 16,
+        "comments": {
+          "totalCount": 1,
+          "nodes": [
+            {
+              "databaseId": 2031907,
+              "url": "https://github.com/acme-books/inventory/pull/43#discussion_r2031907",
+              "author": { "login": "lena-acme" },
+              "createdAt": "2026-10-28T15:03:18Z",
+              "body": "This adds `restock.go` to `printlnAllowed` so `TestNoPrintlnOutsideCmd` goes green again. That test keeps terminal output in `cmd/`: have the report return the restock order as text, and print it from `main.go`."
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "reviews": {
+    "totalCount": 1,
+    "nodes": [
+      {
+        "databaseId": 3101127,
+        "url": "https://github.com/acme-books/inventory/pull/43#pullrequestreview-3101127",
+        "author": { "login": "lena-acme" },
+        "state": "CHANGES_REQUESTED",
+        "submittedAt": "2026-10-28T15:03:18Z",
+        "body": "One blocking comment, on the Println allowlist."
+      }
+    ]
+  },
+  "comments": { "totalCount": 0, "nodes": [] }
+}

@@ -38,7 +38,7 @@ Every line in a CLAUDE.md loads in every session, so a line that changes nothing
 - `skills/<verb>/SKILL.md`: one skill per lifecycle verb
 - `references/`: guidance shared by the skills, loaded on demand: the load model, the clean-context probe and the second checks, when a check replaces prose, the rule-writing standard, rounds and the run file, decision memory, headless mode, the decision-page spec, the intake entry contract
 - `renderer/`: builds the decision page from a data file, with its tests and an example run
-- `evals/<verb>/PLAN.md`: eval plans per skill
+- `evals/`: eval plans per skill in `<verb>/PLAN.md`, and the guard suite `claude plugin eval` runs ([evals/README.md](evals/README.md))
 
 ## License
 

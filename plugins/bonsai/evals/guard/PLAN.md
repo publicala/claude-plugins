@@ -1,4 +1,6 @@
-# Eval plan (not built)
+# Eval plan
+
+Three cases run today, on a smaller fixture: see [../README.md](../README.md). The rest of this plan is not built.
 
 Fixture (scaffold_script): tiny Laravel-shaped repo with Pint, Rector, PHPStan with one custom rule and its `RuleTestCase`, a `tests/Arch` suite and a CLAUDE.md, plus a recorded merged pull request (body, diff, review threads as fixture JSON served to a stubbed `gh`, every thread resolved) that plants one of each:
 

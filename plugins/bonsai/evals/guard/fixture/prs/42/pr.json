@@ -1,0 +1,87 @@
+{
+  "number": 42,
+  "title": "Keep the recently looked-up titles",
+  "body": "Adds `catalog.Recent`, the list behind the lookup screen's recent titles, oldest first, at most 8.",
+  "state": "MERGED",
+  "isDraft": false,
+  "createdAt": "2026-10-19T10:15:40Z",
+  "mergedAt": "2026-10-20T15:08:12Z",
+  "headRefName": "recent-titles",
+  "baseRefName": "main",
+  "author": {
+    "login": "tomas-acme"
+  },
+  "labels": {
+    "nodes": []
+  },
+  "commitMessages": ["Keep the recently looked-up titles"],
+  "reviewThreads": {
+    "totalCount": 1,
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOjE="
+    },
+    "nodes": [
+      {
+        "id": "PRRT_kwDOAcmeInv42a",
+        "isResolved": true,
+        "isOutdated": false,
+        "path": "internal/catalog/recent.go",
+        "line": 27,
+        "originalLine": 27,
+        "comments": {
+          "totalCount": 2,
+          "nodes": [
+            {
+              "databaseId": 2023310,
+              "url": "https://github.com/acme-books/inventory/pull/42#discussion_r2023310",
+              "author": {
+                "login": "lena-acme"
+              },
+              "createdAt": "2026-10-19T13:44:21Z",
+              "body": "`Find` scans the slice on every lookup. A `map[string]Title` keyed by ISBN would make this constant time."
+            },
+            {
+              "databaseId": 2023388,
+              "url": "https://github.com/acme-books/inventory/pull/42#discussion_r2023388",
+              "author": {
+                "login": "tomas-acme"
+              },
+              "createdAt": "2026-10-19T15:10:02Z",
+              "body": "`Recent` holds at most 8 titles, and the lookup screen lists them oldest first. The slice keeps that order without a second structure next to a map, so I'm keeping it."
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "reviews": {
+    "totalCount": 2,
+    "nodes": [
+      {
+        "databaseId": 3100544,
+        "url": "https://github.com/acme-books/inventory/pull/42#pullrequestreview-3100544",
+        "author": {
+          "login": "lena-acme"
+        },
+        "state": "COMMENTED",
+        "submittedAt": "2026-10-19T13:44:21Z",
+        "body": ""
+      },
+      {
+        "databaseId": 3100610,
+        "url": "https://github.com/acme-books/inventory/pull/42#pullrequestreview-3100610",
+        "author": {
+          "login": "lena-acme"
+        },
+        "state": "APPROVED",
+        "submittedAt": "2026-10-20T14:55:09Z",
+        "body": ""
+      }
+    ]
+  },
+  "comments": {
+    "totalCount": 0,
+    "nodes": []
+  }
+}
