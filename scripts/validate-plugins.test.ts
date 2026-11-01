@@ -9,6 +9,7 @@ import {
   validateFrontmatter,
   validateLinks,
   validatePlugins,
+  validateSkillPaths,
 } from "./validate-plugins";
 import { tempRepo } from "./temp-repo";
 
@@ -109,6 +110,75 @@ describe("validateLinks", () => {
   });
 });
 
+describe("validateSkillPaths", () => {
+  const ROOT = join(import.meta.dir, "..");
+  const DIAGRAM = "plugins/blueprint/skills/diagram/SKILL.md";
+
+  test("resolves the skill directory and the plugin root, in code spans and fenced blocks", () => {
+    const text = [
+      "Start from `${CLAUDE_SKILL_DIR}/examples/flow.diagram.html`.",
+      "",
+      "```bash",
+      "bun ${CLAUDE_PLUGIN_ROOT}/renderer/render.ts figure.html",
+      "bun install --cwd ${CLAUDE_PLUGIN_ROOT}",
+      "```",
+    ].join("\n");
+
+    expect(validateSkillPaths(ROOT, DIAGRAM, text)).toEqual([]);
+  });
+
+  test("checks the part before a placeholder, and ignores the period that ends a sentence", () => {
+    const text = [
+      "Copy `${CLAUDE_SKILL_DIR}/examples/<name>.diagram.html` or `${CLAUDE_SKILL_DIR}/examples/*.png`.",
+      "Run ${CLAUDE_PLUGIN_ROOT}/renderer/render.ts.",
+    ].join("\n");
+
+    expect(validateSkillPaths(ROOT, DIAGRAM, text)).toEqual([]);
+  });
+
+  test("names the variable, the resolved path and the fix", () => {
+    const text = [
+      "Intro.",
+      "",
+      "```bash",
+      "bun ${CLAUDE_PLUGIN_ROOT}/renderer/gone.ts",
+      "```",
+      "",
+      "See `${CLAUDE_SKILL_DIR}/examples/gone-<name>.html`.",
+    ].join("\n");
+
+    expect(validateSkillPaths(ROOT, DIAGRAM, text)).toEqual([
+      {
+        line: 4,
+        message:
+          "${CLAUDE_PLUGIN_ROOT}/renderer/gone.ts resolves to plugins/blueprint/renderer/gone.ts, which does not exist. Fix the path or restore the file.",
+      },
+    ]);
+    expect(
+      validateSkillPaths(
+        ROOT,
+        DIAGRAM,
+        "Run `bun \"${CLAUDE_PLUGIN_ROOT}\"/renderer/gone.ts` or `bun '${CLAUDE_PLUGIN_ROOT}'/renderer/render.ts`.",
+      ),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "${CLAUDE_PLUGIN_ROOT}/renderer/gone.ts resolves to plugins/blueprint/renderer/gone.ts, which does not exist. Fix the path or restore the file.",
+      },
+    ]);
+    expect(
+      validateSkillPaths(ROOT, DIAGRAM, "`${CLAUDE_SKILL_DIR}/gone/<name>.md`"),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "${CLAUDE_SKILL_DIR}/gone resolves to plugins/blueprint/skills/diagram/gone, which does not exist. Fix the path or restore the file.",
+      },
+    ]);
+  });
+});
+
 describe("validateFrontmatter", () => {
   const complete = [
     "---",
@@ -174,19 +244,21 @@ describe("validateFrontmatter", () => {
 
 // A repository that passes every check, for a test to plant one problem in.
 // A file set to null is left out.
+const COMPLIANT_SKILL = [
+  "---",
+  "name: audit",
+  "description: Prunes.",
+  "user-invocable: true",
+  "disable-model-invocation: false",
+  "---",
+  "",
+  "Read [the README](../../README.md).",
+  "",
+].join("\n");
+
 const COMPLIANT: Record<string, string> = {
   "README.md": "See [the demo plugin](plugins/demo).\n",
-  "plugins/demo/skills/audit/SKILL.md": [
-    "---",
-    "name: audit",
-    "description: Prunes.",
-    "user-invocable: true",
-    "disable-model-invocation: false",
-    "---",
-    "",
-    "Read [the README](../../README.md).",
-    "",
-  ].join("\n"),
+  "plugins/demo/skills/audit/SKILL.md": COMPLIANT_SKILL,
   "plugins/demo/README.md": "# Demo\n",
 };
 
@@ -240,6 +312,21 @@ describe("validatePlugins", () => {
         line: 3,
         message:
           "links to setup.md, which does not exist. Fix the path or remove the link.",
+      },
+    ]);
+  });
+
+  test("resolves the bundled paths a SKILL.md names", async () => {
+    expect(
+      await problemsIn({
+        "plugins/demo/skills/audit/SKILL.md": `${COMPLIANT_SKILL}\n\`\`\`bash\nbun \${CLAUDE_PLUGIN_ROOT}/scripts/prune.ts\n\`\`\`\n`,
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/skills/audit/SKILL.md",
+        line: 11,
+        message:
+          "${CLAUDE_PLUGIN_ROOT}/scripts/prune.ts resolves to plugins/demo/scripts/prune.ts, which does not exist. Fix the path or restore the file.",
       },
     ]);
   });
