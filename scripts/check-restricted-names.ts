@@ -138,8 +138,9 @@ function describeHit(where: string, hash: string): string {
 
 /**
  * Checks the path of every file a commit could carry, and its text unless
- * it is a lockfile, which only names packages, or binary. A symlink's text
- * is its target path, which git commits in place of the target's contents.
+ * it is a lockfile, which only names packages, a binary file or a
+ * submodule. A symlink's text is its target path, which git commits in
+ * place of the target's contents.
  */
 export async function checkRestrictedNames(
   root: string,
@@ -189,9 +190,15 @@ async function committedText(
   path: string,
 ): Promise<string | null> {
   const absolutePath = join(root, path);
+  const stats = await lstat(absolutePath);
 
-  if ((await lstat(absolutePath)).isSymbolicLink()) {
+  if (stats.isSymbolicLink()) {
     return readlink(absolutePath);
+  }
+
+  // A submodule is listed as one path, its checkout directory.
+  if (stats.isDirectory()) {
+    return null;
   }
 
   if (basename(path) === "bun.lock") {

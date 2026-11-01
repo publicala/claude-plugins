@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdtemp, rm, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,6 +11,7 @@ import {
   parseHashList,
   redactPath,
 } from "./check-restricted-names";
+import { cwdGitEnvironment } from "./repo-files";
 import { tempRepo } from "./temp-repo";
 
 // Made-up words stand in for the restricted names, which never appear here.
@@ -158,6 +159,37 @@ describe("checkRestrictedNames", () => {
           {
             file: `${redacted}/bun.lock`,
             message: hit(`The path ${redacted}/bun.lock`),
+          },
+        ],
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("checks a submodule's path and skips its directory", async () => {
+    const root = await tempRepo({ "README.md": "Acme Books\n" });
+    const commit = "1".repeat(40);
+
+    try {
+      Bun.spawnSync(
+        [
+          "git",
+          "update-index",
+          "--add",
+          "--cacheinfo",
+          `160000,${commit},zorblax`,
+        ],
+        { cwd: root, env: cwdGitEnvironment() },
+      );
+      await mkdir(join(root, "zorblax"));
+
+      expect(await checkRestrictedNames(root, HASHES)).toEqual({
+        scanned: 1,
+        hits: [
+          {
+            file: `[sha256 ${ZORBLAX}]`,
+            message: hit(`The path [sha256 ${ZORBLAX}]`),
           },
         ],
       });
