@@ -43,14 +43,29 @@ export async function readFontFaceCss(): Promise<string> {
   return faces.join("");
 }
 
+function isIconMap(value: unknown): value is Record<string, string> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every((markup) => typeof markup === "string")
+  );
+}
+
 /**
  * Lucide icons by name, from the map written
  * by scripts/update-blueprint-icons.ts.
  */
-export async function readLucideIcons(): Promise<Map<string, string>> {
-  const icons: Record<string, string> = await Bun.file(
-    join(ROOT, "assets/icons.json"),
-  ).json();
+export async function readLucideIcons(
+  path = join(ROOT, "assets/icons.json"),
+): Promise<Map<string, string>> {
+  const icons: unknown = await Bun.file(path).json();
+
+  if (!isIconMap(icons)) {
+    throw new Error(
+      `The icon map ${path} must map each icon name to its markup. Run bun run update:icons.`,
+    );
+  }
 
   return new Map(Object.entries(icons));
 }

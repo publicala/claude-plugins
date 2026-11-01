@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { readdir } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
@@ -8,6 +9,7 @@ import {
   readLucideIcons,
   readStylesheet,
 } from "./assets";
+import { errorMessage } from "./error-message";
 import { buildPage, expandIcons, expandLogo, outputPathFor } from "./page";
 
 const icons = await readLucideIcons();
@@ -23,6 +25,28 @@ describe("readLucideIcons", () => {
   test("returns the inner markup of a Lucide icon", () => {
     expect(database).toMatch(/^<ellipse[^\n]*<\/?path/);
   });
+
+  test.each(["[]", "null", '{ "database": 42 }'])(
+    "refuses %s, which does not map each name to its markup",
+    async (json) => {
+      const dir = await mkdtemp(join(tmpdir(), "icons-"));
+      const path = join(dir, "icons.json");
+
+      try {
+        await Bun.write(path, json);
+        const failure: unknown = await readLucideIcons(path).then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+
+        expect(errorMessage(failure)).toBe(
+          `The icon map ${path} must map each icon name to its markup. Run bun run update:icons.`,
+        );
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 describe("assets", () => {
