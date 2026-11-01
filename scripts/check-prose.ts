@@ -103,7 +103,9 @@ const LABELED_BULLETS = [
  * separator, and only the tags that reach the prose survive the parser's
  * code, HTML and quote exclusions, a code span around the separator too.
  */
-export function findLabeledBullets(markdown: string): Finding[] {
+function labeledBullets(
+  markdown: string,
+): (Finding & { line: number; delimiter: string })[] {
   const lines = markdown.split("\n");
   const frontmatterEnd = lines[0] === "---" ? lines.indexOf("---", 1) : -1;
 
@@ -136,14 +138,30 @@ export function findLabeledBullets(markdown: string): Finding[] {
     .filter(({ index }) => prose.includes(tag(index)))
     .map(({ index, written, label }) => ({
       line: index + 1,
+      // The last character of what the label is written with: a dash or a period.
+      delimiter: written.at(-1) === "*" ? "." : (written.at(-1) ?? ""),
       message: `labels a bullet with "${written}". Write "**${label}**: text", with a colon.`,
     }));
 }
 
+export function findLabeledBullets(markdown: string): Finding[] {
+  return labeledBullets(markdown).map(({ line, message }) => ({
+    line,
+    message,
+  }));
+}
+
 export function findProseProblems(markdown: string): Finding[] {
-  const labeled = findLabeledBullets(markdown);
-  const labeledLines = new Set(labeled.map(({ line }) => line));
-  const problems: Finding[] = [...labeled];
+  const labeled = labeledBullets(markdown);
+  // A labeled bullet's message names its own delimiter, so the separator
+  // rules skip that one dash. Another dash on the line still counts.
+  const exempt = new Map(
+    labeled.map(({ line, delimiter }) => [line, delimiter] as const),
+  );
+  const problems: Finding[] = labeled.map(({ line, message }) => ({
+    line,
+    message,
+  }));
   let cursor = 0;
 
   for (const fragment of proseFragments(markdown)) {
@@ -158,12 +176,12 @@ export function findProseProblems(markdown: string): Finding[] {
       .split("\n").length;
 
     for (const { pattern, message, separator } of RULES) {
-      // A labeled bullet's own message already names its separator.
-      if (separator && labeledLines.has(line)) {
-        continue;
-      }
-
       for (const [match] of fragment.matchAll(pattern)) {
+        if (separator && exempt.get(line) === match.trim()) {
+          exempt.delete(line);
+          continue;
+        }
+
         problems.push({ line, message: message(match) });
       }
     }

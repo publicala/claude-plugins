@@ -149,6 +149,35 @@ describe("findProseProblems", () => {
     ]);
   });
 
+  test("exempts only the label's own dash, and reports another on the same line", () => {
+    expect(
+      findProseProblems("- **Lint** \u2014 runs ESLint \u2014 and more.\n"),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          'labels a bullet with "**Lint** \u2014". Write "**Lint**: text", with a colon.',
+      },
+      {
+        line: 1,
+        message: "has an em dash. Use parentheses or split the sentence.",
+      },
+    ]);
+    expect(findProseProblems("- Lint - runs ESLint - and more.\n")).toEqual([
+      {
+        line: 1,
+        message:
+          'labels a bullet with "Lint -". Write "**Lint**: text", with a colon.',
+      },
+      {
+        line: 1,
+        message:
+          'uses "-" as a separator. Use parentheses or split the sentence.',
+      },
+    ]);
+    expect(findProseProblems("- **Lint**: runs ESLint.\n")).toEqual([]);
+  });
+
   test("names the line of each problem, also after code", () => {
     const text = [
       "# Title",
