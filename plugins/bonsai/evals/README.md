@@ -21,10 +21,10 @@ Each case runs three times with the plugin and three times without it, so a full
 The sandbox has no network, so `guard/fixture/` stands in for GitHub:
 
 - **The repository**: `setup.sh` builds a small Go service for Acme Books at the workspace root, with the history of three pull requests (41 and 42 merged, 43 open) and an `origin` that points at `github.com/acme-books/inventory` but fetches from a local bare repository.
-- **A fake `gh`**: `fixture/gh`, first on the sandbox's PATH, answers the reads guard makes (review threads over GraphQL, `gh pr view`, `gh pr diff`, `gh pr list`, the REST endpoints) from `prs/<number>/pr.json`. It refuses every write, and logs each call to `.git/eval-gh-calls.log` as `READ`, `WRITE` or `UNSUPPORTED`. The graders read that log, so a write made from a subagent or a script still counts.
-- **A git wrapper**: `fixture/git`, also first on PATH, runs the real git and logs each call to `.git/eval-git-calls.log`, with `WRITE` for a push or a branch under `guard/`. It's also how git runs at all on macOS: `/usr/bin/git` there is a shim that needs `xcrun`, which the sandbox blocks, so `setup.sh` points the wrapper, and git's own subprocesses, at the real binary.
+- **A fake `gh`**: `fixture/gh`, first on the sandbox's PATH, answers the reads guard makes (review threads over GraphQL, `gh pr view`, `gh pr diff`, `gh pr list`, the REST endpoints) from `prs/<number>/pr.json`. It refuses every write, and logs each call to `.git/eval-gh-calls.log` as `READ`, `WRITE` or `UNSUPPORTED`, with the query of a GraphQL call sent as a file or a request body. The graders read that log, so a write made from a subagent or a script still counts.
+- **A git wrapper**: `fixture/git`, also first on PATH, runs the real git and logs each call to `.git/eval-git-calls.log`, with `WRITE` for a push, a new branch, or a commit in the workspace's own checkout. A scratch worktree with a detached HEAD is a read. It's also how git runs at all on macOS: `/usr/bin/git` there is a shim that needs `xcrun`, which the sandbox blocks, so `setup.sh` points the wrapper, and git's own subprocesses, at the real binary.
 
-An `UNSUPPORTED` line in the log means guard asked for something the fake does not serve yet: add it to `fixture/gh` and run the case again.
+An `UNSUPPORTED` line in the log means guard asked for something the fake does not serve yet, and fails the `fixture-served-every-call` grader: add it to `fixture/gh` and run the case again.
 
 ## What each case guards
 
@@ -34,4 +34,4 @@ An `UNSUPPORTED` line in the log means guard asked for something the fake does n
 | `guard-design-choice-is-none` | 42: a reviewer asks for a map, the author keeps the slice and says why | turns the design choice into a check or a CLAUDE.md line, or gives another reason |
 | `guard-overridden-check-is-held` | 43: the author adds the new file to the allowlist of the test that fired | proposes a new check for a rule a check already holds, or misses that the author overrode it |
 
-Every case also fails when guard writes to GitHub, creates a `guard/` branch or pushes before the user approves a candidate, or reads the threads without GraphQL. The verdicts are graded by a judge model from the final reply, and everything else from the logs and the transcript. `skill-fired` reports whether the skill ran, and stays out of the score when the run has a baseline arm.
+Every case also fails when guard writes to GitHub, creates a branch, commits to the checkout or pushes before the user approves a candidate, or reads the threads without GraphQL. The verdicts are graded by a judge model from the final reply, and everything else from the logs and the transcript. `skill-fired` reports whether the skill ran, and stays out of the score when the run has a baseline arm.

@@ -26,6 +26,7 @@ fi
 # each call for the graders.
 printf '%s\n' "$real_git" >"$state/real-git"
 printf '%s\n' "$workspace/.git/eval-git-calls.log" >"$state/git-log-path"
+printf '%s\n' "$(cd "$workspace" && pwd -P)" >"$state/workspace"
 for tool in upload-pack receive-pack; do
   printf '#!/bin/sh\nexec "%s" %s "$@"\n' "$real_git" "$tool" >"$state/bin/git-$tool"
   chmod +x "$state/bin/git-$tool"
@@ -36,9 +37,10 @@ chmod +x "$state/bin/git" "$state/bin/gh"
 cp "$fixture/repo.json" "$state/gh/repo.json"
 printf '%s\n' "$workspace/.git/eval-gh-calls.log" >"$state/gh/log-path"
 
-# The sandboxed Bash tool starts a login shell from the run's HOME, so this
-# puts the fixture's bin first for zsh and bash alike.
-for rc in .zshenv .bashrc .bash_profile .profile; do
+# The sandboxed Bash tool starts its shell from the run's HOME, so this puts
+# the fixture's bin first for zsh and bash alike. .zprofile repeats .zshenv
+# because a login zsh runs macOS's path_helper in between.
+for rc in .zshenv .zprofile .bashrc .bash_profile .profile; do
   printf 'export PATH="%s/bin:$PATH"\n' "$state" >>"$HOME/$rc"
 done
 

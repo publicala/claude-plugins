@@ -1,5 +1,5 @@
 ---
 type: regex
 target: last_message
-pattern: '^(?=[\s\S]*internal/stock/stock\.go)(?=[\s\S]*internal/catalog/seed\.go)'
+pattern: '^(?=[\s\S]*\bstock\.go\b)(?=[\s\S]*\bseed\.go\b)'
 ---

@@ -230,7 +230,10 @@ case "${1:-}" in
           -f | -F | --raw-field | --field)
             value="${args[i + 1]:-}"
             [[ "$value" == query=* ]] && query="${value#query=}"
-            [[ "$value" == query=@* ]] && query="$(cat "${value#query=@}" 2>/dev/null)"
+            if [[ "$value" == query=@* ]]; then
+              query="$(cat "${value#query=@}" 2>/dev/null)"
+              body="$query"
+            fi
             [[ "$value" =~ ^(pr|number|prNumber|pull|pullRequest|num)=([0-9]+)$ ]] && number="${BASH_REMATCH[2]}"
             ;;
         esac
@@ -314,5 +317,16 @@ case "${1:-}" in
     esac
     ;;
 
-  *) unsupported ;;
+  *)
+    # A command the fixture does not serve still counts as a write when its
+    # verb changes something on GitHub.
+    for verb in "${args[@]:1}"; do
+      case "$verb" in
+        create | edit | comment | close | reopen | delete | merge | review | ready | lock | unlock | \
+          transfer | pin | unpin | develop | run | rerun | cancel | enable | disable | set | upload | \
+          sync | fork | archive | unarchive | rename | add | remove) refuse_write ;;
+      esac
+    done
+    unsupported
+    ;;
 esac

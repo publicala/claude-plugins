@@ -1,8 +1,8 @@
 #!/bin/bash
 # Runs the real git for the guard eval cases, and logs each call the graders
-# read: WRITE for a push or for a branch under guard/ (the branches guard cuts
-# for its pull requests), READ for every other call. git's own subprocesses
-# come through here too, so `worktree add -b` logs the branch it creates.
+# read: WRITE for a push, a new branch, or a commit in the workspace's own
+# checkout, READ for every other call. Guard does none of those before the
+# user approves a candidate. git's own subprocesses come through here too.
 
 state="$HOME/.eval-fixture"
 real_git="$(cat "$state/real-git")"
@@ -25,26 +25,45 @@ rest=("${@:i+1}")
 
 kind=READ
 case "$subcommand" in
-  push | update-ref)
-    [ "$subcommand" = push ] && kind=WRITE
+  push) kind=WRITE ;;
+  update-ref)
     for arg in "${rest[@]}"; do
-      case "$arg" in refs/heads/guard/*) kind=WRITE ;; esac
+      case "$arg" in refs/heads/*) kind=WRITE ;; esac
     done
     ;;
-  branch | switch | checkout | worktree)
-    deleting=0
-    creating=0
+  switch | checkout)
+    for arg in "${rest[@]}"; do
+      case "$arg" in -c | -C | -b | -B | --create | --force-create | --orphan) kind=WRITE ;; esac
+    done
+    ;;
+  worktree)
+    if [ "${rest[0]}" = add ]; then
+      for arg in "${rest[@]}"; do
+        case "$arg" in -b | -B) kind=WRITE ;; esac
+      done
+    fi
+    ;;
+  branch)
+    # Listing, deleting and showing take these flags. Anything else that
+    # names a branch creates, renames or copies one.
+    named=0
+    reading=0
     for arg in "${rest[@]}"; do
       case "$arg" in
-        -d | -D | --delete | -l | --list) deleting=1 ;;
+        -d | -D | --delete | -l | --list | -a | --all | -r | --remotes | --show-current | -v | -vv | --verbose | \
+          --contains* | --no-contains* | --merged* | --no-merged* | --points-at* | --format* | --sort* | \
+          -u | --set-upstream-to* | --unset-upstream | --edit-description) reading=1 ;;
+        -*) ;;
+        *) named=1 ;;
       esac
     done
-    for arg in "${rest[@]}"; do
-      case "$arg" in
-        guard/* | \"guard/* | \'guard/*) creating=1 ;;
-      esac
-    done
-    [ "$creating" = 1 ] && [ "$deleting" = 0 ] && kind=WRITE
+    [ "$named" = 1 ] && [ "$reading" = 0 ] && kind=WRITE
+    ;;
+  commit)
+    # A commit in a throwaway worktree is a measurement. One in the
+    # workspace's own checkout writes to the user's branch.
+    toplevel="$("$real_git" "${@:1:i-1}" rev-parse --show-toplevel 2>/dev/null)"
+    [ "$toplevel" = "$(cat "$state/workspace")" ] && kind=WRITE
     ;;
 esac
 
