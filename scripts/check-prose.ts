@@ -3,8 +3,14 @@
 // Fails when the prose in a Markdown file breaks a writing rule that a
 // pattern can catch. Code, code spans, HTML and link destinations are
 // not prose, so they never count.
-import { existsSync } from "node:fs";
 import { join } from "node:path";
+
+import {
+  errorAnnotation,
+  type Finding,
+  type Annotation,
+} from "./workflow-command";
+import { repoFiles } from "./repo-files";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -80,8 +86,8 @@ export function proseFragments(markdown: string): string[] {
   return prose;
 }
 
-export function findProseProblems(markdown: string): string[] {
-  const problems: string[] = [];
+export function findProseProblems(markdown: string): Finding[] {
+  const problems: Finding[] = [];
   let cursor = 0;
 
   for (const fragment of proseFragments(markdown)) {
@@ -97,7 +103,7 @@ export function findProseProblems(markdown: string): string[] {
 
     for (const { pattern, message } of RULES) {
       for (const [match] of fragment.matchAll(pattern)) {
-        problems.push(`line ${line} ${message(match)}`);
+        problems.push({ line, message: message(match) });
       }
     }
   }
@@ -105,61 +111,31 @@ export function findProseProblems(markdown: string): string[] {
   return problems;
 }
 
-/**
- * Every Markdown file a commit could carry: tracked, or untracked and not
- * ignored, in any directory.
- */
-export function markdownFiles(root: string): string[] {
-  const listed = Bun.spawnSync(
-    [
-      "git",
-      "ls-files",
-      "--cached",
-      "--others",
-      "--exclude-standard",
-      "-z",
-      "--",
-      "*.md",
-    ],
-    { cwd: root },
-  );
-
-  if (!listed.success) {
-    throw new Error(
-      `Unable to list the Markdown files with git in ${root}: ${listed.stderr.toString().trim()}`,
-    );
-  }
-
-  return [...new Set(listed.stdout.toString().split("\0"))]
-    .filter((path) => path !== "" && existsSync(join(root, path)))
-    .toSorted();
-}
-
 export async function checkProse(root: string): Promise<{
   checked: number;
-  errors: string[];
+  problems: Annotation[];
 }> {
-  const paths = markdownFiles(root);
+  const paths = repoFiles(root, "*.md");
 
-  const errors = await Promise.all(
-    paths.map(async (path) =>
-      findProseProblems(await Bun.file(join(root, path)).text()).map(
-        (problem) => `${path}: ${problem}`,
+  const problems = await Promise.all(
+    paths.map(async (file) =>
+      findProseProblems(await Bun.file(join(root, file)).text()).map(
+        (finding) => ({ file, ...finding }),
       ),
     ),
   );
 
-  return { checked: paths.length, errors: errors.flat() };
+  return { checked: paths.length, problems: problems.flat() };
 }
 
 export async function main(root = ROOT): Promise<number> {
-  const { checked, errors } = await checkProse(root);
+  const { checked, problems } = await checkProse(root);
 
-  for (const error of errors) {
-    console.error(`::error::${error}`);
+  for (const problem of problems) {
+    console.error(errorAnnotation(problem));
   }
 
-  if (errors.length > 0) {
+  if (problems.length > 0) {
     return 1;
   }
 
