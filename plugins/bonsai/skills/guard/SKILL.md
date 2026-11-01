@@ -71,7 +71,7 @@ Sort every finding into one class:
 - **prose**: no rung can see it, and it passes the prose gate (step 6).
 - **none**, with one reason:
   - a one-off bug, a design choice, a scope dispute, a preference with no single right form, wording, or a finding that rests on a false premise
-  - "held by `<check>`, overridden by the author": a check fired and the author changed what it expects (raised a snapshot, added an exception), which review then caught
+  - "held by `<check>`, overridden by the author": a check fired and the author changed what it expects (raised a snapshot, added an exception), which review then caught. The override stays in this finding's line (step 10).
   - "built in `<PR>`" or "declined in `<link>`": an earlier pass decided the candidate this finding feeds. Match by the mistake, and take the newest earlier decision per candidate: a marker on the same thread decides only the candidate it names, and the thread's other findings are weighed as usual. The candidate reaches the page again only when the user asks for it.
   - "stated in `<file>`": the rule sits in a file the session that wrote the PR loads, and no rung can see it. A cloud session loads the repository and what its setup installs, never the user's home directory, so a rule only there counts as unstated for it. A stated rule that a rung can check is a guard candidate.
 
@@ -186,6 +186,6 @@ Write replies in the user's voice when a voice skill is installed.
 
 ### 10. Report
 
-Close with a table: candidate, rung and tool, outcome (the PR URL with its CI state, **not now** with the reason, declined, waiting for the next round, or decided by an earlier pass with its link), and the threads it covers. Then one line per **none** finding with its reason. Then **Gaps seen**: the surface gaps from step 2 that no finding touched, reported and left alone.
+Close with a table: candidate, rung and tool, outcome (the PR URL with its CI state, **not now** with the reason, declined, waiting for the next round, or decided by an earlier pass with its link), and the threads it covers. Then one line per **none** finding with its reason. Then **Gaps seen**: the surface gaps from step 2 that no finding touched, reported and left alone. An override a **none** finding went through (an allowlist entry, a raised snapshot, a baseline) belongs to that finding's line: it never appears under Gaps seen, and guard proposes no check against it.
 
 When the pass published a page, turn it into the record: set `run.status` with the state `built` and the PR of each built candidate in `run.status.prs`, build it again, and republish it to the same URL.
