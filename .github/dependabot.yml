@@ -12,6 +12,12 @@ updates:
       prefix: chore
       include: scope
     groups:
+      # A lucide-static bump fails CI until `bun run update:icons` regenerates
+      # plugins/blueprint/assets/icons.json, which Dependabot cannot run. Its
+      # own PR keeps the rest of the group green. Run the command on its branch.
+      # A dependency joins the first group it matches, so this one stays first.
+      lucide-static:
+        patterns: ["lucide-static"]
       npm:
         patterns: ["*"]
     # typescript-eslint rejects TypeScript 7. Drop this once it supports it:
