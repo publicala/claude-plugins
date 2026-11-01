@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { readdir } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
@@ -8,7 +9,13 @@ import {
   readLucideIcons,
   readStylesheet,
 } from "./assets";
-import { buildPage, expandIcons, expandLogo, outputPathFor } from "./page";
+import {
+  buildPage,
+  bundlePageScript,
+  expandIcons,
+  expandLogo,
+  outputPathFor,
+} from "./page";
 
 const icons = await readLucideIcons();
 const database = icons.get("database") ?? "";
@@ -178,6 +185,46 @@ describe("outputPathFor", () => {
     expect(() =>
       outputPathFor("img/overview.html", ".diagram.html", ".png"),
     ).toThrow("Sources end in .diagram.html, got: img/overview.html");
+  });
+});
+
+describe("bundlePageScript", () => {
+  async function bundle(source: string): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), "blueprint-bundle-"));
+
+    try {
+      await Bun.write(join(dir, "script.ts"), source);
+      return await bundlePageScript(join(dir, "script.ts"));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  test("bundles the player into one script with no imports", async () => {
+    const script = await bundlePageScript(join(import.meta.dir, "player.ts"));
+
+    expect(script).toContain("window.walkthrough");
+    expect(script).not.toMatch(/^\s*(import|export)\b/m);
+    expect(script).not.toContain(import.meta.dir);
+    expect(script).not.toMatch(/^\/\/ .*\//m);
+  });
+
+  test("refuses code that would end the script block", () => {
+    expect(bundle('console.log("</script >");')).rejects.toThrow(
+      'bundles to code with "</script" or "<!--"',
+    );
+  });
+
+  test("refuses code that would open a comment in the script block", () => {
+    expect(bundle('console.log("<!--");')).rejects.toThrow(
+      'Split the string, as in "<" + "/script".',
+    );
+  });
+
+  test("names a script that does not build", () => {
+    expect(bundle("const = ;")).rejects.toThrow(
+      /Unable to bundle .*script\.ts:\n.+/,
+    );
   });
 });
 

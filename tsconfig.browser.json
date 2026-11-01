@@ -4,6 +4,9 @@
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "types": []
   },
-  "include": ["plugins/bonsai/renderer/page/**/*.ts"],
+  "include": [
+    "plugins/bonsai/renderer/page/**/*.ts",
+    "plugins/blueprint/renderer/player.ts"
+  ],
   "exclude": ["node_modules"]
 }

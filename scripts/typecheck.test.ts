@@ -45,7 +45,10 @@ describe("typecheck", () => {
   });
 
   test("checks the page scripts against the DOM, outside the Bun program", () => {
-    for (const page of ["plugins/bonsai/renderer/page/main.ts"]) {
+    for (const page of [
+      "plugins/bonsai/renderer/page/main.ts",
+      "plugins/blueprint/renderer/player.ts",
+    ]) {
       expect(browser.has(page)).toBe(true);
       expect(root.has(page)).toBe(false);
     }

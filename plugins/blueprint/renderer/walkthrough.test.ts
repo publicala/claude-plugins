@@ -261,6 +261,8 @@ describe("building the pages", () => {
       '<span class="play"><svg class="icon" viewBox="0 0 24 24"',
     );
     expect(player).not.toContain("<!-- figure -->");
+    expect(player).not.toContain("/*__PLAYER_SCRIPT__*/");
+    expect(player).toContain('playing ? "Pause" : "Play"');
   });
 });
 
