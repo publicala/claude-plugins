@@ -15,9 +15,12 @@ import sharp from "sharp";
 
 import { main } from "./render";
 import { findChrome, launchBrowser, openPage, renderFigure } from "./renderer";
+import { hasChrome } from "./test-tools";
 
 // Chrome starts and renders slower on CI's macOS runners than Bun's 5 s default.
 setDefaultTimeout(30_000);
+
+const chromeFound = await hasChrome();
 
 const EXAMPLES = join(import.meta.dir, "../skills/diagram/examples");
 const EXAMPLE_SOURCES = (await readdir(EXAMPLES)).filter((file) =>
@@ -154,7 +157,7 @@ describe("launchBrowser", () => {
   });
 });
 
-describe.skipIf(!(await findChrome()))("openPage", () => {
+describe.skipIf(!chromeFound)("openPage", () => {
   test("closes the page when its setup fails", async () => {
     const browser = await launchBrowser();
 
@@ -173,7 +176,7 @@ describe.skipIf(!(await findChrome()))("openPage", () => {
   });
 });
 
-describe.skipIf(!(await findChrome()))("renderFigure", () => {
+describe.skipIf(!chromeFound)("renderFigure", () => {
   let browser: Browser;
   let workDir: string;
 
@@ -299,7 +302,7 @@ describe.skipIf(!(await findChrome()))("renderFigure", () => {
   );
 });
 
-describe.skipIf(!(await findChrome()))("command line", () => {
+describe.skipIf(!chromeFound)("command line", () => {
   test("renders each source and names what it wrote", async () => {
     const workDir = await mkdtemp(join(tmpdir(), "blueprint-cli-"));
     const log = spyOn(console, "log").mockImplementation(() => undefined);

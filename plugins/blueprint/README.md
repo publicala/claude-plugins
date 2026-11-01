@@ -39,7 +39,7 @@ bun install
 bun test plugins/blueprint
 ```
 
-The tests that render need Chrome, and skip without it.
+The tests that render need Chrome, and the video test needs ffmpeg. Without them they skip, except when `CI` is set: there they fail and name the missing tool.
 
 ## License
 

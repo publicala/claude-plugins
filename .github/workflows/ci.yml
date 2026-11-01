@@ -78,6 +78,35 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: package.json
+      # The renderer tests fail under CI when a tool they drive is missing.
+      # The runner images ship Chrome. ffmpeg, for the walkthrough video, comes
+      # from a static build pinned by sha256: seconds, where apt-get and brew
+      # take most of a minute.
+      - name: Install ffmpeg
+        env:
+          FFMPEG_RELEASE: https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1
+        run: |
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Linux-X64)
+              asset=ffmpeg-linux-x64.gz
+              sha256=bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa
+              ;;
+            macOS-ARM64)
+              asset=ffmpeg-darwin-arm64.gz
+              sha256=8923876afa8db5585022d7860ec7e589af192f441c56793971276d450ed3bbfa
+              ;;
+            *)
+              echo "::error::No pinned ffmpeg build for $RUNNER_OS-$RUNNER_ARCH. Add its asset and sha256 from $FFMPEG_RELEASE."
+              exit 1
+              ;;
+          esac
+          mkdir -p "$RUNNER_TEMP/ffmpeg"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/ffmpeg/ffmpeg.gz" "$FFMPEG_RELEASE/$asset"
+          echo "$sha256  $RUNNER_TEMP/ffmpeg/ffmpeg.gz" | shasum --algorithm 256 --check --strict
+          gunzip "$RUNNER_TEMP/ffmpeg/ffmpeg.gz"
+          chmod +x "$RUNNER_TEMP/ffmpeg/ffmpeg"
+          echo "$RUNNER_TEMP/ffmpeg" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/ffmpeg/ffmpeg" -hide_banner -version | head -n 1
       - run: bun install --frozen-lockfile
       - run: bun test --coverage
 
