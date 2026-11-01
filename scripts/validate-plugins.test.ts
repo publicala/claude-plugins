@@ -415,6 +415,23 @@ const COMPLIANT_SKILL = [
   "",
 ].join("\n");
 
+const COMPLIANT_MARKETPLACE = JSON.stringify(
+  {
+    name: "acme-books",
+    plugins: [
+      {
+        name: "demo",
+        description: "Prunes.",
+        source: "./plugins/demo",
+        homepage:
+          "https://github.com/publicala/claude-plugins/tree/main/plugins/demo",
+      },
+    ],
+  },
+  null,
+  2,
+);
+
 const COMPLIANT: Record<string, string> = {
   "README.md": "See [the demo plugin](plugins/demo).\n",
   "plugins/demo/skills/audit/SKILL.md": COMPLIANT_SKILL,
@@ -424,6 +441,7 @@ const COMPLIANT: Record<string, string> = {
     null,
     2,
   ),
+  ".claude-plugin/marketplace.json": COMPLIANT_MARKETPLACE,
 };
 
 async function problemsIn(
@@ -562,6 +580,30 @@ describe("validatePlugins", () => {
         file: "plugins/extra/.claude-plugin/plugin.json",
         message:
           'is missing, so Claude Code cannot install plugins/extra. Add it with "name": "extra" and a "description".',
+      },
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 3,
+        message:
+          'does not list plugins/extra, so it cannot be installed. Add an entry with its name, description, "source": "./plugins/extra" and "homepage": "https://github.com/publicala/claude-plugins/tree/main/plugins/extra".',
+      },
+    ]);
+  });
+
+  test("flags a marketplace entry whose description drifted from plugin.json", async () => {
+    expect(
+      await problemsIn({
+        ".claude-plugin/marketplace.json": COMPLIANT_MARKETPLACE.replace(
+          '"Prunes."',
+          '"Prunes old rules."',
+        ),
+      }),
+    ).toEqual([
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 6,
+        message:
+          '"description" of plugins/demo is "Prunes old rules.", and plugins/demo/.claude-plugin/plugin.json says "Prunes.". Copy the plugin.json value here.',
       },
     ]);
   });

@@ -12,7 +12,11 @@ import {
   lineAt,
   type Annotation,
 } from "./workflow-command";
-import { pluginNames, validatePluginManifests } from "./plugin-manifests";
+import {
+  pluginNames,
+  validateMarketplace,
+  validatePluginManifests,
+} from "./plugin-manifests";
 import { repoFiles } from "./repo-files";
 import { unquoteSkillVariables } from "./skill-variables";
 
@@ -361,6 +365,7 @@ export async function validatePlugins(root: string): Promise<{
     problems: [
       ...markdownProblems.flat(),
       ...validatePluginManifests(root, plugins),
+      ...validateMarketplace(root, plugins),
     ],
   };
 }

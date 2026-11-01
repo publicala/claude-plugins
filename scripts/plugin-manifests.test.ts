@@ -1,12 +1,16 @@
 import { describe, expect, test } from "bun:test";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 
+import type { Annotation } from "./workflow-command";
 import {
   lineOfKey,
   pluginNames,
   readJsonObject,
+  validateMarketplace,
   validatePluginManifest,
 } from "./plugin-manifests";
+import { tempRepo } from "./temp-repo";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -106,6 +110,156 @@ describe("validatePluginManifest", () => {
         line: 3,
         message:
           'carries "version", and CLAUDE.md says: "plugin.json carries no version, so every merge reaches users." Remove the "version" key.',
+      },
+    ]);
+  });
+});
+
+describe("validateMarketplace", () => {
+  const HOME = "https://github.com/publicala/claude-plugins/tree/main/plugins";
+  const PLUGINS = {
+    "plugins/alpha/.claude-plugin/plugin.json": JSON.stringify({
+      name: "alpha",
+      description: "Alpha.",
+    }),
+    "plugins/beta/.claude-plugin/plugin.json": "{ broken",
+  };
+
+  async function problemsFor(
+    marketplace: unknown,
+    plugins = ["alpha", "beta"],
+  ): Promise<Annotation[]> {
+    const root = await tempRepo({
+      ...PLUGINS,
+      ...(marketplace === undefined
+        ? {}
+        : {
+            ".claude-plugin/marketplace.json": JSON.stringify(
+              marketplace,
+              null,
+              2,
+            ),
+          }),
+    });
+
+    try {
+      return validateMarketplace(root, plugins);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+
+  const alpha = {
+    name: "alpha",
+    description: "Alpha.",
+    source: "./plugins/alpha",
+    homepage: `${HOME}/alpha`,
+  };
+  const beta = {
+    name: "beta",
+    description: "Anything, since its plugin.json does not parse.",
+    source: "./plugins/beta/",
+    homepage: `${HOME}/beta`,
+  };
+
+  test("accepts an entry per plugin that matches its plugin.json", async () => {
+    expect(await problemsFor({ plugins: [alpha, beta] })).toEqual([]);
+  });
+
+  test("needs a marketplace only when there are plugins", async () => {
+    expect(await problemsFor(undefined, [])).toEqual([]);
+    expect(await problemsFor(undefined)).toEqual([
+      {
+        file: ".claude-plugin/marketplace.json",
+        message:
+          "is missing, so no plugin under plugins/ can be installed. Add it with an entry per plugin.",
+      },
+    ]);
+  });
+
+  test("reports a marketplace that does not parse, or has no plugins list", async () => {
+    expect(await problemsFor([])).toEqual([
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 1,
+        message: "is not a JSON object. Write its keys inside { }.",
+      },
+    ]);
+    expect(await problemsFor({ plugins: "alpha" })).toEqual([
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 2,
+        message:
+          '"plugins" is "alpha". Write "plugins": [ ] with an entry per directory under plugins/.',
+      },
+    ]);
+  });
+
+  test("names an entry without a source, a source that is no plugin, and a plugin listed twice", async () => {
+    expect(
+      await problemsFor({
+        plugins: [
+          alpha,
+          beta,
+          { name: "gamma" },
+          { ...alpha, source: "./plugins/gamma" },
+          alpha,
+        ],
+      }),
+    ).toEqual([
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 2,
+        message:
+          'lists the entry {"name":"gamma"}, which has no "source" path. Write "source": "./plugins/<name>".',
+      },
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 21,
+        message:
+          '"source" is "./plugins/gamma", which is no plugin directory. Point it at one, like "./plugins/<name>".',
+      },
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 27,
+        message: "lists plugins/alpha twice. Remove one of its entries.",
+      },
+    ]);
+  });
+
+  test("names the name, description and homepage that drifted, and the plugin left out", async () => {
+    expect(
+      await problemsFor({
+        plugins: [
+          {
+            name: "alfa",
+            source: "./plugins/alpha",
+            homepage: "https://example.com",
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 4,
+        message:
+          '"name" of plugins/alpha is "alfa", and plugins/alpha/.claude-plugin/plugin.json says "alpha". Copy the plugin.json value here.',
+      },
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 5,
+        message:
+          '"description" of plugins/alpha is missing, and plugins/alpha/.claude-plugin/plugin.json says "Alpha.". Copy the plugin.json value here.',
+      },
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 6,
+        message: `"homepage" of plugins/alpha is "https://example.com". Write "homepage": "${HOME}/alpha".`,
+      },
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 2,
+        message: `does not list plugins/beta, so it cannot be installed. Add an entry with its name, description, "source": "./plugins/beta" and "homepage": "${HOME}/beta".`,
       },
     ]);
   });

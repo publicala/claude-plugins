@@ -25,16 +25,25 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The line of a JSON key, or of the key with this value when given. */
+/** The lines of a JSON key, or of the key with this value when given. */
+export function linesOfKey(
+  text: string,
+  key: string,
+  value?: unknown,
+): number[] {
+  const pattern = `"${RegExp.escape(key)}"\\s*:${value === undefined ? "" : `\\s*${RegExp.escape(JSON.stringify(value))}`}`;
+
+  return [...text.matchAll(new RegExp(pattern, "g"))].map(({ index }) =>
+    lineAt(text, index),
+  );
+}
+
 export function lineOfKey(
   text: string,
   key: string,
   value?: unknown,
 ): number | undefined {
-  const pattern = `"${RegExp.escape(key)}"\\s*:${value === undefined ? "" : `\\s*${RegExp.escape(JSON.stringify(value))}`}`;
-  const index = new RegExp(pattern).exec(text)?.index;
-
-  return index === undefined ? undefined : lineAt(text, index);
+  return linesOfKey(text, key, value)[0];
 }
 
 /**
@@ -141,4 +150,130 @@ export function validatePluginManifests(
       (finding) => ({ file, ...finding }),
     );
   });
+}
+
+const MARKETPLACE = ".claude-plugin/marketplace.json";
+
+// Where GitHub shows a plugin's directory, for the marketplace homepage.
+const TREE_URL = "https://github.com/publicala/claude-plugins/tree/main";
+
+/**
+ * The marketplace lists every plugin under plugins/ once, with the name
+ * and description of its plugin.json and its directory as the homepage.
+ */
+export function validateMarketplace(
+  root: string,
+  plugins: string[],
+): Annotation[] {
+  const read = readJsonObject(root, MARKETPLACE);
+
+  if (read === undefined) {
+    return plugins.length === 0
+      ? []
+      : [
+          {
+            file: MARKETPLACE,
+            message:
+              "is missing, so no plugin under plugins/ can be installed. Add it with an entry per plugin.",
+          },
+        ];
+  }
+
+  if ("problem" in read) {
+    return [read.problem];
+  }
+
+  const { text, json } = read;
+  const problem = (line: number | undefined, message: string): Annotation => ({
+    file: MARKETPLACE,
+    line,
+    message,
+  });
+
+  if (!Array.isArray(json.plugins)) {
+    return [
+      problem(
+        lineOfKey(text, "plugins") ?? 1,
+        `"plugins" is ${describeValue(json.plugins)}. Write "plugins": [ ] with an entry per directory under plugins/.`,
+      ),
+    ];
+  }
+
+  const listed = new Set<string>();
+  const problems = json.plugins.flatMap((entry: unknown): Annotation[] => {
+    if (!isObject(entry) || typeof entry.source !== "string") {
+      return [
+        problem(
+          lineOfKey(text, "plugins"),
+          `lists the entry ${JSON.stringify(entry)}, which has no "source" path. Write "source": "./plugins/<name>".`,
+        ),
+      ];
+    }
+
+    const source = entry.source.replace(/^\.\//, "").replace(/\/$/, "");
+    const name = /^plugins\/([^/]+)$/.exec(source)?.[1];
+
+    if (name === undefined || !plugins.includes(name)) {
+      return [
+        problem(
+          lineOfKey(text, "source", entry.source),
+          `"source" is ${JSON.stringify(entry.source)}, which is no plugin directory. Point it at one, like "./plugins/<name>".`,
+        ),
+      ];
+    }
+
+    if (listed.has(name)) {
+      return [
+        problem(
+          linesOfKey(text, "source", entry.source).at(-1),
+          `lists ${source} twice. Remove one of its entries.`,
+        ),
+      ];
+    }
+
+    listed.add(name);
+
+    const manifest = readJsonObject(root, manifestPath(name));
+    const homepage = `${TREE_URL}/${source}`;
+    const entryProblems: Annotation[] = [];
+
+    // A plugin.json that does not parse gets its own problem.
+    if (manifest !== undefined && "json" in manifest) {
+      for (const key of ["name", "description"]) {
+        if (entry[key] !== manifest.json[key]) {
+          entryProblems.push(
+            problem(
+              lineOfKey(text, key, entry[key]) ??
+                lineOfKey(text, "source", entry.source),
+              `"${key}" of ${source} is ${describeValue(entry[key])}, and ${manifestPath(name)} says ${describeValue(manifest.json[key])}. Copy the plugin.json value here.`,
+            ),
+          );
+        }
+      }
+    }
+
+    if (entry.homepage !== homepage) {
+      entryProblems.push(
+        problem(
+          lineOfKey(text, "homepage", entry.homepage) ??
+            lineOfKey(text, "source", entry.source),
+          `"homepage" of ${source} is ${describeValue(entry.homepage)}. Write "homepage": "${homepage}".`,
+        ),
+      );
+    }
+
+    return entryProblems;
+  });
+
+  return [
+    ...problems,
+    ...plugins
+      .filter((name) => !listed.has(name))
+      .map((name) =>
+        problem(
+          lineOfKey(text, "plugins"),
+          `does not list plugins/${name}, so it cannot be installed. Add an entry with its name, description, "source": "./plugins/${name}" and "homepage": "${TREE_URL}/plugins/${name}".`,
+        ),
+      ),
+  ];
 }
