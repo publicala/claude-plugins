@@ -344,7 +344,7 @@ describe("validatePostinstall", () => {
     expect(
       await problemsFor(
         withPostinstall(
-          'bun install --cwd plugins/alpha --frozen-lockfile; bun install --cwd="./plugins/gamma/"',
+          'bun install --cwd plugins/alpha --frozen-lockfile && bun install --cwd="./plugins/gamma/"',
         ),
         ["plugins/alpha/package.json", "plugins/gamma/package.json"],
       ),
@@ -362,6 +362,10 @@ describe("validatePostinstall", () => {
     "echo --cwd plugins/alpha",
     "bun run build --cwd plugins/alpha && bun install",
     "bun install --cwd plugins/beta || bun install --cwd plugins/alpha",
+    "bun install --cwd plugins/alpha || true",
+    "bun install --cwd plugins/alpha; echo done",
+    "echo start; bun install --cwd plugins/alpha",
+    "bun install --cwd plugins/alpha --dry-run",
   ])("names the plugin %p does not install", async (postinstall) => {
     expect(await problemsFor(withPostinstall(postinstall))).toEqual([
       {

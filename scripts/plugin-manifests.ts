@@ -333,13 +333,18 @@ export function validatePostinstall(
       : (lineOfPath(read.text, ["scripts", "postinstall"]) ??
         lineOfPath(read.text, ["scripts"]));
 
-  // The commands that always run: a command after || runs only when the
-  // one before it fails. Quotes around an argument change nothing.
+  // The install commands whose failure fails the postinstall: joined with
+  // &&, with no ; or || that could hide one, and none a --dry-run. Quotes
+  // around an argument change nothing.
   const installs = postinstall
     .replaceAll(/["']/g, "")
-    .split(/&&|;/)
-    .map((sequence) => sequence.split("||")[0]?.trim() ?? "")
-    .filter((command) => /^bun\s+(?:install|i)(?:\s|$)/.test(command));
+    .split("&&")
+    .map((command) => command.trim())
+    .filter(
+      (command) =>
+        /^bun\s+(?:install|i)(?:\s|$)/.test(command) &&
+        !/;|\|\||\s--dry-run(?:\s|$)/.test(command),
+    );
 
   return plugins
     .filter((name) => {
