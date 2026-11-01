@@ -136,6 +136,13 @@ describe("validateMarketplace", () => {
     "plugins/beta/.claude-plugin/plugin.json": "{ broken",
   };
 
+  // A fixture without a name gets one after its other keys, so their lines hold.
+  const isNamed = (marketplace: unknown): boolean =>
+    typeof marketplace !== "object" ||
+    marketplace === null ||
+    Array.isArray(marketplace) ||
+    "name" in marketplace;
+
   async function problemsFor(
     marketplace: unknown,
     plugins = ["alpha", "beta"],
@@ -146,7 +153,9 @@ describe("validateMarketplace", () => {
         ? {}
         : {
             ".claude-plugin/marketplace.json": JSON.stringify(
-              marketplace,
+              isNamed(marketplace)
+                ? marketplace
+                : { ...marketplace, name: "acme-books" },
               null,
               2,
             ),
@@ -175,6 +184,31 @@ describe("validateMarketplace", () => {
 
   test("accepts an entry per plugin that matches its plugin.json", async () => {
     expect(await problemsFor({ plugins: [alpha, beta] })).toEqual([]);
+  });
+
+  test("needs a marketplace name, which users type after the @", async () => {
+    const message = (value: string): string =>
+      `"name" is ${value}. Write "name": "<marketplace name>", the name users type in /plugin install <plugin>@<marketplace name>.`;
+
+    expect(
+      await problemsFor({ name: "acme-books", plugins: [alpha, beta] }),
+    ).toEqual([]);
+    expect(
+      await problemsFor({ name: undefined, plugins: [alpha, beta] }),
+    ).toEqual([
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 1,
+        message: message("missing"),
+      },
+    ]);
+    expect(await problemsFor({ name: " ", plugins: [alpha, beta] })).toEqual([
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 2,
+        message: message('" "'),
+      },
+    ]);
   });
 
   test("needs a marketplace only when there are plugins", async () => {

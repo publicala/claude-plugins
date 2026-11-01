@@ -193,8 +193,20 @@ export function validateMarketplace(
     message,
   });
 
+  // Users install a plugin as <plugin>@<marketplace name>.
+  const nameProblems =
+    typeof json.name === "string" && json.name.trim() !== ""
+      ? []
+      : [
+          problem(
+            lineOfPath(text, ["name"]) ?? 1,
+            `"name" is ${describeValue(json.name)}. Write "name": "<marketplace name>", the name users type in /plugin install <plugin>@<marketplace name>.`,
+          ),
+        ];
+
   if (!Array.isArray(json.plugins)) {
     return [
+      ...nameProblems,
       problem(
         lineOfPath(text, ["plugins"]) ?? 1,
         `"plugins" is ${describeValue(json.plugins)}. Write "plugins": [ ] with an entry per directory under plugins/.`,
@@ -275,6 +287,7 @@ export function validateMarketplace(
   );
 
   return [
+    ...nameProblems,
     ...problems,
     ...plugins
       .filter((name) => !listed.has(name))
