@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Builds the workspace every guard case starts from: the Acme Books inventory
 # repository at the workspace root, with the history of pull requests 41 to 43
-# and a GitHub origin served from a local bare repository, plus a fake `gh` on
-# PATH that answers from prs/<number>/pr.json and logs every call.
+# and a GitHub origin served from a local bare repository, plus a fake `gh` and
+# a git wrapper on PATH that log every call for the graders.
 #
 # Usage: setup.sh, run by a case's scaffold script from the empty workspace.
 set -euo pipefail
@@ -22,16 +22,17 @@ if [[ -z "$real_git" ]]; then
 fi
 
 # Wrappers, so the sandboxed shell and git's own subprocesses (worktree add,
-# a fetch from the local origin) all reach that git.
-for tool in git git-upload-pack git-receive-pack; do
-  subcommand="${tool#git}"
-  subcommand="${subcommand#-}"
-  printf '#!/bin/sh\nexec "%s" %s"$@"\n' "$real_git" "${subcommand:+$subcommand }" >"$state/bin/$tool"
-  chmod +x "$state/bin/$tool"
+# a fetch from the local origin) all reach that git. fixture/git also logs
+# each call for the graders.
+printf '%s\n' "$real_git" >"$state/real-git"
+printf '%s\n' "$workspace/.git/eval-git-calls.log" >"$state/git-log-path"
+for tool in upload-pack receive-pack; do
+  printf '#!/bin/sh\nexec "%s" %s "$@"\n' "$real_git" "$tool" >"$state/bin/git-$tool"
+  chmod +x "$state/bin/git-$tool"
 done
 
-cp "$fixture/gh" "$state/bin/gh"
-chmod +x "$state/bin/gh"
+cp "$fixture/git" "$fixture/gh" "$state/bin/"
+chmod +x "$state/bin/git" "$state/bin/gh"
 cp "$fixture/repo.json" "$state/gh/repo.json"
 printf '%s\n' "$workspace/.git/eval-gh-calls.log" >"$state/gh/log-path"
 
@@ -105,3 +106,4 @@ git branch -q --set-upstream-to=origin/main main
 git remote set-head origin main
 
 : >"$workspace/.git/eval-gh-calls.log"
+: >"$workspace/.git/eval-git-calls.log"

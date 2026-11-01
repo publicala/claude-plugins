@@ -1,0 +1,54 @@
+#!/bin/bash
+# Runs the real git for the guard eval cases, and logs each call the graders
+# read: WRITE for a push or for a branch under guard/ (the branches guard cuts
+# for its pull requests), READ for every other call. git's own subprocesses
+# come through here too, so `worktree add -b` logs the branch it creates.
+
+state="$HOME/.eval-fixture"
+real_git="$(cat "$state/real-git")"
+log="$(cat "$state/git-log-path")"
+
+# Skip git's global options to find the subcommand.
+i=1
+while [ "$i" -le "$#" ]; do
+  arg="${!i}"
+  case "$arg" in
+    -C | -c | --git-dir | --work-tree | --namespace | --exec-path | --config-env)
+      i=$((i + 2))
+      ;;
+    -*) i=$((i + 1)) ;;
+    *) break ;;
+  esac
+done
+subcommand="${!i}"
+rest=("${@:i+1}")
+
+kind=READ
+case "$subcommand" in
+  push | update-ref)
+    [ "$subcommand" = push ] && kind=WRITE
+    for arg in "${rest[@]}"; do
+      case "$arg" in refs/heads/guard/*) kind=WRITE ;; esac
+    done
+    ;;
+  branch | switch | checkout | worktree)
+    deleting=0
+    creating=0
+    for arg in "${rest[@]}"; do
+      case "$arg" in
+        -d | -D | --delete | -l | --list) deleting=1 ;;
+      esac
+    done
+    for arg in "${rest[@]}"; do
+      case "$arg" in
+        guard/* | \"guard/* | \'guard/*) creating=1 ;;
+      esac
+    done
+    [ "$creating" = 1 ] && [ "$deleting" = 0 ] && kind=WRITE
+    ;;
+esac
+
+printf '%s git %s\n' "$kind" "$*" | tr '\n' ' ' >>"$log"
+printf '\n' >>"$log"
+
+exec "$real_git" "$@"

@@ -9,14 +9,27 @@ set -o pipefail
 state="$HOME/.eval-fixture/gh"
 repo="$state/repo.json"
 log="$(cat "$state/log-path")"
-args=("$@")
+body=""
+
+# Splits the attached forms gh accepts (`-fkey=value`, `--field=key=value`,
+# `-XPOST`, `--method=POST`, `--input=file`) into flag and value, so every
+# check below sees one shape.
+args=()
+for arg in "$@"; do
+  case "$arg" in
+    -f?* | -F?* | -X?*) args+=("${arg:0:2}" "${arg:2}") ;;
+    --field=* | --raw-field=* | --method=* | --input=*) args+=("${arg%%=*}" "${arg#*=}") ;;
+    *) args+=("$arg") ;;
+  esac
+done
 
 owner="$(jq -r .owner "$repo")"
 name="$(jq -r .name "$repo")"
 url="https://github.com/$owner/$name"
 
 record() {
-  printf '%s gh %s\n' "$1" "${args[*]}" | tr '\n' ' ' | sed 's/ $//' >>"$log"
+  # A query sent in a request body goes in the line too.
+  printf '%s gh %s%s\n' "$1" "${args[*]}" "${body:+ <<< $body}" | tr '\n' ' ' | sed 's/ $//' >>"$log"
   printf '\n' >>"$log"
 }
 
@@ -211,21 +224,25 @@ case "${1:-}" in
     endpoint="${2:-}"
     if [[ "$endpoint" == graphql ]]; then
       query=""
-      for ((i = 0; i < ${#args[@]}; i++)); do
-        case "${args[i]}" in
-          -f | -F | --raw-field | --field) [[ "${args[i + 1]:-}" == query=* ]] && query="${args[i + 1]#query=}" ;;
-        esac
-      done
-      [[ "$query" == *mutation* ]] && refuse_write
-      record READ
       number=""
       for ((i = 0; i < ${#args[@]}; i++)); do
         case "${args[i]}" in
           -f | -F | --raw-field | --field)
-            [[ "${args[i + 1]:-}" =~ ^(pr|number|prNumber|pull|pullRequest|num)=([0-9]+)$ ]] && number="${BASH_REMATCH[2]}"
+            value="${args[i + 1]:-}"
+            [[ "$value" == query=* ]] && query="${value#query=}"
+            [[ "$value" == query=@* ]] && query="$(cat "${value#query=@}" 2>/dev/null)"
+            [[ "$value" =~ ^(pr|number|prNumber|pull|pullRequest|num)=([0-9]+)$ ]] && number="${BASH_REMATCH[2]}"
             ;;
         esac
       done
+      # A request body from --input carries the query and its variables.
+      if input="$(flag --input)"; then
+        if [[ "$input" == - ]]; then body="$(cat)"; else body="$(cat "$input" 2>/dev/null)"; fi
+        query="$query $(printf '%s' "$body" | jq -r '.query // empty' 2>/dev/null || printf '%s' "$body")"
+        [[ -n "$number" ]] || number="$(printf '%s' "$body" | jq -r '.variables // {} | (.pr // .number // .prNumber // .pull // .pullRequest // .num // empty)' 2>/dev/null)"
+      fi
+      [[ "$query" =~ (^|[^A-Za-z_])mutation([^A-Za-z_]|$) ]] && refuse_write
+      record READ
       if [[ -z "$number" && "$query" =~ pullRequest\(number:[[:space:]]*([0-9]+) ]]; then
         number="${BASH_REMATCH[1]}"
       fi

@@ -22,7 +22,7 @@ The sandbox has no network, so `guard/fixture/` stands in for GitHub:
 
 - **The repository**: `setup.sh` builds a small Go service for Acme Books at the workspace root, with the history of three pull requests (41 and 42 merged, 43 open) and an `origin` that points at `github.com/acme-books/inventory` but fetches from a local bare repository.
 - **A fake `gh`**: `fixture/gh`, first on the sandbox's PATH, answers the reads guard makes (review threads over GraphQL, `gh pr view`, `gh pr diff`, `gh pr list`, the REST endpoints) from `prs/<number>/pr.json`. It refuses every write, and logs each call to `.git/eval-gh-calls.log` as `READ`, `WRITE` or `UNSUPPORTED`. The graders read that log, so a write made from a subagent or a script still counts.
-- **A git wrapper**: macOS's `/usr/bin/git` is a shim that needs `xcrun`, which the sandbox blocks. `setup.sh` puts wrappers for the real git first on PATH, for the shell and for git's own subprocesses.
+- **A git wrapper**: `fixture/git`, also first on PATH, runs the real git and logs each call to `.git/eval-git-calls.log`, with `WRITE` for a push or a branch under `guard/`. It's also how git runs at all on macOS: `/usr/bin/git` there is a shim that needs `xcrun`, which the sandbox blocks, so `setup.sh` points the wrapper, and git's own subprocesses, at the real binary.
 
 An `UNSUPPORTED` line in the log means guard asked for something the fake does not serve yet: add it to `fixture/gh` and run the case again.
 
@@ -30,8 +30,8 @@ An `UNSUPPORTED` line in the log means guard asked for something the fake does n
 
 | Case | Pull request | It fails when guard |
 | --- | --- | --- |
-| `guard-auto-fix-candidate` | 41: a reviewer flags `for i, _ := range`, which `gofmt -s` rewrites | misses the candidate, picks a rung below auto-fix, or fills the cost line without a scratch run of `gofmt -s` in a throwaway worktree |
+| `guard-auto-fix-candidate` | 41: a reviewer flags `for i, _ := range`, which `gofmt -s` rewrites | misses the candidate, picks a rung below auto-fix, or skips the scratch run of `gofmt -s` in a throwaway worktree that finds the two files on the default branch it would rewrite |
 | `guard-design-choice-is-none` | 42: a reviewer asks for a map, the author keeps the slice and says why | turns the design choice into a check or a CLAUDE.md line, or gives another reason |
 | `guard-overridden-check-is-held` | 43: the author adds the new file to the allowlist of the test that fired | proposes a new check for a rule a check already holds, or misses that the author overrode it |
 
-Every case also fails when guard writes to GitHub, creates a guardrail branch or pushes before the user approves a candidate, or reads the threads without GraphQL. `skill-fired` reports whether the skill ran, and stays out of the score when the run has a baseline arm.
+Every case also fails when guard writes to GitHub, creates a `guard/` branch or pushes before the user approves a candidate, or reads the threads without GraphQL. The verdicts are graded by a judge model from the final reply, and everything else from the logs and the transcript. `skill-fired` reports whether the skill ran, and stays out of the score when the run has a baseline arm.
