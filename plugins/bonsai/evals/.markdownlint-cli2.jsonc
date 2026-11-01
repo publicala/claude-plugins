@@ -1,0 +1,12 @@
+{
+  "overrides": [
+    {
+      // An eval prompt is the message the run sends, and a grader's body is
+      // the rubric the judge reads, both verbatim, so neither opens with a
+      // heading.
+      "filter": ["**/prompt.md", "**/graders/*.md"],
+      "config": { "MD041": false },
+      "combine": "merge",
+    },
+  ],
+}
