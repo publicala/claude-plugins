@@ -5,11 +5,12 @@
   "packageManager": "bun@1.4.2",
   "scripts": {
     "postinstall": "bun install --cwd plugins/blueprint --frozen-lockfile",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run validate:plugins && bun run check:prose && bun test --coverage",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run validate:json && bun run validate:plugins && bun run check:prose && bun test --coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "bun --bun eslint --max-warnings=0 .",
     "typecheck": "tsc --noEmit",
+    "validate:json": "bun scripts/validate-json.ts",
     "validate:plugins": "bun scripts/validate-plugins.ts",
     "check:prose": "bun scripts/check-prose.ts",
     "update:icons": "bun scripts/update-blueprint-icons.ts"
@@ -20,6 +21,7 @@
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "happy-dom": "^21.0.4",
+    "jsonc-parser": "3.3.1",
     "lucide-static": "^1.48.0",
     "prettier": "^3.9.9",
     "typescript": "~6.0",
