@@ -16,6 +16,7 @@ import {
   pluginNames,
   validateMarketplace,
   validatePluginManifests,
+  validatePostinstall,
 } from "./plugin-manifests";
 import { repoFiles } from "./repo-files";
 import { unquoteSkillVariables } from "./skill-variables";
@@ -366,6 +367,7 @@ export async function validatePlugins(root: string): Promise<{
       ...markdownProblems.flat(),
       ...validatePluginManifests(root, plugins),
       ...validateMarketplace(root, plugins),
+      ...validatePostinstall(root, files),
     ],
   };
 }

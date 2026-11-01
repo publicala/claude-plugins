@@ -9,6 +9,7 @@ import {
   readJsonObject,
   validateMarketplace,
   validatePluginManifest,
+  validatePostinstall,
 } from "./plugin-manifests";
 import { tempRepo } from "./temp-repo";
 
@@ -260,6 +261,99 @@ describe("validateMarketplace", () => {
         file: ".claude-plugin/marketplace.json",
         line: 2,
         message: `does not list plugins/beta, so it cannot be installed. Add an entry with its name, description, "source": "./plugins/beta" and "homepage": "${HOME}/beta".`,
+      },
+    ]);
+  });
+});
+
+// The parser's own words change with Bun, so a test checks only that some are there.
+function withParserTextHidden(problems: Annotation[]): Annotation[] {
+  return problems.map((problem) => ({
+    ...problem,
+    message: problem.message.replace(
+      /^is not valid JSON \(.+\)\./,
+      "is not valid JSON (<parser text>).",
+    ),
+  }));
+}
+
+describe("validatePostinstall", () => {
+  async function problemsFor(
+    rootPackage: string | undefined,
+    files = ["plugins/alpha/package.json", "plugins/beta/README.md"],
+  ): Promise<Annotation[]> {
+    const root = await tempRepo(
+      rootPackage === undefined ? {} : { "package.json": rootPackage },
+    );
+
+    try {
+      return validatePostinstall(root, files);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+
+  const withPostinstall = (postinstall: string): string =>
+    JSON.stringify({ scripts: { postinstall } }, null, 2);
+
+  test("accepts a postinstall that installs every plugin package", async () => {
+    expect(
+      await problemsFor(
+        withPostinstall(
+          'bun install --cwd plugins/alpha --frozen-lockfile; bun install --cwd="./plugins/gamma/"',
+        ),
+        ["plugins/alpha/package.json", "plugins/gamma/package.json"],
+      ),
+    ).toEqual([]);
+  });
+
+  test("needs nothing when no plugin has a package.json", async () => {
+    expect(await problemsFor(undefined, ["plugins/beta/README.md"])).toEqual(
+      [],
+    );
+  });
+
+  test.each([
+    "bun install --cwd plugins/alphabet",
+    "echo --cwd plugins/alpha",
+    "bun run build --cwd plugins/alpha && bun install",
+    "bun install --cwd plugins/beta || bun install --cwd plugins/alpha",
+  ])("names the plugin %p does not install", async (postinstall) => {
+    expect(await problemsFor(withPostinstall(postinstall))).toEqual([
+      {
+        file: "package.json",
+        line: 3,
+        message:
+          'postinstall does not install plugins/alpha/package.json. Add "bun install --cwd plugins/alpha --frozen-lockfile" to it, joined with &&.',
+      },
+    ]);
+  });
+
+  test("names the plugin when there is no postinstall or no package.json", async () => {
+    expect(await problemsFor('{\n  "scripts": {}\n}')).toEqual([
+      {
+        file: "package.json",
+        line: 2,
+        message:
+          'postinstall does not install plugins/alpha/package.json. Add "bun install --cwd plugins/alpha --frozen-lockfile" to it, joined with &&.',
+      },
+    ]);
+    expect(await problemsFor(undefined)).toEqual([
+      {
+        file: "package.json",
+        line: undefined,
+        message:
+          'postinstall does not install plugins/alpha/package.json. Add "bun install --cwd plugins/alpha --frozen-lockfile" to it, joined with &&.',
+      },
+    ]);
+  });
+
+  test("reports a root package.json that does not parse", async () => {
+    expect(withParserTextHidden(await problemsFor("{"))).toEqual([
+      {
+        file: "package.json",
+        line: 1,
+        message: "is not valid JSON (<parser text>). Fix the syntax.",
       },
     ]);
   });

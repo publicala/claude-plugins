@@ -608,6 +608,26 @@ describe("validatePlugins", () => {
     ]);
   });
 
+  test("flags a plugin package the root postinstall does not install", async () => {
+    expect(
+      await problemsIn({
+        "package.json": JSON.stringify(
+          { name: "acme-books", scripts: { postinstall: "echo ready" } },
+          null,
+          2,
+        ),
+        "plugins/demo/package.json": JSON.stringify({ name: "demo" }),
+      }),
+    ).toEqual([
+      {
+        file: "package.json",
+        line: 4,
+        message:
+          'postinstall does not install plugins/demo/package.json. Add "bun install --cwd plugins/demo --frozen-lockfile" to it, joined with &&.',
+      },
+    ]);
+  });
+
   test("flags a plugin.json that is not an object", async () => {
     expect(
       await problemsIn({ "plugins/demo/.claude-plugin/plugin.json": "[]" }),

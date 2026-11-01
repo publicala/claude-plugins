@@ -277,3 +277,59 @@ export function validateMarketplace(
       ),
   ];
 }
+
+/**
+ * The root postinstall installs the packages of every plugin that keeps
+ * its own package.json, so `bun install` at the root covers them.
+ */
+export function validatePostinstall(
+  root: string,
+  files: string[],
+): Annotation[] {
+  const plugins = files.flatMap(
+    (path) => /^plugins\/([^/]+)\/package\.json$/.exec(path)?.[1] ?? [],
+  );
+
+  if (plugins.length === 0) {
+    return [];
+  }
+
+  const read = readJsonObject(root, "package.json");
+
+  if (read !== undefined && "problem" in read) {
+    return [read.problem];
+  }
+
+  const scripts = read?.json.scripts;
+  const postinstall =
+    isObject(scripts) && typeof scripts.postinstall === "string"
+      ? scripts.postinstall
+      : "";
+  const line =
+    read === undefined
+      ? undefined
+      : (lineOfKey(read.text, "postinstall") ??
+        lineOfKey(read.text, "scripts"));
+
+  // The commands that always run: a command after || runs only when the
+  // one before it fails. Quotes around an argument change nothing.
+  const installs = postinstall
+    .replaceAll(/["']/g, "")
+    .split(/&&|;/)
+    .map((sequence) => sequence.split("||")[0]?.trim() ?? "")
+    .filter((command) => /^bun\s+(?:install|i)(?:\s|$)/.test(command));
+
+  return plugins
+    .filter((name) => {
+      const cwd = new RegExp(
+        `\\s--cwd[ =](?:\\./)?plugins/${RegExp.escape(name)}/?(?:\\s|$)`,
+      );
+
+      return !installs.some((command) => cwd.test(command));
+    })
+    .map((name) => ({
+      file: "package.json",
+      line,
+      message: `postinstall does not install plugins/${name}/package.json. Add "bun install --cwd plugins/${name} --frozen-lockfile" to it, joined with &&.`,
+    }));
+}
