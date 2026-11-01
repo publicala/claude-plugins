@@ -1,7 +1,7 @@
 // The player page's script: play, pause and scrub the walkthrough the
-// timeline (timeline.ts) installed as window.walkthrough. walkthrough.ts
+// timeline (../timeline.ts) installed as window.walkthrough. walkthrough.ts
 // bundles it into the page.
-import type { Walkthrough } from "./timeline";
+import type { Walkthrough } from "../timeline";
 
 declare global {
   interface Window {

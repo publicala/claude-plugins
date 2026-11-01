@@ -11,9 +11,11 @@ import { cwdGitEnvironment } from "./repo-files";
 export async function tempRepo(files: Record<string, string>): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "repo-"));
 
-  for (const [path, text] of Object.entries(files)) {
-    await Bun.write(join(root, path), text);
-  }
+  await Promise.all(
+    Object.entries(files).map(([path, text]) =>
+      Bun.write(join(root, path), text),
+    ),
+  );
 
   Bun.spawnSync(["git", "init", "--quiet"], {
     cwd: root,

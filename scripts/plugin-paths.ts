@@ -262,10 +262,10 @@ function codeReferences(source: string, directory: string): Reference[] {
   });
 
   const templates = [...masked.matchAll(DIRECTORY_TEMPLATE)].map(
-    ({ 0: written, index }) => ({
-      ...reference(index, written),
-      relativePath: written.replace(/^\$\{[\w.]+\}\/?/, ""),
-    }),
+    ({ 0: written, index }) =>
+      Object.assign(reference(index, written), {
+        relativePath: written.replace(/^\$\{[\w.]+\}\/?/, ""),
+      }),
   );
 
   const calls = [...masked.matchAll(DIRECTORY_CALL)].map(
@@ -276,14 +276,16 @@ function codeReferences(source: string, directory: string): Reference[] {
         )
         .map(({ value }) => value);
 
-      return {
-        ...reference(index, source.slice(index, index + written.length)),
-        written: source
-          .slice(index, index + written.length)
-          .replaceAll(/\s+/g, " ")
-          .replace("( ", "("),
-        relativePath: posix.join(".", ...segments),
-      };
+      return Object.assign(
+        reference(index, source.slice(index, index + written.length)),
+        {
+          written: source
+            .slice(index, index + written.length)
+            .replaceAll(/\s+/g, " ")
+            .replace("( ", "("),
+          relativePath: posix.join(".", ...segments),
+        },
+      );
     },
   );
 
@@ -358,7 +360,7 @@ export async function validatePluginPaths(
   const problems = await Promise.all(
     scanned.map(async (file) =>
       findEscapingPaths(file, await Bun.file(join(root, file)).text()).map(
-        (finding) => ({ file, ...finding }),
+        (finding) => Object.assign(finding, { file }),
       ),
     ),
   );

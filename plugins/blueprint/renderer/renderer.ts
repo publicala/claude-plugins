@@ -65,22 +65,24 @@ export async function findChrome(
 // exist, so it goes through the same existence check as every other candidate.
 async function googleChrome(): Promise<string[]> {
   try {
+    // The default export's method, so a test can spy on it.
+    // oxlint-disable-next-line import/no-named-as-default-member
     return [await puppeteer.executablePath("chrome")];
   } catch {
     return [];
   }
 }
 
+const build = (path: string) => Number(/chromium-(\d+)/.exec(path)?.[1]);
+
 function playwrightChromium(dir: string | undefined): string[] {
   if (dir === undefined || !existsSync(dir)) {
     return [];
   }
 
-  const build = (path: string) => Number(/chromium-(\d+)/.exec(path)?.[1]);
-
-  return PLAYWRIGHT_CHROMIUM.flatMap((pattern) => [
-    ...new Bun.Glob(pattern).scanSync({ cwd: dir }),
-  ])
+  return PLAYWRIGHT_CHROMIUM.flatMap((pattern) =>
+    Array.from(new Bun.Glob(pattern).scanSync({ cwd: dir })),
+  )
     .toSorted((a, b) => build(b) - build(a))
     .map((match) => join(dir, match));
 }
@@ -105,6 +107,8 @@ export async function launchBrowser(): Promise<Browser> {
   // Chrome refuses to start as root with its sandbox on, as in containers and cloud sessions.
   const runsAsRoot = process.getuid?.() === 0;
 
+  // The default export's method, as for executablePath above.
+  // oxlint-disable-next-line import/no-named-as-default-member
   return puppeteer.launch({
     executablePath,
     headless: true,

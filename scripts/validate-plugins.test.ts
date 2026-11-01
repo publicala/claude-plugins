@@ -485,6 +485,14 @@ function withParserTextHidden(problems: Annotation[]): Annotation[] {
   }));
 }
 
+/** A plugin.json whose author has a name too. */
+const authoredManifest = (name: string): string =>
+  JSON.stringify(
+    { author: { name: "Acme Books" }, name, description: "Prunes." },
+    null,
+    2,
+  );
+
 describe("validatePlugins", () => {
   test("passes on this repository", async () => {
     const result = await validatePlugins(join(import.meta.dir, ".."));
@@ -556,21 +564,14 @@ describe("validatePlugins", () => {
   });
 
   test("names the line of the top-level name, past an author's name", async () => {
-    const manifest = (name: string): string =>
-      JSON.stringify(
-        { author: { name: "Acme Books" }, name, description: "Prunes." },
-        null,
-        2,
-      );
-
     expect(
       await problemsIn({
-        "plugins/demo/.claude-plugin/plugin.json": manifest("demo"),
+        "plugins/demo/.claude-plugin/plugin.json": authoredManifest("demo"),
       }),
     ).toEqual([]);
     expect(
       await problemsIn({
-        "plugins/demo/.claude-plugin/plugin.json": manifest("prune"),
+        "plugins/demo/.claude-plugin/plugin.json": authoredManifest("prune"),
       }),
     ).toEqual([
       {

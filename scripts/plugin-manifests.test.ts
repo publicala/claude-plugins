@@ -70,13 +70,7 @@ describe("validatePluginManifest", () => {
   test("names the directory when the name differs or is missing", () => {
     const text = '{\n  "name": "other",\n  "description": "Does a thing."\n}';
 
-    expect(
-      validatePluginManifest(
-        "demo",
-        text,
-        JSON.parse(text) as Record<string, unknown>,
-      ),
-    ).toEqual([
+    expect(validatePluginManifest("demo", text, JSON.parse(text))).toEqual([
       {
         line: 2,
         message:
@@ -110,13 +104,7 @@ describe("validatePluginManifest", () => {
     const text =
       '{\n  "name": "demo",\n  "version": "1.0.0",\n  "description": "Does a thing."\n}';
 
-    expect(
-      validatePluginManifest(
-        "demo",
-        text,
-        JSON.parse(text) as Record<string, unknown>,
-      ),
-    ).toEqual([
+    expect(validatePluginManifest("demo", text, JSON.parse(text))).toEqual([
       {
         line: 3,
         message:
@@ -125,6 +113,16 @@ describe("validatePluginManifest", () => {
     ]);
   });
 });
+
+// A fixture without a name gets one after its other keys, so their lines hold.
+const isNamed = (marketplace: unknown): boolean =>
+  typeof marketplace !== "object" ||
+  marketplace === null ||
+  Array.isArray(marketplace) ||
+  "name" in marketplace;
+
+const nameMessage = (value: string): string =>
+  `"name" is ${value}. Write "name": "<marketplace name>", the name users type in /plugin install <plugin>@<marketplace name>.`;
 
 describe("validateMarketplace", () => {
   const HOME = "https://github.com/publicala/claude-plugins/tree/main/plugins";
@@ -135,13 +133,6 @@ describe("validateMarketplace", () => {
     }),
     "plugins/beta/.claude-plugin/plugin.json": "{ broken",
   };
-
-  // A fixture without a name gets one after its other keys, so their lines hold.
-  const isNamed = (marketplace: unknown): boolean =>
-    typeof marketplace !== "object" ||
-    marketplace === null ||
-    Array.isArray(marketplace) ||
-    "name" in marketplace;
 
   async function problemsFor(
     marketplace: unknown,
@@ -187,9 +178,6 @@ describe("validateMarketplace", () => {
   });
 
   test("needs a marketplace name, which users type after the @", async () => {
-    const message = (value: string): string =>
-      `"name" is ${value}. Write "name": "<marketplace name>", the name users type in /plugin install <plugin>@<marketplace name>.`;
-
     expect(
       await problemsFor({ name: "acme-books", plugins: [alpha, beta] }),
     ).toEqual([]);
@@ -199,14 +187,14 @@ describe("validateMarketplace", () => {
       {
         file: ".claude-plugin/marketplace.json",
         line: 1,
-        message: message("missing"),
+        message: nameMessage("missing"),
       },
     ]);
     expect(await problemsFor({ name: " ", plugins: [alpha, beta] })).toEqual([
       {
         file: ".claude-plugin/marketplace.json",
         line: 2,
-        message: message('" "'),
+        message: nameMessage('" "'),
       },
     ]);
   });
@@ -321,28 +309,28 @@ function withParserTextHidden(problems: Annotation[]): Annotation[] {
   }));
 }
 
-describe("validatePostinstall", () => {
-  async function problemsFor(
-    rootPackage: string | undefined,
-    files = ["plugins/alpha/package.json", "plugins/beta/README.md"],
-  ): Promise<Annotation[]> {
-    const root = await tempRepo(
-      rootPackage === undefined ? {} : { "package.json": rootPackage },
-    );
+async function postinstallProblems(
+  rootPackage: string | undefined,
+  files = ["plugins/alpha/package.json", "plugins/beta/README.md"],
+): Promise<Annotation[]> {
+  const root = await tempRepo(
+    rootPackage === undefined ? {} : { "package.json": rootPackage },
+  );
 
-    try {
-      return validatePostinstall(root, files);
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+  try {
+    return validatePostinstall(root, files);
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
+}
 
-  const withPostinstall = (postinstall: string): string =>
-    JSON.stringify({ scripts: { postinstall } }, null, 2);
+const withPostinstall = (postinstall: string): string =>
+  JSON.stringify({ scripts: { postinstall } }, null, 2);
 
+describe("validatePostinstall", () => {
   test("accepts a postinstall that installs every plugin package", async () => {
     expect(
-      await problemsFor(
+      await postinstallProblems(
         withPostinstall(
           'bun install --cwd plugins/alpha --frozen-lockfile && bun install --cwd="./plugins/gamma/"',
         ),
@@ -352,9 +340,9 @@ describe("validatePostinstall", () => {
   });
 
   test("needs nothing when no plugin has a package.json", async () => {
-    expect(await problemsFor(undefined, ["plugins/beta/README.md"])).toEqual(
-      [],
-    );
+    expect(
+      await postinstallProblems(undefined, ["plugins/beta/README.md"]),
+    ).toEqual([]);
   });
 
   test.each([
@@ -367,7 +355,7 @@ describe("validatePostinstall", () => {
     "echo start; bun install --cwd plugins/alpha",
     "bun install --cwd plugins/alpha --dry-run",
   ])("names the plugin %p does not install", async (postinstall) => {
-    expect(await problemsFor(withPostinstall(postinstall))).toEqual([
+    expect(await postinstallProblems(withPostinstall(postinstall))).toEqual([
       {
         file: "package.json",
         line: 3,
@@ -378,7 +366,7 @@ describe("validatePostinstall", () => {
   });
 
   test("names the plugin when there is no postinstall or no package.json", async () => {
-    expect(await problemsFor('{\n  "scripts": {}\n}')).toEqual([
+    expect(await postinstallProblems('{\n  "scripts": {}\n}')).toEqual([
       {
         file: "package.json",
         line: 2,
@@ -386,7 +374,7 @@ describe("validatePostinstall", () => {
           'postinstall does not install plugins/alpha/package.json. Add "bun install --cwd plugins/alpha --frozen-lockfile" to it, joined with &&.',
       },
     ]);
-    expect(await problemsFor(undefined)).toEqual([
+    expect(await postinstallProblems(undefined)).toEqual([
       {
         file: "package.json",
         line: undefined,
@@ -397,7 +385,7 @@ describe("validatePostinstall", () => {
   });
 
   test("reports a root package.json that does not parse", async () => {
-    expect(withParserTextHidden(await problemsFor("{"))).toEqual([
+    expect(withParserTextHidden(await postinstallProblems("{"))).toEqual([
       {
         file: "package.json",
         line: 1,

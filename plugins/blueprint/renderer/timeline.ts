@@ -33,6 +33,9 @@ export type Timing = Omit<Walkthrough, "render">;
 declare const document: PageDocument;
 declare const window: { walkthrough: Walkthrough };
 
+// walkthrough.ts inlines this function's source into the page, so every
+// helper it calls lives inside it.
+/* oxlint-disable unicorn/consistent-function-scoping */
 export function installTimeline(): void {
   const FADE = 0.4;
   const DEFAULT_DURATION = 5;
@@ -220,6 +223,7 @@ export function installTimeline(): void {
 
   render(0);
 }
+/* oxlint-enable unicorn/consistent-function-scoping */
 
 // page.evaluate returns plain data, so the timing leaves render behind.
 export function readTiming(): Timing {

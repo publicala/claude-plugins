@@ -68,6 +68,38 @@ const row = (index: number): Box => ({
   bottom: 40,
 });
 
+const split = (rightBottom: number) =>
+  measure({
+    elements: [
+      element({ classes: ["split"], box: { ...CANVAS, bottom: 600 } }),
+      element({
+        parent: 1,
+        classes: ["stack"],
+        box: { left: 0, top: 0, right: 1000, bottom: 600 },
+      }),
+      element({
+        parent: 2,
+        classes: ["layer"],
+        box: { left: 0, top: 0, right: 1000, bottom: 500 },
+      }),
+      element({
+        parent: 1,
+        classes: ["side"],
+        box: { left: 1100, top: 0, right: 1600, bottom: 600 },
+      }),
+      element({
+        parent: 4,
+        classes: ["layer", "boxed"],
+        box: { left: 1100, top: 0, right: 1600, bottom: rightBottom },
+      }),
+      element({
+        parent: 1,
+        classes: ["note"],
+        box: { left: 1000, top: 0, right: 1100, bottom: 10 },
+      }),
+    ],
+  });
+
 describe("findFigureProblems", () => {
   test("passes a clean figure", () => {
     expect(
@@ -284,38 +316,6 @@ describe("findFigureProblems", () => {
   });
 
   test("reports split columns whose layers end at different heights", () => {
-    const split = (rightBottom: number) =>
-      measure({
-        elements: [
-          element({ classes: ["split"], box: { ...CANVAS, bottom: 600 } }),
-          element({
-            parent: 1,
-            classes: ["stack"],
-            box: { left: 0, top: 0, right: 1000, bottom: 600 },
-          }),
-          element({
-            parent: 2,
-            classes: ["layer"],
-            box: { left: 0, top: 0, right: 1000, bottom: 500 },
-          }),
-          element({
-            parent: 1,
-            classes: ["side"],
-            box: { left: 1100, top: 0, right: 1600, bottom: 600 },
-          }),
-          element({
-            parent: 4,
-            classes: ["layer", "boxed"],
-            box: { left: 1100, top: 0, right: 1600, bottom: rightBottom },
-          }),
-          element({
-            parent: 1,
-            classes: ["note"],
-            box: { left: 1000, top: 0, right: 1100, bottom: 10 },
-          }),
-        ],
-      });
-
     expect(findFigureProblems(split(500))).toEqual([]);
     expect(findFigureProblems(split(420))).toEqual([
       "The columns of a split end 80px apart. Add grow to the last layer of the shorter column, or move a node between columns.",

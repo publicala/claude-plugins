@@ -58,10 +58,11 @@ describe("findChrome", () => {
     const dir = await mkdtemp(join(tmpdir(), "playwright-"));
 
     try {
-      for (const build of ["chromium-999", "chromium-1194", "chromium-1100"]) {
-        await mkdir(join(dir, build, "chrome-linux"), { recursive: true });
-        await Bun.write(join(dir, build, "chrome-linux/chrome"), "");
-      }
+      await Promise.all(
+        ["chromium-999", "chromium-1194", "chromium-1100"].map((build) =>
+          Bun.write(join(dir, build, "chrome-linux/chrome"), ""),
+        ),
+      );
 
       expect(await findChrome({ PLAYWRIGHT_BROWSERS_PATH: dir })).toBe(
         join(dir, "chromium-1194/chrome-linux/chrome"),
@@ -165,7 +166,7 @@ describe.skipIf(!chromeFound)("openPage", () => {
       const pages = (await browser.pages()).length;
 
       // bun-types declares rejects matchers as void, but bun returns a Promise.
-      // eslint-disable-next-line @typescript-eslint/await-thenable, @typescript-eslint/no-confusing-void-expression
+      // oxlint-disable-next-line typescript/await-thenable
       await expect(
         openPage(browser, "<p></p>", { width: -1, height: 1, scale: 1 }),
       ).rejects.toThrow("Width and height values must be positive");
@@ -175,6 +176,9 @@ describe.skipIf(!chromeFound)("openPage", () => {
     }
   });
 });
+
+const layer = (height: number) =>
+  `<section class="layer"><div class="gutter"><span class="t">L</span></div><div class="body"><div style="height: ${height}px"></div></div></section>`;
 
 describe.skipIf(!chromeFound)("renderFigure", () => {
   let browser: Browser;
@@ -261,8 +265,6 @@ describe.skipIf(!chromeFound)("renderFigure", () => {
   });
 
   test("measures split columns and overlaps in the page", () => {
-    const layer = (height: number) =>
-      `<section class="layer"><div class="gutter"><span class="t">L</span></div><div class="body"><div style="height: ${height}px"></div></div></section>`;
     const source = figure(
       `<div class="split"><div class="stack">${layer(200)}</div><div class="side">${layer(300)}</div></div>` +
         `<div class="callout" style="margin-top: -60px">Over</div>`,
