@@ -1,0 +1,55 @@
+#!/bin/bash
+# Runs the real git for the guard eval cases, and logs each call the graders
+# read: WRITE for a push, a commit in the workspace's own checkout, or any
+# call after which a new local branch exists, READ for every other call,
+# each with git's exit status.
+# Guard does none of those before the user approves a candidate. git's own
+# subprocesses come through here too.
+
+state="$HOME/.eval-fixture"
+real_git="$(cat "$state/real-git")"
+log="$(cat "$state/git-log-path")"
+
+# Skip git's global options to find the subcommand.
+i=1
+while [ "$i" -le "$#" ]; do
+  arg="${!i}"
+  case "$arg" in
+    -C | -c | --git-dir | --work-tree | --namespace | --exec-path | --config-env)
+      i=$((i + 2))
+      ;;
+    -*) i=$((i + 1)) ;;
+    *) break ;;
+  esac
+done
+subcommand="${!i}"
+
+# The local branches before the call, so any branch it creates shows, by
+# whatever command: a creation flag, `worktree add` naming its branch after
+# the path, or a checkout that guesses a local branch from a remote one.
+branches() {
+  "$real_git" "${@:1:i-1}" for-each-ref --format='%(refname)' refs/heads 2>/dev/null | sort
+}
+before="$(branches "$@")"
+
+"$real_git" "$@"
+status=$?
+
+kind=READ
+case "$subcommand" in
+  push) kind=WRITE ;;
+  commit)
+    # A commit in a throwaway worktree is a measurement. One in the
+    # workspace's own checkout writes to the user's branch.
+    toplevel="$("$real_git" "${@:1:i-1}" rev-parse --show-toplevel 2>/dev/null)"
+    [ "$toplevel" = "$(cat "$state/workspace")" ] && kind=WRITE
+    ;;
+esac
+created="$(comm -13 <(printf '%s\n' "$before") <(branches "$@") | grep . | tr '\n' ' ')"
+[ -n "$created" ] && kind=WRITE
+
+# One write per record, so parallel calls never share a line.
+record="$(printf '%s git %s%s exit=%s' "$kind" "$*" "${created:+ (created ${created% })}" "$status" | tr '\n' ' ')"
+printf '%s\n' "$record" >>"$log"
+
+exit "$status"

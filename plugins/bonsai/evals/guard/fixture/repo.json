@@ -1,0 +1,7 @@
+{
+  "owner": "acme-books",
+  "name": "inventory",
+  "viewer": "tomas-acme",
+  "pushAccess": ["tomas-acme", "lena-acme"],
+  "createdAt": "2026-09-30T12:00:00Z"
+}

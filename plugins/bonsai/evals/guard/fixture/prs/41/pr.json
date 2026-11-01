@@ -1,0 +1,72 @@
+{
+  "number": 41,
+  "title": "Add the low-stock report",
+  "body": "Adds `report.LowStock`, which lists the titles below a minimum count so the buyers know what to reorder.",
+  "state": "MERGED",
+  "isDraft": false,
+  "createdAt": "2026-10-13T14:02:11Z",
+  "mergedAt": "2026-10-14T09:40:27Z",
+  "headRefName": "low-stock-report",
+  "baseRefName": "main",
+  "author": { "login": "tomas-acme" },
+  "labels": { "nodes": [] },
+  "commitMessages": [
+    "Add the low-stock report",
+    "Drop the blank identifier in LowStock"
+  ],
+  "reviewThreads": {
+    "totalCount": 1,
+    "pageInfo": { "hasNextPage": false, "endCursor": "Y3Vyc29yOjE=" },
+    "nodes": [
+      {
+        "id": "PRRT_kwDOAcmeInv41a",
+        "isResolved": true,
+        "isOutdated": true,
+        "path": "internal/report/lowstock.go",
+        "line": null,
+        "originalLine": 13,
+        "comments": {
+          "totalCount": 2,
+          "nodes": [
+            {
+              "databaseId": 2011401,
+              "url": "https://github.com/acme-books/inventory/pull/41#discussion_r2011401",
+              "author": { "login": "lena-acme" },
+              "createdAt": "2026-10-13T16:20:05Z",
+              "body": "`for i, _ := range titles`: the blank identifier adds nothing here. Write `for i := range titles`."
+            },
+            {
+              "databaseId": 2011417,
+              "url": "https://github.com/acme-books/inventory/pull/41#discussion_r2011417",
+              "author": { "login": "tomas-acme" },
+              "createdAt": "2026-10-13T17:02:44Z",
+              "body": "Fixed in the second commit, thanks."
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "reviews": {
+    "totalCount": 2,
+    "nodes": [
+      {
+        "databaseId": 3100201,
+        "url": "https://github.com/acme-books/inventory/pull/41#pullrequestreview-3100201",
+        "author": { "login": "lena-acme" },
+        "state": "COMMENTED",
+        "submittedAt": "2026-10-13T16:20:05Z",
+        "body": ""
+      },
+      {
+        "databaseId": 3100266,
+        "url": "https://github.com/acme-books/inventory/pull/41#pullrequestreview-3100266",
+        "author": { "login": "lena-acme" },
+        "state": "APPROVED",
+        "submittedAt": "2026-10-14T09:31:50Z",
+        "body": "Approving."
+      }
+    ]
+  },
+  "comments": { "totalCount": 0, "nodes": [] }
+}
