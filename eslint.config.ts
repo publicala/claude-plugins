@@ -3,6 +3,8 @@ import prettier from "eslint-config-prettier";
 import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
+import browser from "./tsconfig.browser.json" with { type: "json" };
+
 export default defineConfig(
   { ignores: ["node_modules/"] },
   js.configs.recommended,
@@ -26,6 +28,18 @@ export default defineConfig(
         { allowNumber: true },
       ],
       "@typescript-eslint/switch-exhaustiveness-check": "error",
+    },
+  },
+  {
+    // Page scripts run in the browser, so they type-check against the DOM in
+    // their own program, outside the root tsconfig.
+    files: browser.include,
+    ignores: browser.exclude,
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: "./tsconfig.browser.json",
+      },
     },
   },
   prettier,

@@ -24,7 +24,7 @@ The renderer needs [Bun](https://bun.sh) and Chrome or Chromium, and a walkthrou
 - `references/`: shared by the skills: the look and the vocabulary, truth and audiences, writing
 - `style/tokens.css`: the colors (a light and a dark set) and the type every Blueprint surface shares. bonsai's decision page links to it
 - `style/blueprint.css`: the figure and walkthrough components
-- `renderer/`: builds a self-contained page from a source, measures it in Chrome, judges the measurement and writes the PNG or PDF. `walkthrough.ts` adds the timeline (`timeline.ts`), checks each scene, and writes the contact sheet, the mp4 and the player (`player.html`)
+- `renderer/`: builds a self-contained page from a source, measures it in Chrome, judges the measurement and writes the PNG or PDF. `walkthrough.ts` adds the timeline (`timeline.ts`), checks each scene, and writes the contact sheet, the mp4 and the player (`player.html`, whose script `player.ts` it bundles into the page)
 - `assets/`: the publica.la wordmark, Inter and JetBrains Mono (SIL Open Font License), and the Lucide icons (ISC License), so a render needs no network
 - `evals/<skill>/PLAN.md`: eval plans per skill
 

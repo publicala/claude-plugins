@@ -11,12 +11,16 @@ import { existsSync, realpathSync, statSync } from "node:fs";
 import { dirname, format, isAbsolute, join, parse } from "node:path";
 import { parseArgs } from "node:util";
 
+import { bundlePageScript } from "./page-script";
+
 type JsonObject = Record<string, unknown>;
 
 const TEMPLATE = join(import.meta.dir, "template.html");
 const TOKENS = join(import.meta.dir, "blueprint-tokens.css");
+const PAGE_SCRIPT = join(import.meta.dir, "page", "main.ts");
 export const TOKENS_PLACEHOLDER = "/*__BLUEPRINT_TOKENS__*/";
 export const DATA_PLACEHOLDER = "/*__DATA__*/ null";
+export const SCRIPT_PLACEHOLDER = "/*__PAGE_SCRIPT__*/";
 const TITLE_PLACEHOLDER = "<title>bonsai</title>";
 
 const SKILLS = ["audit", "bake", "feed", "guard", "split"] as const;
@@ -1346,19 +1350,26 @@ export async function build(
   };
 }
 
+let pageScript: Promise<string> | undefined;
+
 export async function render(page: Page): Promise<string> {
-  const [template, tokens] = await Promise.all([
+  pageScript ??= bundlePageScript(PAGE_SCRIPT);
+  const [template, tokens, script] = await Promise.all([
     Bun.file(TEMPLATE).text(),
     Bun.file(TOKENS).text(),
+    pageScript,
   ]);
 
   // Escaping every "<" keeps the HTML tokenizer out of comment and
   // script states, so only the template's own tag closes the script.
   const payload = JSON.stringify(page).replaceAll("<", "\\u003c");
 
-  // Replacer functions keep `$` sequences in the data literal.
+  // Replacer functions keep `$` sequences in the data literal. The title
+  // and the data come from the run, so they go in after every placeholder
+  // of our own: none can match inside them.
   return template
     .replace(TOKENS_PLACEHOLDER, () => tokens)
+    .replace(SCRIPT_PLACEHOLDER, () => script)
     .replace(
       TITLE_PLACEHOLDER,
       () => `<title>${Bun.escapeHTML(page.run.title)}</title>`,

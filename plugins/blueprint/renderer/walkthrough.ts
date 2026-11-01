@@ -13,6 +13,7 @@ import sharp from "sharp";
 import { findFigureProblems, type Measurement } from "./checks";
 import { measureFigure } from "./measure";
 import { outputPathFor } from "./page";
+import { bundlePageScript } from "./page-script";
 import { buildFigurePage, launchBrowser, openPage } from "./renderer";
 import {
   installTimeline,
@@ -38,6 +39,7 @@ const MAX_DURATION_SECONDS = 45;
 
 const TIMELINE = `<script>(${installTimeline.toString()})();</script>`;
 const PLAYER_STYLE = /<style>[\s\S]*?<\/style>\s*/;
+const PLAYER_SCRIPT_PLACEHOLDER = "/*__PLAYER_SCRIPT__*/";
 
 const USAGE =
   "Usage: bun walkthrough.ts <name.walkthrough.html> [--video] [--player] [--at <seconds>]";
@@ -48,10 +50,17 @@ export async function buildWalkthroughPage(source: string): Promise<string> {
   });
 }
 
+let playerScript: Promise<string> | undefined;
+
 // player.html starts with the player's style, which goes in the head. The
-// rest wraps the figure, which fills the slot in .screen.
+// rest wraps the figure, which fills the slot in .screen, and runs the
+// script bundled from player.ts.
 export async function buildPlayerPage(source: string): Promise<string> {
-  const player = await Bun.file(`${import.meta.dir}/player.html`).text();
+  playerScript ??= bundlePageScript(`${import.meta.dir}/player.ts`);
+  const [player, script] = await Promise.all([
+    Bun.file(`${import.meta.dir}/player.html`).text(),
+    playerScript,
+  ]);
   const style = PLAYER_STYLE.exec(player)?.[0] ?? "";
 
   return buildFigurePage(source, {
@@ -61,6 +70,7 @@ export async function buildPlayerPage(source: string): Promise<string> {
     wrapBody: (figure) =>
       player
         .replace(style, "")
+        .replace(PLAYER_SCRIPT_PLACEHOLDER, () => script)
         .replace("<!-- figure -->", () => `${figure}${TIMELINE}`),
   });
 }

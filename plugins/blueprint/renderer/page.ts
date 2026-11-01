@@ -1,7 +1,6 @@
 // Turns a figure source into a complete, self-contained HTML page. A source
 // is the markup of one `.canvas` element. The page carries the stylesheet,
 // the fonts, the logo and every icon inline.
-
 const ICON_TAG =
   /<i\b[^>]*?\bdata-icon\s*=\s*(["'])([^"']*)\1[^>]*?\/?>(?:\s*<\/i\s*>)?/g;
 const LOGO_TAG = /<i\b[^>]*?\bdata-logo\b[^>]*?\/?>(?:\s*<\/i\s*>)?/g;

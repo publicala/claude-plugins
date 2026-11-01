@@ -19,12 +19,13 @@ export interface SceneTiming {
   invalidDuration: string | null;
 }
 
-interface Walkthrough {
+export interface Walkthrough {
   duration: number;
   scenes: SceneTiming[];
   /** The frame that stands for the video: the first scene's fullAt, or 0. */
   poster: number;
-  render(t: number): void;
+  /** Draws the frame at t seconds. It reads no `this`, so it can be passed around. */
+  render: (t: number) => void;
 }
 
 export type Timing = Omit<Walkthrough, "render">;

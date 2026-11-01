@@ -8,6 +8,7 @@ Publica.la's public marketplace of Claude Code plugins. Anyone can install what 
 - A SKILL.md names bundled files with `${CLAUDE_SKILL_DIR}` (its own directory) or `${CLAUDE_PLUGIN_ROOT}`. Claude Code substitutes both when it loads the skill. Bash's environment has neither.
 - A plugin that needs npm packages keeps its own `package.json` and `bun.lock` at its root: Claude Code installs them with the plugin. Add it to the root `postinstall` so `bun install` covers it too.
 - `plugin.json` carries no `version`, so every merge reaches users. A `version` would pin them until someone bumps it.
+- Code that runs in a page the plugin writes is a TypeScript module, listed in `tsconfig.browser.json` so `tsc` checks it against the DOM. The renderer bundles it into the page at build time, so the page stays one file.
 - Install ships only the plugin's directory, so a skill that has Claude write for people (pages, figures, messages) carries its own writing rules.
 - Everything here is public: no internal service names, hostnames, customer names or private repository paths. Examples use a made-up company (Acme Books).
 

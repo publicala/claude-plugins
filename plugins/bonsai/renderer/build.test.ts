@@ -20,9 +20,11 @@ import {
   main,
   type Page,
   render,
+  SCRIPT_PLACEHOLDER,
   summary,
   TOKENS_PLACEHOLDER,
 } from "./build";
+import { bundlePageScript } from "./page-script";
 
 const HERE = import.meta.dir;
 const EXAMPLE = join(HERE, "example");
@@ -1727,6 +1729,36 @@ describe("render", () => {
     expect(html).not.toContain(DATA_PLACEHOLDER);
     expect(html).not.toContain("Ends a script tag: </script>");
     expect(html).toContain("Ends a script tag: \\u003c/script> $'");
+  });
+
+  test("inlines the page script once, and keeps placeholders in the data as text", async () => {
+    const data = await exampleData();
+    const placeholders = `${SCRIPT_PLACEHOLDER} ${TOKENS_PLACEHOLDER}`;
+    data.run.title = placeholders;
+    changeIn(data.changes, "livewire").why = placeholders;
+
+    const page = await build(data, EXAMPLE);
+    const html = await render(page);
+
+    expect(html.split("function renderSummary()")).toHaveLength(2);
+    expect(html.startsWith(`<title>${placeholders}</title>`)).toBe(true);
+    expect(html).toContain(`"why":"${placeholders}"`);
+
+    const { window, errors } = await openPage(page);
+    expect(errors).toEqual([]);
+    expect(window.document.querySelectorAll(".card").length).toBeGreaterThan(0);
+    await window.happyDOM.close();
+  });
+});
+
+describe("bundlePageScript", () => {
+  test("bundles the page modules into one script with no imports", async () => {
+    const script = await bundlePageScript(join(HERE, "page", "main.ts"));
+
+    expect(script).toContain("function renderSummary()");
+    expect(script).toContain("function wdiff(");
+    expect(script).not.toMatch(/^\s*(import|export)\b/m);
+    expect(script).not.toContain(HERE);
   });
 });
 

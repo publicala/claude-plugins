@@ -9,7 +9,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "bun --bun eslint --max-warnings=0 .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.browser.json",
     "validate:json": "bun scripts/validate-json.ts",
     "validate:plugins": "bun scripts/validate-plugins.ts",
     "check:prose": "bun scripts/check-prose.ts",
