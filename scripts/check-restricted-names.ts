@@ -113,6 +113,8 @@ export function redactPath(path: string, hashes: ReadonlySet<string>): string {
 const wordHashes = new Map<string, string>();
 
 function hashWord(word: string): string {
+  // The org step's `tr` lowercases ASCII only. toLowerCase() also folds
+  // letters such as the Kelvin sign to `k`, so it can only find more names.
   const lowercase = word.toLowerCase();
   const cached = wordHashes.get(lowercase);
 

@@ -23,6 +23,33 @@ function sha256(word: string): string {
 const HASHES = new Set(RESTRICTED.map(sha256));
 const ZORBLAX = sha256("zorblax").slice(0, 8);
 
+function hit(where: string): string {
+  return `${where} has a restricted project name (sha256 ${ZORBLAX}). Replace it with a made-up one such as Acme Books.`;
+}
+
+async function run(
+  files: Record<string, string>,
+  args: string[],
+): Promise<{ code: number; errors: string[]; logs: string[] }> {
+  const root = await tempRepo(files);
+  const error = spyOn(console, "error").mockImplementation(() => undefined);
+  const log = spyOn(console, "log").mockImplementation(() => undefined);
+
+  try {
+    const code = await main(root, args);
+
+    return {
+      code,
+      errors: error.mock.calls.map(([line]) => String(line)),
+      logs: log.mock.calls.map(([line]) => String(line)),
+    };
+  } finally {
+    error.mockRestore();
+    log.mockRestore();
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
 describe("parseHashList", () => {
   test("reads one digest per line, skipping blank lines and padding", () => {
     expect(
@@ -84,9 +111,6 @@ describe("redactPath", () => {
 });
 
 describe("checkRestrictedNames", () => {
-  const hit = (where: string) =>
-    `${where} has a restricted project name (sha256 ${ZORBLAX}). Replace it with a made-up one such as Acme Books.`;
-
   test("skips the text of lockfiles and binary files", async () => {
     const root = await tempRepo({
       "README.md": "Acme Books\n",
@@ -185,29 +209,6 @@ describe("main", () => {
   afterEach(async () => {
     await rm(listDirectory, { recursive: true, force: true });
   });
-
-  async function run(
-    files: Record<string, string>,
-    args: string[],
-  ): Promise<{ code: number; errors: string[]; logs: string[] }> {
-    const root = await tempRepo(files);
-    const error = spyOn(console, "error").mockImplementation(() => undefined);
-    const log = spyOn(console, "log").mockImplementation(() => undefined);
-
-    try {
-      const code = await main(root, args);
-
-      return {
-        code,
-        errors: error.mock.calls.map(([line]) => String(line)),
-        logs: log.mock.calls.map(([line]) => String(line)),
-      };
-    } finally {
-      error.mockRestore();
-      log.mockRestore();
-      await rm(root, { recursive: true, force: true });
-    }
-  }
 
   test("passes on this repository with the built-in list", async () => {
     const log = spyOn(console, "log").mockImplementation(() => undefined);
