@@ -13,7 +13,8 @@ import { join } from "node:path";
 import type { Browser } from "puppeteer-core";
 import sharp from "sharp";
 
-import { findChrome, launchBrowser } from "./renderer";
+import { launchBrowser } from "./renderer";
+import { hasChrome, hasFfmpeg } from "./test-tools";
 import type { SceneTiming } from "./timeline";
 import {
   buildPlayerPage,
@@ -29,6 +30,9 @@ import {
 
 // Chrome starts and renders slower on CI's macOS runners than Bun's 5 s default.
 setDefaultTimeout(30_000);
+
+const chromeFound = await hasChrome();
+const ffmpegFound = hasFfmpeg();
 
 const EXAMPLE = join(
   import.meta.dir,
@@ -260,7 +264,7 @@ describe("building the pages", () => {
   });
 });
 
-describe.skipIf(!(await findChrome()))("in Chrome", () => {
+describe.skipIf(!chromeFound)("in Chrome", () => {
   let browser: Browser;
   let workDir: string;
 
@@ -388,7 +392,7 @@ describe.skipIf(!(await findChrome()))("in Chrome", () => {
     }
   });
 
-  test.skipIf(!Bun.which("ffmpeg"))("encodes an H.264 video", async () => {
+  test.skipIf(!ffmpegFound)("encodes an H.264 video", async () => {
     const short = await write(
       "short",
       walkthrough(

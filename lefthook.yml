@@ -1,10 +1,14 @@
-# Local git hooks via lefthook. Mirrors the CI format gate so a commit fixes
-# formatting before it can fail CI. Install once per clone with `bun install`
-# and `lefthook install`. Lint, type checks and tests run in CI.
+# Local git hooks via lefthook. Formats every staged file the CI format gate
+# checks, so a commit fixes formatting before it can fail CI. `bun install`
+# installs the hooks. Lint, type checks and tests run in CI.
+
+min_version: 2.1.9
+glob_matcher: doublestar
 
 pre-commit:
   commands:
     format:
-      glob: "*.{md,mdx,json,yml,yaml,mjs,js,ts}"
-      run: bunx prettier --write {staged_files}
+      glob: "**/*.{md,mdx,json,jsonc,yml,yaml,mjs,js,ts,html,css}"
+      # The project's own Prettier, never one fetched from the registry.
+      run: bun run prettier --write {staged_files}
       stage_fixed: true
