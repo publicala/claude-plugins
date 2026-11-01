@@ -279,6 +279,18 @@ describe("validateFrontmatter", () => {
     },
   );
 
+  test("reads an indented comment after the description as a comment", () => {
+    expect(
+      validateFrontmatter(
+        SKILL,
+        complete.replace(
+          "description: Prunes.",
+          "description: Prunes.\n  # Keep it under 200 characters.",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
   test("flags a plain description that continues on the next line", () => {
     expect(
       validateFrontmatter(

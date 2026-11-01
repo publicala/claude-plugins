@@ -322,7 +322,8 @@ function validateDescription(value: unknown, lines: string[]): Finding[] {
     ];
   }
 
-  if (/^\s+\S/.test(lines[index + 1] ?? "")) {
+  // An indented line that opens with # is a YAML comment.
+  if (/^\s+[^\s#]/.test(lines[index + 1] ?? "")) {
     return [
       {
         line,
