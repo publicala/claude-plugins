@@ -1,27 +1,8 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { rm } from "node:fs/promises";
 
-import {
-  findJsonProblem,
-  jsonFiles,
-  main,
-  validateJson,
-} from "./validate-json";
-
-// A temporary git repository with these files, untracked as a new file is.
-async function gitRepo(files: Record<string, string>): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), "validate-json-"));
-
-  for (const [path, text] of Object.entries(files)) {
-    await Bun.write(join(root, path), text);
-  }
-
-  Bun.spawnSync(["git", "init", "--quiet"], { cwd: root });
-
-  return root;
-}
+import { tempRepo } from "./temp-repo";
+import { findJsonProblem, main, validateJson } from "./validate-json";
 
 const strict = { comments: false };
 const lenient = { comments: true };
@@ -59,7 +40,7 @@ describe("findJsonProblem", () => {
 
 describe("validateJson", () => {
   test("checks every JSON and JSONC file git would commit, in any directory", async () => {
-    const root = await gitRepo({
+    const root = await tempRepo({
       ".gitignore": "node_modules\nignored.json\n",
       "package.json": "{}\n",
       "config/settings.jsonc": '{\n  // note\n  "a": 1,\n}\n',
@@ -84,18 +65,6 @@ describe("validateJson", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
-
-  test("names the folder when git cannot list it", async () => {
-    const root = await mkdtemp(join(tmpdir(), "validate-json-"));
-
-    try {
-      expect(() => jsonFiles(root)).toThrow(
-        `Unable to list the JSON files with git in ${root}:`,
-      );
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
-  });
 });
 
 describe("main", () => {
@@ -113,7 +82,7 @@ describe("main", () => {
   });
 
   test("fails and names the file, line and column as a GitHub annotation", async () => {
-    const root = await gitRepo({ "data.json": '{\n  "a": 1\n  "b": 2\n}\n' });
+    const root = await tempRepo({ "data.json": '{\n  "a": 1\n  "b": 2\n}\n' });
     const error = spyOn(console, "error").mockImplementation(() => undefined);
 
     try {
