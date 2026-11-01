@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
-// Fails when a relative Markdown link under plugins/ points at a missing file,
-// or when a SKILL.md frontmatter lacks a required key.
+// Fails when a relative Markdown link points at a missing file, or when a
+// SKILL.md frontmatter lacks a required key.
 import { existsSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
@@ -11,6 +11,7 @@ import {
   lineAt,
   type Annotation,
 } from "./workflow-command";
+import { repoFiles } from "./repo-files";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -42,17 +43,62 @@ export function linkTargets(text: string): string[] {
   return targets;
 }
 
-export function validateLinks(file: string, text: string): Finding[] {
-  const searchFrom = new Map<string, number>();
+/**
+ * Each link destination with the index where the source writes it. The
+ * parser reports no positions, so every place a destination is written
+ * gets a numbered tag, and the tag that comes back with a destination
+ * names the place the parser read it, past any copy in a code example.
+ */
+export function locatedLinkTargets(
+  text: string,
+): { target: string; index: number | undefined }[] {
+  const targets = linkTargets(text);
+  const claimed: { start: number; end: number }[] = [];
 
-  return linkTargets(text).flatMap((target) => {
-    // The same target can appear twice, so each search starts after the last.
-    const index = text.indexOf(target, searchFrom.get(target) ?? 0);
+  for (const target of [...new Set(targets)].toSorted(
+    (a, b) => b.length - a.length,
+  )) {
+    for (
+      let start = text.indexOf(target);
+      start !== -1 && target !== "";
+      start = text.indexOf(target, start + 1)
+    ) {
+      const end = start + target.length;
 
-    if (index !== -1) {
-      searchFrom.set(target, index + target.length);
+      // Only a destination takes a tag: one in a reference label would
+      // change the label, and the reference would stop resolving.
+      if (
+        /(?:\]\(|\]:)\s*<?$/.test(text.slice(Math.max(0, start - 8), start)) &&
+        !claimed.some((range) => start < range.end && range.start < end)
+      ) {
+        claimed.push({ start, end });
+      }
     }
+  }
 
+  const ordered = claimed.toSorted((a, b) => a.start - b.start);
+  const tagged = ordered.reduceRight(
+    (source, { end }, tag) =>
+      `${source.slice(0, end)}\uE000${tag}\uE001${source.slice(end)}`,
+    text,
+  );
+
+  const tags = linkTargets(tagged).map(
+    (written) => /\uE000(\d+)\uE001$/.exec(written)?.[1],
+  );
+
+  // A tag that changed what the parser reads leaves the lines unknown.
+  return targets.map((target, position) => ({
+    target,
+    index:
+      tags.length === targets.length
+        ? ordered[Number(tags[position])]?.start
+        : undefined,
+  }));
+}
+
+export function validateLinks(file: string, text: string): Finding[] {
+  return locatedLinkTargets(text).flatMap(({ target, index }) => {
     if (
       /^[a-z][a-z0-9+.-]*:/i.test(target) ||
       target.startsWith("#") ||
@@ -63,8 +109,8 @@ export function validateLinks(file: string, text: string): Finding[] {
 
     return [
       {
-        line: index === -1 ? undefined : lineAt(text, index),
-        message: `link target not found: ${target}`,
+        line: index === undefined ? undefined : lineAt(text, index),
+        message: `links to ${target}, which does not exist. Fix the path or remove the link.`,
       },
     ];
   });
@@ -115,13 +161,7 @@ export async function validatePlugins(root: string): Promise<{
   checked: number;
   problems: Annotation[];
 }> {
-  const paths = (
-    await Array.fromAsync(
-      new Bun.Glob("plugins/**/*.md").scan({ cwd: root, dot: true }),
-    )
-  )
-    .filter((path) => !path.includes("node_modules/"))
-    .toSorted();
+  const paths = repoFiles(root, "*.md");
 
   const problems = await Promise.all(
     paths.map(async (path) => {
@@ -155,7 +195,7 @@ export async function main(root = ROOT): Promise<number> {
     return 1;
   }
 
-  console.log(`checked ${checked} Markdown files under plugins/`);
+  console.log(`checked ${checked} Markdown files`);
 
   return 0;
 }

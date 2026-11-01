@@ -1,8 +1,8 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 
+import type { Annotation } from "./workflow-command";
 import {
   linkTargets,
   main,
@@ -10,6 +10,7 @@ import {
   validateLinks,
   validatePlugins,
 } from "./validate-plugins";
+import { tempRepo } from "./temp-repo";
 
 const SKILL = "/repo/plugins/demo/skills/audit/SKILL.md";
 
@@ -50,7 +51,50 @@ describe("validateLinks", () => {
       "[a](https://example.com) [b](#top) [c](validate-plugins.ts#L1) [d](missing.md)";
 
     expect(validateLinks(join(import.meta.dir, "README.md"), text)).toEqual([
-      { line: 1, message: "link target not found: missing.md" },
+      {
+        line: 1,
+        message:
+          "links to missing.md, which does not exist. Fix the path or remove the link.",
+      },
+    ]);
+  });
+
+  test("names the line of the link, past a copy of it in a code example", () => {
+    const text = [
+      "```md",
+      "[a](gone.md)",
+      "```",
+      "",
+      "See `[b](gone.md)` and [c](dir/gone.md), then [d](gone.md).",
+      "",
+      "[e][ref]",
+      "",
+      "[ref]: gone.md",
+    ].join("\n");
+
+    expect(
+      validateLinks(join(import.meta.dir, "README.md"), text).map(
+        ({ line, message }) => `${line} ${message.split(",")[0]}`,
+      ),
+    ).toEqual([
+      "5 links to dir/gone.md",
+      "5 links to gone.md",
+      "9 links to gone.md",
+    ]);
+  });
+
+  test("keeps a reference whose label is its destination", () => {
+    expect(
+      validateLinks(
+        join(import.meta.dir, "README.md"),
+        "See [missing.md].\n\n[missing.md]: missing.md\n",
+      ),
+    ).toEqual([
+      {
+        line: 3,
+        message:
+          "links to missing.md, which does not exist. Fix the path or remove the link.",
+      },
     ]);
   });
 
@@ -128,6 +172,42 @@ describe("validateFrontmatter", () => {
   });
 });
 
+// A repository that passes every check, for a test to plant one problem in.
+// A file set to null is left out.
+const COMPLIANT: Record<string, string> = {
+  "README.md": "See [the demo plugin](plugins/demo).\n",
+  "plugins/demo/skills/audit/SKILL.md": [
+    "---",
+    "name: audit",
+    "description: Prunes.",
+    "user-invocable: true",
+    "disable-model-invocation: false",
+    "---",
+    "",
+    "Read [the README](../../README.md).",
+    "",
+  ].join("\n"),
+  "plugins/demo/README.md": "# Demo\n",
+};
+
+async function problemsIn(
+  files: Record<string, string | null>,
+): Promise<Annotation[]> {
+  const root = await tempRepo(
+    Object.fromEntries(
+      Object.entries({ ...COMPLIANT, ...files }).filter(
+        (entry): entry is [string, string] => entry[1] !== null,
+      ),
+    ),
+  );
+
+  try {
+    return (await validatePlugins(root)).problems;
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
 describe("validatePlugins", () => {
   test("passes on this repository", async () => {
     const result = await validatePlugins(join(import.meta.dir, ".."));
@@ -136,57 +216,42 @@ describe("validatePlugins", () => {
     expect(result.checked).toBeGreaterThan(0);
   });
 
-  test("reports problems with the repo-relative path, never in node_modules", async () => {
-    const root = await mkdtemp(join(tmpdir(), "validate-plugins-"));
+  test("passes on the compliant fixture", async () => {
+    expect(await problemsIn({})).toEqual([]);
+  });
 
-    try {
-      const skill = join(root, "plugins", "demo", "skills", "audit");
-      await mkdir(skill, { recursive: true });
-      await Bun.write(join(skill, "SKILL.md"), "[a](gone.md)\n");
-
-      await mkdir(join(root, "plugins", "demo", "node_modules", "dep"), {
-        recursive: true,
-      });
-      await Bun.write(
-        join(root, "plugins", "demo", "node_modules", "dep", "README.md"),
-        "[a](gone.md)\n",
-      );
-
-      expect((await validatePlugins(root)).problems).toEqual([
-        {
-          file: "plugins/demo/skills/audit/SKILL.md",
-          line: 1,
-          message: "link target not found: gone.md",
-        },
-        {
-          file: "plugins/demo/skills/audit/SKILL.md",
-          line: 1,
-          message: "missing frontmatter",
-        },
-      ]);
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+  test("checks the links in every Markdown file git would commit, never ignored ones", async () => {
+    expect(
+      await problemsIn({
+        ".gitignore": "node_modules\n",
+        "README.md": "See [the guide](docs/gone.md).\n",
+        "docs/intro.md": "# Intro\n\nRead [the setup](setup.md).\n",
+        "plugins/demo/node_modules/dep/README.md": "[a](gone.md)\n",
+      }),
+    ).toEqual([
+      {
+        file: "README.md",
+        line: 1,
+        message:
+          "links to docs/gone.md, which does not exist. Fix the path or remove the link.",
+      },
+      {
+        file: "docs/intro.md",
+        line: 3,
+        message:
+          "links to setup.md, which does not exist. Fix the path or remove the link.",
+      },
+    ]);
   });
 
   test("names the file whose frontmatter is not valid YAML", async () => {
-    const root = await mkdtemp(join(tmpdir(), "validate-plugins-"));
+    const problems = await problemsIn({
+      "plugins/demo/skills/audit/SKILL.md": "---\nname: [audit\n---\n",
+    });
 
-    try {
-      const skill = join(root, "plugins", "demo", "skills", "audit");
-      await mkdir(skill, { recursive: true });
-      await Bun.write(join(skill, "SKILL.md"), "---\nname: [audit\n---\n");
-
-      const { problems } = await validatePlugins(root);
-
-      expect(problems).toHaveLength(1);
-      expect(problems[0]?.file).toBe("plugins/demo/skills/audit/SKILL.md");
-      expect(problems[0]?.message).toStartWith(
-        "frontmatter is not valid YAML:",
-      );
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    expect(problems).toHaveLength(1);
+    expect(problems[0]?.file).toBe("plugins/demo/skills/audit/SKILL.md");
+    expect(problems[0]?.message).toStartWith("frontmatter is not valid YAML:");
   });
 });
 
@@ -203,16 +268,14 @@ describe("main", () => {
   });
 
   test("prints each problem as a GitHub annotation and exits 1", async () => {
-    const root = await mkdtemp(join(tmpdir(), "validate-plugins-"));
+    const root = await tempRepo({ "README.md": "One.\n\n[a](gone.md)\n" });
     const error = spyOn(console, "error").mockImplementation(() => undefined);
 
     try {
-      await Bun.write(join(root, "plugins", "README.md"), "[a](gone.md)\n");
-
       expect(await main(root)).toBe(1);
       expect(error.mock.calls).toEqual([
         [
-          "::error file=plugins/README.md,line=1::link target not found: gone.md",
+          "::error file=README.md,line=3::links to gone.md, which does not exist. Fix the path or remove the link.",
         ],
       ]);
     } finally {
