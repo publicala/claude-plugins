@@ -1,5 +1,8 @@
 ---
-type: tool_used
-tool: Bash
-input_match: 'gofmt( -[a-z]+)* -[a-z]*s'
+type: regex
+target:
+  source: file
+  path: .git/eval-git-calls.log
+pattern: '^RAN gofmt (?:[^\n]* )?-[a-z]*s[a-z]*(?: [^\n]*)? where=\w+ exit=[01]$'
+flags: m
 ---
