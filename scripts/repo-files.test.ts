@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { repoFiles } from "./repo-files";
+import { repoFiles, repoPaths } from "./repo-files";
 import { tempRepo } from "./temp-repo";
 
 describe("repoFiles", () => {
@@ -88,6 +88,21 @@ describe("repoFiles", () => {
       expect(() => repoFiles(root, "*.md")).toThrow(
         `Unable to list the files with git in ${root}:`,
       );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("repoPaths", () => {
+  test("keeps a symlink whose target is missing, which repoFiles drops", async () => {
+    const root = await tempRepo({ "a.md": "" });
+
+    try {
+      await symlink("missing.md", join(root, "b.md"));
+
+      expect(repoPaths(root, "*.md")).toEqual(["a.md", "b.md"]);
+      expect(repoFiles(root, "*.md")).toEqual(["a.md"]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

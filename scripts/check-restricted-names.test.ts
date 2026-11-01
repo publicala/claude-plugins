@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -75,10 +75,12 @@ describe("findRestrictedWords", () => {
 });
 
 describe("checkRestrictedNames", () => {
-  test("checks paths and text, and skips lockfiles and binary files", async () => {
+  const hit = (where: string) =>
+    `${where} has a restricted project name (sha256 ${ZORBLAX}). Replace it with a made-up one such as Acme Books.`;
+
+  test("skips the text of lockfiles and binary files", async () => {
     const root = await tempRepo({
       "README.md": "Acme Books\n",
-      "docs/zorblax/notes.md": "Acme Books\n",
       "bun.lock": '{ "zorblax": "1.0.0" }\n',
       "plugins/demo/bun.lock": '{ "zorblax": "1.0.0" }\n',
       "assets/logo.bin": "\u0000zorblax\n",
@@ -86,11 +88,65 @@ describe("checkRestrictedNames", () => {
 
     try {
       expect(await checkRestrictedNames(root, HASHES)).toEqual({
-        scanned: 2,
+        scanned: 1,
+        hits: [],
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("checks every path, lockfiles and binary files included", async () => {
+    const root = await tempRepo({
+      "docs/zorblax/notes.md": "Acme Books\n",
+      "zorblax/bun.lock": "{}\n",
+      "assets/zorblax.bin": "\u0000\n",
+    });
+
+    try {
+      expect(await checkRestrictedNames(root, HASHES)).toEqual({
+        scanned: 1,
         hits: [
           {
+            file: "assets/zorblax.bin",
+            message: hit("The path assets/zorblax.bin"),
+          },
+          {
             file: "docs/zorblax/notes.md",
-            message: `The path docs/zorblax/notes.md has a restricted project name (sha256 ${ZORBLAX}). Replace it with a made-up one such as Acme Books.`,
+            message: hit("The path docs/zorblax/notes.md"),
+          },
+          {
+            file: "zorblax/bun.lock",
+            message: hit("The path zorblax/bun.lock"),
+          },
+        ],
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("checks the target path a symlink commits, even when the target is missing", async () => {
+    const root = await tempRepo({ "shared.md": "Zorblax\n" });
+
+    try {
+      await symlink("/home/user/zorblax/README.md", join(root, "dangling.md"));
+      await symlink("shared.md", join(root, "clean.md"));
+
+      expect(await checkRestrictedNames(root, HASHES)).toEqual({
+        scanned: 3,
+        hits: [
+          {
+            file: "dangling.md",
+            line: 1,
+            col: 12,
+            message: hit("dangling.md line 1, column 12"),
+          },
+          {
+            file: "shared.md",
+            line: 1,
+            col: 1,
+            message: hit("shared.md line 1, column 1"),
           },
         ],
       });

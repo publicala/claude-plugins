@@ -5,10 +5,11 @@
 // lowercased word with a list of hashes, and reports a hit by the first
 // characters of its hash.
 import { createHash } from "node:crypto";
+import { lstat, readlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
 
-import { repoFiles } from "./repo-files";
+import { repoPaths } from "./repo-files";
 import { errorAnnotation, type Annotation } from "./workflow-command";
 
 const ROOT = join(import.meta.dir, "..");
@@ -126,45 +127,64 @@ function describeHit(where: string, hash: string): string {
 }
 
 /**
- * Checks the path and the text of every file a commit could carry, except
- * lockfiles, which only name packages, and binary files.
+ * Checks the path of every file a commit could carry, and its text unless
+ * it is a lockfile, which only names packages, or binary. A symlink's text
+ * is its target path, which git commits in place of the target's contents.
  */
 export async function checkRestrictedNames(
   root: string,
   hashes: ReadonlySet<string>,
 ): Promise<{ scanned: number; hits: Annotation[] }> {
-  const paths = repoFiles(root).filter((path) => basename(path) !== "bun.lock");
-
   const results = await Promise.all(
-    paths.map(async (path) => {
-      const bytes = await Bun.file(join(root, path)).bytes();
-
-      if (isBinary(bytes)) {
-        return null;
-      }
-
+    repoPaths(root).map(async (path) => {
       const pathHits = findRestrictedWords(path, hashes).map(({ hash }) => ({
         file: path,
         message: describeHit(`The path ${path}`, hash),
       }));
 
-      const textHits = findRestrictedWords(
-        new TextDecoder().decode(bytes),
-        hashes,
-      ).map(({ line, column, hash }) => ({
-        file: path,
-        line,
-        col: column,
-        message: describeHit(`${path} line ${line}, column ${column}`, hash),
-      }));
+      const text = await committedText(root, path);
 
-      return [...pathHits, ...textHits];
+      if (text === null) {
+        return { scanned: false, hits: pathHits };
+      }
+
+      const textHits = findRestrictedWords(text, hashes).map(
+        ({ line, column, hash }) => ({
+          file: path,
+          line,
+          col: column,
+          message: describeHit(`${path} line ${line}, column ${column}`, hash),
+        }),
+      );
+
+      return { scanned: true, hits: [...pathHits, ...textHits] };
     }),
   );
 
-  const scannedResults = results.filter((hits) => hits !== null);
+  return {
+    scanned: results.filter(({ scanned }) => scanned).length,
+    hits: results.flatMap(({ hits }) => hits),
+  };
+}
 
-  return { scanned: scannedResults.length, hits: scannedResults.flat() };
+/** The text git would commit for this path, or null when it is not checked. */
+async function committedText(
+  root: string,
+  path: string,
+): Promise<string | null> {
+  const absolutePath = join(root, path);
+
+  if ((await lstat(absolutePath)).isSymbolicLink()) {
+    return readlink(absolutePath);
+  }
+
+  if (basename(path) === "bun.lock") {
+    return null;
+  }
+
+  const bytes = await Bun.file(absolutePath).bytes();
+
+  return isBinary(bytes) ? null : new TextDecoder().decode(bytes);
 }
 
 async function loadHashes(listPath: string | undefined): Promise<Set<string>> {
