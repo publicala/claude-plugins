@@ -1,0 +1,5 @@
+# Read by `bun run test` in place of bunfig.toml, which holds the fleet's
+# install settings, byte-identical across repositories.
+[test]
+coverageThreshold = { lines = 0.95, functions = 0.95 }
+coverageSkipTestFiles = true

@@ -108,7 +108,7 @@ jobs:
           echo "$RUNNER_TEMP/ffmpeg" >> "$GITHUB_PATH"
           "$RUNNER_TEMP/ffmpeg/ffmpeg" -hide_banner -version | head -n 1
       - run: bun install --frozen-lockfile
-      - run: bun test --coverage
+      - run: bun run test
 
   validate-json:
     runs-on: ubuntu-latest
@@ -138,7 +138,7 @@ jobs:
       - name: Links, skills, manifests and plugin paths hold
         run: bun run validate:plugins
 
-  prose:
+  docs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -149,6 +149,8 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
+      - name: Markdown structure (markdownlint)
+        run: bun run lint:md
       - name: Markdown prose follows the writing rules in CLAUDE.md
         run: bun run check:prose
 
@@ -195,7 +197,7 @@ jobs:
         test,
         validate-json,
         validate-plugins,
-        prose,
+        docs,
         actions,
       ]
     runs-on: ubuntu-latest

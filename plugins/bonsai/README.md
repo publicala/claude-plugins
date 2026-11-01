@@ -28,7 +28,7 @@ Every line in a CLAUDE.md loads in every session, so a line that changes nothing
 
 ## Install
 
-```
+```text
 /plugin marketplace add publicala/claude-plugins
 /plugin install bonsai@publicala
 ```

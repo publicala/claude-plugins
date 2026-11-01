@@ -5,6 +5,8 @@ user-invocable: true
 disable-model-invocation: true
 ---
 
+# Audit
+
 Judge every line of every in-scope CLAUDE.md against one question: **what mistake does a session make without it?** If the answer is "none", the line is inventory. The goal is a file where every line changes behavior, however long the file ends up.
 
 Throughout the audit, "cut" means recording a cut verdict in the report. No file changes before approval, no exceptions.

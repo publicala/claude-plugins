@@ -5,6 +5,8 @@ user-invocable: true
 disable-model-invocation: true
 ---
 
+# Intake
+
 Judge every review thread against one question: **which CLAUDE.md line or automated check would have prevented this?** A finding with no such answer is not evidence for bonsai, however valid it was as a review comment. The goal is a small set of verified candidates that feed and bake can act on once the same mistake recurs.
 
 Throughout, "record" means writing an entry file. Proposing rules is feed's job. Wiring checks is bake's job.

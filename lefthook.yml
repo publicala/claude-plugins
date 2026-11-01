@@ -1,14 +1,35 @@
-# Local git hooks via lefthook. Formats every staged file the CI format gate
-# checks, so a commit fixes formatting before it can fail CI. `bun install`
-# installs the hooks. Lint, type checks and tests run in CI.
-
+# Mirrors the CI format and lint gates on the staged files. Type checks and
+# tests run in CI behind ci-success. Installed by `bun install` through the
+# lefthook package's postinstall. Never bypass with --no-verify.
+# `bun run` starts the tools from node_modules, at the versions bun.lock
+# pins, under Bun, so no Node install is needed. A missing `bun install`
+# fails the hook instead of fetching a release.
 min_version: 2.1.9
 glob_matcher: doublestar
 
 pre-commit:
-  commands:
-    format:
-      glob: "**/*.{md,mdx,json,jsonc,yml,yaml,mjs,js,ts,html,css}"
-      # The project's own Prettier, never one fetched from the registry.
-      run: bun run prettier --write {staged_files}
+  # The formatters read configs they may rewrite, so the jobs run in order.
+  parallel: false
+  jobs:
+    - name: fix:ts-format
+      run: bun run oxfmt --write {staged_files}
+      glob: "**/*.{ts,mts,js,mjs,cjs}"
       stage_fixed: true
+    - name: fix:config
+      run: bun run oxfmt --write {staged_files}
+      glob: "**/*.{json,jsonc,yml,yaml,toml}"
+      stage_fixed: true
+    # The plugins' pages and styles. Drifts from the fleet's lefthook.yml,
+    # whose repositories carry no HTML or CSS.
+    - name: fix:pages
+      run: bun run oxfmt --write {staged_files}
+      glob: "**/*.{html,css}"
+      stage_fixed: true
+    - name: fix:docs
+      run: bun run oxfmt --write {staged_files}
+      glob: "**/*.{md,mdx}"
+      stage_fixed: true
+    # --no-globs keeps markdownlint to the staged files.
+    - name: check:docs
+      run: bun run markdownlint-cli2 --no-globs {staged_files}
+      glob: "**/*.{md,mdx}"

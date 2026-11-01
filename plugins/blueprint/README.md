@@ -11,7 +11,7 @@ Claude also reaches for each one on its own when you ask for a figure or a video
 
 ## Install
 
-```
+```text
 /plugin marketplace add publicala/claude-plugins
 /plugin install blueprint@publicala
 ```
@@ -34,7 +34,7 @@ The renderer needs [Bun](https://bun.sh) and Chrome or Chromium, and a walkthrou
 
 From the repository root:
 
-```
+```bash
 bun install
 bun test plugins/blueprint
 ```

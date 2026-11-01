@@ -5,6 +5,8 @@ user-invocable: true
 disable-model-invocation: true
 ---
 
+# Feed
+
 Judge every recurring correction against one question: **which CLAUDE.md line would have prevented it?** A correction asked for once is an incident. Asked for twice, or recorded by intake from two reviews, it is a pattern, and a pattern with no line yet is the gap this skill closes. The goal is a small set of rules a fresh session would have broken without them.
 
 Throughout, "propose" means recording a candidate in the report. No file changes before approval, no exceptions.

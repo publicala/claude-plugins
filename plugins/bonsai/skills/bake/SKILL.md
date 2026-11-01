@@ -5,6 +5,8 @@ user-invocable: true
 disable-model-invocation: true
 ---
 
+# Bake
+
 Judge every CLAUDE.md rule against one question: **which tool could enforce this before code lands?** A rule a committed check enforces is context spent on nothing, because the violation never reaches review. The check's failure message is where a session meets the rule, so the message carries what the prose carried: what is wrong and what to write instead. The goal is a file where every remaining line needs judgment no tool can express, or warns of a mistake a check would catch only after the session built on it.
 
 Read [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory) before the pass. It defines when a check holds a rule, and when one line stays next to a check.
