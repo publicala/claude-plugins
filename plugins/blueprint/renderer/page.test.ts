@@ -57,7 +57,7 @@ describe("expandIcons", () => {
   });
 
   test.each([
-    ["wrapped by Prettier", '<i data-icon="database"></i\n>'],
+    ["wrapped by the formatter", '<i data-icon="database"></i\n>'],
     ["in single quotes", "<i data-icon='database'></i>"],
     ["with another attribute", '<i class="big" data-icon="database"></i>'],
     ["self-closing", '<i data-icon="database" />'],

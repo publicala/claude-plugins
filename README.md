@@ -49,7 +49,7 @@ bun install
 bun run check
 ```
 
-`bun install` also installs the packages of plugins that carry their own (`postinstall` in `package.json`), and the git hooks (`lefthook.yml`): a commit formats its staged files with Prettier. `bun run check` runs Prettier, ESLint with type-aware rules, `tsc` (twice: the Bun scripts, then the page scripts against the DOM in `tsconfig.browser.json`), the JSON validation (every `*.json` and `*.jsonc` parses), the plugin validation (relative links in every Markdown file, each SKILL.md's frontmatter and bundled paths, every `plugin.json` against the marketplace and the root `postinstall`, and no plugin path above its root), the prose check (the mechanical writing rules in [CLAUDE.md](CLAUDE.md)), and the tests with a coverage floor (`bunfig.toml`).
+`bun install` also installs the packages of plugins that carry their own (`postinstall` in `package.json`), and the git hooks (`lefthook.yml`): a commit formats its staged files with oxfmt and lints its staged Markdown with markdownlint. `bun run check` runs oxfmt, ESLint with type-aware rules, `tsc` (twice: the Bun scripts, then the page scripts against the DOM in `tsconfig.browser.json`), the JSON validation (every `*.json` and `*.jsonc` parses), the plugin validation (relative links in every Markdown file, each SKILL.md's frontmatter and bundled paths, every `plugin.json` against the marketplace and the root `postinstall`, and no plugin path above its root), markdownlint (the Markdown structure), the prose check (the mechanical writing rules in [CLAUDE.md](CLAUDE.md)), and the tests with a coverage floor (`bunfig.test.toml`).
 
 ## License
 
