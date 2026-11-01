@@ -3,6 +3,7 @@ import { rm } from "node:fs/promises";
 
 import {
   checkProse,
+  findLabeledBullets,
   findProseProblems,
   main,
   proseFragments,
@@ -39,6 +40,76 @@ describe("proseFragments", () => {
   });
 });
 
+describe("findLabeledBullets", () => {
+  test("accepts a labeled bullet with a colon, and bullets with no label", () => {
+    const text = [
+      "- **Lint**: runs ESLint.",
+      "- Lint: runs ESLint.",
+      "1. **Build**: compiles.",
+      "- Runs the tests, then stops.",
+      "- `bun test` - runs the tests.",
+      "- A sentence with more than four words - then a dash.",
+      "- Use `x - y` for the offset.",
+      "- **Lint** `a - b` runs.",
+    ].join("\n");
+
+    expect(findLabeledBullets(text)).toEqual([]);
+  });
+
+  test.each<[string, string, string]>([
+    ["- **Lint** - runs ESLint.", "**Lint** -", "Lint"],
+    ["- **Lint** \u2013 runs ESLint.", "**Lint** \u2013", "Lint"],
+    ["* **Lint** \u2014 runs ESLint.", "**Lint** \u2014", "Lint"],
+    ["- **Lint**. Runs ESLint.", "**Lint**.", "Lint"],
+    [
+      "- **Lint runs first.** Then the rest.",
+      "**Lint runs first.**",
+      "Lint runs first",
+    ],
+    ["  2. **Type check** - runs tsc.", "**Type check** -", "Type check"],
+    ["- Lint - runs ESLint.", "Lint -", "Lint"],
+    ["+ Type check - runs tsc.", "Type check -", "Type check"],
+  ])("flags %p and names the colon form", (text, written, label) => {
+    expect(findLabeledBullets(`Intro.\n\n${text}`)).toEqual([
+      {
+        line: 3,
+        message: `labels a bullet with "${written}". Write "**${label}**: text", with a colon.`,
+      },
+    ]);
+  });
+
+  test("skips frontmatter, code, HTML and quotes, as the prose rules do", () => {
+    const text = [
+      "---",
+      "- **Lint** - in frontmatter",
+      "---",
+      "```md",
+      "- **Lint** - in a fence",
+      "```",
+      "   ~~~",
+      "- **Lint** - in an indented tilde fence",
+      "   ~~~",
+      "",
+      "    - **Lint** - in an indented code block",
+      "",
+      "<!--",
+      "- **Lint** - in a comment",
+      "-->",
+      "",
+      "<pre>",
+      "- **Lint** - in a pre block",
+      "</pre>",
+      "",
+      "> - **Lint** - in a quote",
+      "",
+      "- **Lint** - in prose",
+      "  - **Nested** - in prose too",
+    ].join("\n");
+
+    expect(findLabeledBullets(text).map(({ line }) => line)).toEqual([23, 24]);
+  });
+});
+
 describe("findProseProblems", () => {
   test("accepts prose that follows the rules", () => {
     expect(
@@ -62,6 +133,20 @@ describe("findProseProblems", () => {
 
     expect(problems).toHaveLength(1);
     expect(problems[0]?.message).toContain(problem);
+  });
+
+  test("reports a labeled bullet once, with the colon form, and keeps other problems in line order", () => {
+    expect(
+      findProseProblems("One; two.\n\n- **Lint** \u2014 runs ESLint; fast.\n"),
+    ).toEqual([
+      { line: 1, message: "has a semicolon. Split it into two sentences." },
+      {
+        line: 3,
+        message:
+          'labels a bullet with "**Lint** \u2014". Write "**Lint**: text", with a colon.',
+      },
+      { line: 3, message: "has a semicolon. Split it into two sentences." },
+    ]);
   });
 
   test("names the line of each problem, also after code", () => {
@@ -139,6 +224,25 @@ describe("main", () => {
       expect(await main()).toBe(0);
     } finally {
       log.mockRestore();
+    }
+  });
+
+  test("fails on a labeled bullet with its file and line", async () => {
+    const root = await tempRepo({
+      "README.md": "# Checks\n\n- **Lint** - runs ESLint.\n",
+    });
+    const error = spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      expect(await main(root)).toBe(1);
+      expect(error.mock.calls).toEqual([
+        [
+          '::error file=README.md,line=3::labels a bullet with "**Lint** -". Write "**Lint**: text", with a colon.',
+        ],
+      ]);
+    } finally {
+      error.mockRestore();
+      await rm(root, { recursive: true, force: true });
     }
   });
 

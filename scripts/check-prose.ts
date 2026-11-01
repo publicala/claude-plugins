@@ -20,17 +20,20 @@ const CODE_CLOSE = /^<\/(?:code|kbd|samp|pre)\s*>$/i;
 interface Rule {
   pattern: RegExp;
   message: (match: string) => string;
+  separator?: boolean;
 }
 
 const RULES: Rule[] = [
   {
     pattern: /—/g,
     message: () => "has an em dash. Use parentheses or split the sentence.",
+    separator: true,
   },
   {
     pattern: / [-–] /g,
     message: (match) =>
       `uses "${match.trim()}" as a separator. Use parentheses or split the sentence.`,
+    separator: true,
   },
   {
     pattern: /;/g,
@@ -86,8 +89,61 @@ export function proseFragments(markdown: string): string[] {
   return prose;
 }
 
+// A list item that opens with a short label followed by " - ", " – ",
+// " — " or ". ", in bold or plain, where the house style takes a colon.
+const LABELED_BULLETS = [
+  /^\s*(?:[-*+]|\d+[.)])\s+(\*\*([^*]+)\*\*\s*(?:[-–—]|\.))\s+\S/d,
+  /^\s*(?:[-*+]|\d+[.)])\s+(\*\*([^*]+?)\.\*\*)\s+\S/d,
+  /^\s*(?:[-*+]|\d+[.)])\s+(([^\s*`#[]\S*(?: \S+){0,3}?) [-–—])\s\S/d,
+];
+
+/**
+ * Finds the labeled bullets that use a dash or a period where the house
+ * style takes a colon. Each candidate gets a numbered tag right after its
+ * separator, and only the tags that reach the prose survive the parser's
+ * code, HTML and quote exclusions, a code span around the separator too.
+ */
+export function findLabeledBullets(markdown: string): Finding[] {
+  const lines = markdown.split("\n");
+  const frontmatterEnd = lines[0] === "---" ? lines.indexOf("---", 1) : -1;
+
+  const candidates = lines.flatMap((text, index) => {
+    const match = LABELED_BULLETS.map((pattern) => pattern.exec(text)).find(
+      (found) => found !== null,
+    );
+    const [, written, label] = match ?? [];
+    const separatorEnd = match?.indices?.[1]?.[1];
+
+    return index > frontmatterEnd &&
+      written !== undefined &&
+      label !== undefined &&
+      separatorEnd !== undefined
+      ? [{ index, written, label, separatorEnd }]
+      : [];
+  });
+
+  const tag = (index: number): string => `\uE010${index}\uE011`;
+  const tagged = lines.map((text, index) => {
+    const candidate = candidates.find((found) => found.index === index);
+
+    return candidate === undefined
+      ? text
+      : `${text.slice(0, candidate.separatorEnd)}${tag(index)}${text.slice(candidate.separatorEnd)}`;
+  });
+  const prose = proseFragments(tagged.join("\n")).join("");
+
+  return candidates
+    .filter(({ index }) => prose.includes(tag(index)))
+    .map(({ index, written, label }) => ({
+      line: index + 1,
+      message: `labels a bullet with "${written}". Write "**${label}**: text", with a colon.`,
+    }));
+}
+
 export function findProseProblems(markdown: string): Finding[] {
-  const problems: Finding[] = [];
+  const labeled = findLabeledBullets(markdown);
+  const labeledLines = new Set(labeled.map(({ line }) => line));
+  const problems: Finding[] = [...labeled];
   let cursor = 0;
 
   for (const fragment of proseFragments(markdown)) {
@@ -101,14 +157,19 @@ export function findProseProblems(markdown: string): Finding[] {
       .slice(0, position === -1 ? cursor : position)
       .split("\n").length;
 
-    for (const { pattern, message } of RULES) {
+    for (const { pattern, message, separator } of RULES) {
+      // A labeled bullet's own message already names its separator.
+      if (separator && labeledLines.has(line)) {
+        continue;
+      }
+
       for (const [match] of fragment.matchAll(pattern)) {
         problems.push({ line, message: message(match) });
       }
     }
   }
 
-  return problems;
+  return problems.toSorted((a, b) => (a.line ?? 0) - (b.line ?? 0));
 }
 
 export async function checkProse(root: string): Promise<{

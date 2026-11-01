@@ -16,8 +16,8 @@ Laravel 12, PHP 8.4, Livewire 4, Tailwind 4, Vite, MySQL 8, Redis and Horizon. `
 
 These break production when ignored.
 
-- **Prices are integers in cents.** Never store or compare a price as a float.
-- **Payouts run once per month.** `PayoutRun` locks the month before it writes, so a second run for the same month is a no-op.
+- **Prices are integers in cents**: Never store or compare a price as a float.
+- **Payouts run once per month**: `PayoutRun` locks the month before it writes, so a second run for the same month is a no-op.
 - Never run `php artisan migrate:fresh` against a shared database.
 
 ## Conventions
