@@ -2,7 +2,7 @@
 # Builds the workspace every guard case starts from: the Acme Books inventory
 # repository at the workspace root, with the history of pull requests 41 to 43
 # and a GitHub origin served from a local bare repository, plus a fake `gh` and
-# a git wrapper on PATH that log every call for the graders.
+# git and gofmt wrappers on PATH that log every call for the graders.
 #
 # Usage: setup.sh, run by a case's scaffold script from the empty workspace.
 set -euo pipefail
@@ -32,8 +32,16 @@ for tool in upload-pack receive-pack; do
   chmod +x "$state/bin/git-$tool"
 done
 
-cp "$fixture/git" "$fixture/gh" "$state/bin/"
-chmod +x "$state/bin/git" "$state/bin/gh"
+# The repository is Go, and guard measures a gofmt candidate by running it.
+real_gofmt="$(command -v gofmt || true)"
+if [[ -z "$real_gofmt" ]]; then
+  echo "setup.sh: gofmt is not on PATH. Install Go, then run the suite again." >&2
+  exit 1
+fi
+printf '%s\n' "$real_gofmt" >"$state/real-gofmt"
+
+cp "$fixture/git" "$fixture/gh" "$fixture/gofmt" "$state/bin/"
+chmod +x "$state/bin/git" "$state/bin/gh" "$state/bin/gofmt"
 cp "$fixture/repo.json" "$state/gh/repo.json"
 printf '%s\n' "$workspace/.git/eval-gh-calls.log" >"$state/gh/log-path"
 

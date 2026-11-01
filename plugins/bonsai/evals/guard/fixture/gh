@@ -10,6 +10,7 @@ state="$HOME/.eval-fixture/gh"
 repo="$state/repo.json"
 log="$(cat "$state/log-path")"
 body=""
+logged_pr=""
 
 # Splits the attached forms gh accepts (`-fkey=value`, `--field=key=value`,
 # `-XPOST`, `--method=POST`, `--input=file`) into flag and value, so every
@@ -26,12 +27,15 @@ done
 owner="$(jq -r .owner "$repo")"
 name="$(jq -r .name "$repo")"
 url="https://github.com/$owner/$name"
+url_pattern="${url//./\\.}"
 
 record() {
   # A query sent in a request body goes in the line too.
   # One write per record, so parallel calls never share a line.
   local line
-  line="$(printf '%s gh %s%s' "$1" "${args[*]}" "${body:+ <<< $body}" | tr '\n' ' ')"
+  # The pull request the call resolved to closes the line, so a grader can
+  # tell which pull request's threads were read.
+  line="$(printf '%s gh %s%s%s' "$1" "${args[*]}" "${body:+ <<< $body}" "${logged_pr:+ [pr=$logged_pr]}" | tr '\n' ' ')"
   printf '%s\n' "$line" >>"$log"
 }
 
@@ -82,14 +86,17 @@ pr_exists() {
   }
 }
 
-# The pull request number a `gh pr` call names: a number, a URL or nothing.
+# The pull request number a `gh pr` call names: a number, or a URL of the
+# fixture's repository. Returns 1 when the call names none, and 2 for a URL
+# of another repository, which the fixture does not serve.
 pr_number() {
   local a
   for a in "${args[@]:2}"; do
     if [[ "$a" =~ ^[0-9]+$ ]]; then
       printf '%s' "$a"
       return 0
-    elif [[ "$a" =~ /pull/([0-9]+) ]]; then
+    elif [[ "$a" == *://* ]]; then
+      [[ "$a" =~ ^$url_pattern/pull/([0-9]+)([/?#].*)?$ ]] || return 2
       printf '%s' "${BASH_REMATCH[1]}"
       return 0
     fi
@@ -168,12 +175,21 @@ case "${1:-}" in
   pr)
     case "${2:-}" in
       view)
+        number="$(pr_number)"
+        case $? in
+          2) unsupported ;;
+          1)
+            branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+            number="$(all_prs | jq -r --arg b "$branch" 'map(select(.headRefName == $b and .state == "OPEN"))[0].number // empty')"
+            [[ -n "$number" ]] || {
+              record READ
+              echo "no pull requests found for branch \"$branch\"" >&2
+              exit 1
+            }
+            ;;
+        esac
+        logged_pr="$number"
         record READ
-        number="$(pr_number)" || {
-          branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
-          number="$(all_prs | jq -r --arg b "$branch" 'map(select(.headRefName == $b and .state == "OPEN"))[0].number // empty')"
-          [[ -n "$number" ]] || { echo "no pull requests found for branch \"$branch\"" >&2; exit 1; }
-        }
         if fields="$(flag --json)"; then
           pr_json "$number" | jq --arg fields "$fields" '
             . as $pr
@@ -190,8 +206,9 @@ case "${1:-}" in
         fi
         ;;
       diff)
-        record READ
         number="$(pr_number)" || unsupported
+        logged_pr="$number"
+        record READ
         pr_exists "$number"
         if has --name-only; then
           grep -E '^\+\+\+ b/' "$state/$number.diff" | sed 's|^+++ b/||'
@@ -247,10 +264,11 @@ case "${1:-}" in
         [[ -n "$number" ]] || number="$(printf '%s' "$body" | jq -r '.variables // {} | (.pr // .number // .prNumber // .pull // .pullRequest // .num // empty)' 2>/dev/null)"
       fi
       [[ "$query" =~ (^|[^A-Za-z_])mutation([^A-Za-z_]|$) ]] && refuse_write
-      record READ
       if [[ -z "$number" && "$query" =~ pullRequest\(number:[[:space:]]*([0-9]+) ]]; then
         number="${BASH_REMATCH[1]}"
       fi
+      logged_pr="$number"
+      record READ
       pull='null'
       if [[ -n "$number" ]]; then
         pr_exists "$number"

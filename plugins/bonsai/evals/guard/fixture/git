@@ -1,7 +1,8 @@
 #!/bin/bash
 # Runs the real git for the guard eval cases, and logs each call the graders
 # read: WRITE for a push, a commit in the workspace's own checkout, or any
-# call after which a new local branch exists, READ for every other call.
+# call after which a new local branch exists, READ for every other call,
+# each with git's exit status.
 # Guard does none of those before the user approves a candidate. git's own
 # subprocesses come through here too.
 
@@ -48,7 +49,7 @@ created="$(comm -13 <(printf '%s\n' "$before") <(branches "$@") | grep . | tr '\
 [ -n "$created" ] && kind=WRITE
 
 # One write per record, so parallel calls never share a line.
-record="$(printf '%s git %s%s' "$kind" "$*" "${created:+ (created ${created% })}" | tr '\n' ' ')"
+record="$(printf '%s git %s%s exit=%s' "$kind" "$*" "${created:+ (created ${created% })}" "$status" | tr '\n' ' ')"
 printf '%s\n' "$record" >>"$log"
 
 exit "$status"
