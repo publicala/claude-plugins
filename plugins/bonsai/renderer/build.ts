@@ -1393,15 +1393,16 @@ export async function render(page: Page): Promise<string> {
   // script states, so only the template's own tag closes the script.
   const payload = JSON.stringify(page).replaceAll("<", "\\u003c");
 
-  // Replacer functions keep `$` sequences in the data literal, and the
-  // data goes in last, so no placeholder matches inside it.
+  // Replacer functions keep `$` sequences in the data literal. The title
+  // and the data come from the run, so they go in after every placeholder
+  // of our own: none can match inside them.
   return template
     .replace(TOKENS_PLACEHOLDER, () => tokens)
+    .replace(SCRIPT_PLACEHOLDER, () => script)
     .replace(
       TITLE_PLACEHOLDER,
       () => `<title>${Bun.escapeHTML(page.run.title)}</title>`,
     )
-    .replace(SCRIPT_PLACEHOLDER, () => script)
     .replace(DATA_PLACEHOLDER, () => payload);
 }
 

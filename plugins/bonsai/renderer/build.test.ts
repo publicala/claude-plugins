@@ -1734,13 +1734,20 @@ describe("render", () => {
   test("inlines the page script once, and keeps placeholders in the data as text", async () => {
     const data = await exampleData();
     const placeholders = `${SCRIPT_PLACEHOLDER} ${TOKENS_PLACEHOLDER}`;
+    data.run.title = placeholders;
     changeIn(data.changes, "livewire").why = placeholders;
 
-    const html = await render(await build(data, EXAMPLE));
+    const page = await build(data, EXAMPLE);
+    const html = await render(page);
 
     expect(html.split("function renderSummary()")).toHaveLength(2);
-    expect(html.split(SCRIPT_PLACEHOLDER)).toHaveLength(2);
+    expect(html.startsWith(`<title>${placeholders}</title>`)).toBe(true);
     expect(html).toContain(`"why":"${placeholders}"`);
+
+    const { window, errors } = await openPage(page);
+    expect(errors).toEqual([]);
+    expect(window.document.querySelectorAll(".card").length).toBeGreaterThan(0);
+    await window.happyDOM.close();
   });
 });
 
