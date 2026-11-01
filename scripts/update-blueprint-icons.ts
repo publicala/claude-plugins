@@ -28,21 +28,25 @@ export function innerSvg(svg: string, file: string): string {
   return inner.replace(/\s*\n\s*/g, "");
 }
 
-export async function iconsJson(iconsDir = lucideIconsDir()): Promise<string> {
+/** Each Lucide icon's name, sorted, with its inner markup. */
+export async function lucideIcons(
+  iconsDir = lucideIconsDir(),
+): Promise<Record<string, string>> {
   const files = (await readdir(iconsDir))
     .filter((file) => file.endsWith(".svg"))
     .toSorted();
-
-  const icons = Object.fromEntries(
-    await Promise.all(
-      files.map(async (file) => [
-        file.slice(0, -".svg".length),
-        innerSvg(await Bun.file(join(iconsDir, file)).text(), file),
-      ]),
-    ),
+  const entries: [string, string][] = await Promise.all(
+    files.map(async (file) => [
+      file.slice(0, -".svg".length),
+      innerSvg(await Bun.file(join(iconsDir, file)).text(), file),
+    ]),
   );
 
-  return `${JSON.stringify(icons, null, 2)}\n`;
+  return Object.fromEntries(entries);
+}
+
+export async function iconsJson(iconsDir = lucideIconsDir()): Promise<string> {
+  return `${JSON.stringify(await lucideIcons(iconsDir), null, 2)}\n`;
 }
 
 export async function main(path = ICONS_JSON): Promise<void> {

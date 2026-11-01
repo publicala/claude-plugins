@@ -7,6 +7,7 @@ import {
   ICONS_JSON,
   iconsJson,
   innerSvg,
+  lucideIcons,
   main,
 } from "./update-blueprint-icons";
 
@@ -47,6 +48,24 @@ describe("iconsJson", () => {
 
   test("the plugin's icons match the installed lucide-static (bun run update:icons)", async () => {
     expect(await Bun.file(ICONS_JSON).text()).toBe(await iconsJson());
+  });
+});
+
+describe("lucideIcons", () => {
+  test("types each icon as its markup, so tsc refuses any other use", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "icons-"));
+
+    try {
+      await Bun.write(join(dir, "anchor.svg"), '<svg><path d="A"/></svg>');
+      const icons = await lucideIcons(dir);
+
+      // @ts-expect-error The markup is text. An untyped map would let this pass.
+      const size: number = icons["anchor"] ?? 0;
+
+      expect(String(size)).toBe('<path d="A"/>');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 
