@@ -2,7 +2,7 @@
 
 The Claude Code plugins we use every day at [Publica.la](https://publica.la), shared in public. Add the marketplace once, then install any plugin by name:
 
-```
+```text
 /plugin marketplace add publicala/claude-plugins
 /plugin install bonsai@publicala
 /plugin install blueprint@publicala
@@ -44,7 +44,7 @@ Everything listed here is distributed publicly. Additions and changes need appro
 
 Scripts are TypeScript run with [Bun](https://bun.sh), at the version `packageManager` in `package.json` pins. Install the toolchain once, then run every gate CI runs:
 
-```
+```bash
 bun install
 bun run check
 ```

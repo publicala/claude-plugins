@@ -6,6 +6,8 @@ disable-model-invocation: false
 argument-hint: "[<PR number or URL>...] [--no-reply]"
 ---
 
+# Guard
+
 Judge every review finding against one question: **which check would have failed on this before a reviewer saw it?** A reviewer who catches a mistake by hand catches that one instance. A check catches the whole class, in every session, before review, and its failure message teaches the fix to the session that made it. One finding is enough to build one, when the check is cheap and the mistake is likely to come back: **one finding, one guardrail, one PR**.
 
 Guard differs from `/bonsai:bake` in its input and its output. Bake starts from CLAUDE.md rules and findings recorded by `/bonsai:intake` in two or more PRs, and ships one PR with a commit per rule. Guard starts from the reviews of the PRs it is given (one round, or every round of a finished run), keeps nothing between runs, and ships each guardrail as its own PR that merges on its own.

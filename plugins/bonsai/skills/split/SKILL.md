@@ -5,6 +5,8 @@ user-invocable: true
 disable-model-invocation: true
 ---
 
+# Split
+
 Judge every rule of every in-scope CLAUDE.md against one question: **which sessions does this rule govern?** A resident rule that governs one subtree taxes every other session for nothing, and a scoped rule that governs the whole project is missing from most sessions that need it. The goal is placement: every rule loads in the sessions it governs, and in no others.
 
 Throughout, "demote" and "promote" mean recording a verdict in the report. No file changes before approval, no exceptions.

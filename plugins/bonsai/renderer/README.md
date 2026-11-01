@@ -2,7 +2,7 @@
 
 Turn a bonsai run into a page the user can decide from in a few minutes. You write the data, and `build.ts` reads the quoted lines from disk, checks the data, and writes one HTML page ready to publish as an artifact.
 
-```
+```bash
 bun build.ts data.json -o page.html
 bun build.ts data.json --check
 ```
@@ -170,7 +170,7 @@ The rest of a guard round:
 - `none`: `{ "finding", "verdict", "url" }` for the findings with no guardrail, as the triage table states them: "Inbox keys act under an open dialog" with "One-off bug, fixed in the PR". They render collapsed, with nothing to decide.
 - `questions` and `next` work as in any run. A guard run takes no `ship`.
 
-The page has no preview pane, since each card shows the whole line it writes. The token meter appears only when a CLAUDE.md line edits a resident file. The buttons read Build, Skip and Later (keys `b`, `s` and `l`), and the message opens with "Build the bonsai guard of <target>, round <n>, with these decisions:". It holds one line per candidate with its rung and tool, then `- not now <id>: build anyway` for each candidate the user pulled back in.
+The page has no preview pane, since each card shows the whole line it writes. The token meter appears only when a CLAUDE.md line edits a resident file. The buttons read Build, Skip and Later (keys `b`, `s` and `l`), and the message opens with `Build the bonsai guard of <target>, round <n>, with these decisions:`. It holds one line per candidate with its rung and tool, then `- not now <id>: build anyway` for each candidate the user pulled back in.
 
 In record mode, `run.status.state` set to `built` shows as Built, `run.status.prs` maps each candidate or not-now id to its PR and shows the link on its card, `decisions.d` keeps `apply` for Build, and `decisions.pull` records the switches.
 
@@ -230,7 +230,7 @@ The page then shows the outcome and the decisions, with every control disabled. 
 
 From the repository root:
 
-```
+```bash
 bun install
 bun test plugins/bonsai/renderer
 ```
