@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import type { Annotation } from "./workflow-command";
 import {
-  lineOfKey,
+  lineOfPath,
   pluginNames,
   readJsonObject,
   validateMarketplace,
@@ -29,13 +29,23 @@ describe("pluginNames", () => {
   });
 });
 
-describe("lineOfKey", () => {
-  const text = '{\n  "name": "demo",\n  "plugins": [{ "name": "other" }]\n}';
+describe("lineOfPath", () => {
+  const text = [
+    "{",
+    '  "author": { "name": "Acme Books" },',
+    '  "name": "demo",',
+    '  "plugins": [{ "name": "other" },',
+    '    { "source": "./plugins/demo" }]',
+    "}",
+  ].join("\n");
 
-  test("finds a key, or the key with a value", () => {
-    expect(lineOfKey(text, "name")).toBe(2);
-    expect(lineOfKey(text, "name", "other")).toBe(3);
-    expect(lineOfKey(text, "version")).toBeUndefined();
+  test("finds the key at its path, never one at another depth", () => {
+    expect(lineOfPath(text, ["name"])).toBe(3);
+    expect(lineOfPath(text, ["author", "name"])).toBe(2);
+    expect(lineOfPath(text, ["plugins", 0, "name"])).toBe(4);
+    expect(lineOfPath(text, ["plugins", 1])).toBe(5);
+    expect(lineOfPath(text, ["version"])).toBeUndefined();
+    expect(lineOfPath("", ["name"])).toBeUndefined();
   });
 });
 
@@ -210,7 +220,7 @@ describe("validateMarketplace", () => {
     ).toEqual([
       {
         file: ".claude-plugin/marketplace.json",
-        line: 2,
+        line: 15,
         message:
           'lists the entry {"name":"gamma"}, which has no "source" path. Write "source": "./plugins/<name>".',
       },

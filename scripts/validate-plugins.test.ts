@@ -555,6 +555,39 @@ describe("validatePlugins", () => {
     ]);
   });
 
+  test("names the line of the top-level name, past an author's name", async () => {
+    const manifest = (name: string): string =>
+      JSON.stringify(
+        { author: { name: "Acme Books" }, name, description: "Prunes." },
+        null,
+        2,
+      );
+
+    expect(
+      await problemsIn({
+        "plugins/demo/.claude-plugin/plugin.json": manifest("demo"),
+      }),
+    ).toEqual([]);
+    expect(
+      await problemsIn({
+        "plugins/demo/.claude-plugin/plugin.json": manifest("prune"),
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/.claude-plugin/plugin.json",
+        line: 5,
+        message:
+          '"name" is "prune", and the plugin\'s directory is "demo". Write "name": "demo".',
+      },
+      {
+        file: ".claude-plugin/marketplace.json",
+        line: 5,
+        message:
+          '"name" of plugins/demo is "demo", and plugins/demo/.claude-plugin/plugin.json says "prune". Copy the plugin.json value here.',
+      },
+    ]);
+  });
+
   test("flags a plugin.json that carries a version", async () => {
     expect(
       await problemsIn({

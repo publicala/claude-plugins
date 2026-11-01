@@ -2,6 +2,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { findNodeAtLocation, parseTree } from "jsonc-parser";
+
 import { type Finding, lineAt, type Annotation } from "./workflow-command";
 
 /** The plugin directories under plugins/ that hold at least one file. */
@@ -25,25 +27,26 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The lines of a JSON key, or of the key with this value when given. */
-export function linesOfKey(
+/**
+ * The line of the key at this path, such as ["plugins", 0, "source"], or
+ * of the element at an array index. Only that path counts, so an
+ * `"author": { "name" }` above the top-level "name" never stands in.
+ */
+export function lineOfPath(
   text: string,
-  key: string,
-  value?: unknown,
-): number[] {
-  const pattern = `"${RegExp.escape(key)}"\\s*:${value === undefined ? "" : `\\s*${RegExp.escape(JSON.stringify(value))}`}`;
-
-  return [...text.matchAll(new RegExp(pattern, "g"))].map(({ index }) =>
-    lineAt(text, index),
-  );
-}
-
-export function lineOfKey(
-  text: string,
-  key: string,
-  value?: unknown,
+  path: (string | number)[],
 ): number | undefined {
-  return linesOfKey(text, key, value)[0];
+  const tree = parseTree(text);
+  const node = tree === undefined ? undefined : findNodeAtLocation(tree, path);
+
+  if (node === undefined) {
+    return undefined;
+  }
+
+  return lineAt(
+    text,
+    node.parent?.type === "property" ? node.parent.offset : node.offset,
+  );
 }
 
 /**
@@ -98,7 +101,7 @@ export function validatePluginManifest(
 
   if (manifest.name !== name) {
     findings.push({
-      line: lineOfKey(text, "name") ?? 1,
+      line: lineOfPath(text, ["name"]) ?? 1,
       message: `"name" is ${describeValue(manifest.name)}, and the plugin's directory is "${name}". Write "name": "${name}".`,
     });
   }
@@ -108,14 +111,14 @@ export function validatePluginManifest(
     manifest.description.trim() === ""
   ) {
     findings.push({
-      line: lineOfKey(text, "description") ?? 1,
+      line: lineOfPath(text, ["description"]) ?? 1,
       message: `"description" is ${describeValue(manifest.description)}. Write "description": "<what the plugin does>".`,
     });
   }
 
   if ("version" in manifest) {
     findings.push({
-      line: lineOfKey(text, "version"),
+      line: lineOfPath(text, ["version"]),
       message:
         'carries "version", and CLAUDE.md says: "plugin.json carries no version, so every merge reaches users." Remove the "version" key.',
     });
@@ -193,77 +196,83 @@ export function validateMarketplace(
   if (!Array.isArray(json.plugins)) {
     return [
       problem(
-        lineOfKey(text, "plugins") ?? 1,
+        lineOfPath(text, ["plugins"]) ?? 1,
         `"plugins" is ${describeValue(json.plugins)}. Write "plugins": [ ] with an entry per directory under plugins/.`,
       ),
     ];
   }
 
   const listed = new Set<string>();
-  const problems = json.plugins.flatMap((entry: unknown): Annotation[] => {
-    if (!isObject(entry) || typeof entry.source !== "string") {
-      return [
-        problem(
-          lineOfKey(text, "plugins"),
-          `lists the entry ${JSON.stringify(entry)}, which has no "source" path. Write "source": "./plugins/<name>".`,
-        ),
-      ];
-    }
+  const problems = json.plugins.flatMap(
+    (entry: unknown, position: number): Annotation[] => {
+      const lineOf = (key?: string): number | undefined =>
+        (key === undefined
+          ? undefined
+          : lineOfPath(text, ["plugins", position, key])) ??
+        lineOfPath(text, ["plugins", position]);
 
-    const source = entry.source.replace(/^\.\//, "").replace(/\/$/, "");
-    const name = /^plugins\/([^/]+)$/.exec(source)?.[1];
+      if (!isObject(entry) || typeof entry.source !== "string") {
+        return [
+          problem(
+            lineOf(),
+            `lists the entry ${JSON.stringify(entry)}, which has no "source" path. Write "source": "./plugins/<name>".`,
+          ),
+        ];
+      }
 
-    if (name === undefined || !plugins.includes(name)) {
-      return [
-        problem(
-          lineOfKey(text, "source", entry.source),
-          `"source" is ${JSON.stringify(entry.source)}, which is no plugin directory. Point it at one, like "./plugins/<name>".`,
-        ),
-      ];
-    }
+      const source = entry.source.replace(/^\.\//, "").replace(/\/$/, "");
+      const name = /^plugins\/([^/]+)$/.exec(source)?.[1];
 
-    if (listed.has(name)) {
-      return [
-        problem(
-          linesOfKey(text, "source", entry.source).at(-1),
-          `lists ${source} twice. Remove one of its entries.`,
-        ),
-      ];
-    }
+      if (name === undefined || !plugins.includes(name)) {
+        return [
+          problem(
+            lineOf("source"),
+            `"source" is ${JSON.stringify(entry.source)}, which is no plugin directory. Point it at one, like "./plugins/<name>".`,
+          ),
+        ];
+      }
 
-    listed.add(name);
+      if (listed.has(name)) {
+        return [
+          problem(
+            lineOf("source"),
+            `lists ${source} twice. Remove one of its entries.`,
+          ),
+        ];
+      }
 
-    const manifest = readJsonObject(root, manifestPath(name));
-    const homepage = `${TREE_URL}/${source}`;
-    const entryProblems: Annotation[] = [];
+      listed.add(name);
 
-    // A plugin.json that does not parse gets its own problem.
-    if (manifest !== undefined && "json" in manifest) {
-      for (const key of ["name", "description"]) {
-        if (entry[key] !== manifest.json[key]) {
-          entryProblems.push(
-            problem(
-              lineOfKey(text, key, entry[key]) ??
-                lineOfKey(text, "source", entry.source),
-              `"${key}" of ${source} is ${describeValue(entry[key])}, and ${manifestPath(name)} says ${describeValue(manifest.json[key])}. Copy the plugin.json value here.`,
-            ),
-          );
+      const manifest = readJsonObject(root, manifestPath(name));
+      const homepage = `${TREE_URL}/${source}`;
+      const entryProblems: Annotation[] = [];
+
+      // A plugin.json that does not parse gets its own problem.
+      if (manifest !== undefined && "json" in manifest) {
+        for (const key of ["name", "description"]) {
+          if (entry[key] !== manifest.json[key]) {
+            entryProblems.push(
+              problem(
+                lineOf(key in entry ? key : "source"),
+                `"${key}" of ${source} is ${describeValue(entry[key])}, and ${manifestPath(name)} says ${describeValue(manifest.json[key])}. Copy the plugin.json value here.`,
+              ),
+            );
+          }
         }
       }
-    }
 
-    if (entry.homepage !== homepage) {
-      entryProblems.push(
-        problem(
-          lineOfKey(text, "homepage", entry.homepage) ??
-            lineOfKey(text, "source", entry.source),
-          `"homepage" of ${source} is ${describeValue(entry.homepage)}. Write "homepage": "${homepage}".`,
-        ),
-      );
-    }
+      if (entry.homepage !== homepage) {
+        entryProblems.push(
+          problem(
+            lineOf("homepage" in entry ? "homepage" : "source"),
+            `"homepage" of ${source} is ${describeValue(entry.homepage)}. Write "homepage": "${homepage}".`,
+          ),
+        );
+      }
 
-    return entryProblems;
-  });
+      return entryProblems;
+    },
+  );
 
   return [
     ...problems,
@@ -271,7 +280,7 @@ export function validateMarketplace(
       .filter((name) => !listed.has(name))
       .map((name) =>
         problem(
-          lineOfKey(text, "plugins"),
+          lineOfPath(text, ["plugins"]),
           `does not list plugins/${name}, so it cannot be installed. Add an entry with its name, description, "source": "./plugins/${name}" and "homepage": "${TREE_URL}/plugins/${name}".`,
         ),
       ),
@@ -308,8 +317,8 @@ export function validatePostinstall(
   const line =
     read === undefined
       ? undefined
-      : (lineOfKey(read.text, "postinstall") ??
-        lineOfKey(read.text, "scripts"));
+      : (lineOfPath(read.text, ["scripts", "postinstall"]) ??
+        lineOfPath(read.text, ["scripts"]));
 
   // The commands that always run: a command after || runs only when the
   // one before it fails. Quotes around an argument change nothing.
