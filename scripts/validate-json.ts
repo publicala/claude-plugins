@@ -8,6 +8,8 @@ import { join } from "node:path";
 
 import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
 
+import { errorAnnotation } from "./workflow-command";
+
 const ROOT = join(import.meta.dir, "..");
 
 export interface JsonProblem {
@@ -109,7 +111,12 @@ export async function main(root = ROOT): Promise<number> {
 
   for (const { path, line, column, message } of problems) {
     console.error(
-      `::error file=${path},line=${line},col=${column}::${path} line ${line}, column ${column}: ${message}`,
+      errorAnnotation({
+        file: path,
+        line,
+        col: column,
+        message: `${path} line ${line}, column ${column}: ${message}`,
+      }),
     );
   }
 
