@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 
 // A git hook or `git rebase --exec` sets these, and they point git at that
@@ -24,6 +24,16 @@ export function cwdGitEnvironment(): Record<string, string | undefined> {
  * untracked and not ignored, in any directory, as repo-relative paths.
  */
 export function repoFiles(root: string, ...pathspecs: string[]): string[] {
+  return repoPaths(root, ...pathspecs).filter((path) =>
+    existsSync(join(root, path)),
+  );
+}
+
+/**
+ * The same paths, plus each symlink whose target is missing: git commits
+ * the link itself, so its target path is published either way.
+ */
+export function repoPaths(root: string, ...pathspecs: string[]): string[] {
   const listed = Bun.spawnSync(
     [
       "git",
@@ -45,6 +55,17 @@ export function repoFiles(root: string, ...pathspecs: string[]): string[] {
   }
 
   return [...new Set(listed.stdout.toString().split("\0"))]
-    .filter((path) => path !== "" && existsSync(join(root, path)))
+    .filter((path) => path !== "" && isOnDisk(join(root, path)))
     .toSorted();
+}
+
+// A tracked path under a directory since replaced by a file throws ENOTDIR.
+function isOnDisk(path: string): boolean {
+  try {
+    lstatSync(path);
+
+    return true;
+  } catch {
+    return false;
+  }
 }
