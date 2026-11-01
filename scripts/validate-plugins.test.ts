@@ -419,6 +419,11 @@ const COMPLIANT: Record<string, string> = {
   "README.md": "See [the demo plugin](plugins/demo).\n",
   "plugins/demo/skills/audit/SKILL.md": COMPLIANT_SKILL,
   "plugins/demo/README.md": "# Demo\n",
+  "plugins/demo/.claude-plugin/plugin.json": JSON.stringify(
+    { name: "demo", description: "Prunes." },
+    null,
+    2,
+  ),
 };
 
 async function problemsIn(
@@ -439,12 +444,24 @@ async function problemsIn(
   }
 }
 
+// The parser's own words change with Bun, so a test checks only that some are there.
+function withParserTextHidden(problems: Annotation[]): Annotation[] {
+  return problems.map((problem) => ({
+    ...problem,
+    message: problem.message.replace(
+      /^is not valid JSON \(.+\)\./,
+      "is not valid JSON (<parser text>).",
+    ),
+  }));
+}
+
 describe("validatePlugins", () => {
   test("passes on this repository", async () => {
     const result = await validatePlugins(join(import.meta.dir, ".."));
 
     expect(result.problems).toEqual([]);
-    expect(result.checked).toBeGreaterThan(0);
+    expect(result.checked.markdown).toBeGreaterThan(0);
+    expect(result.checked.plugins).toBeGreaterThan(0);
   });
 
   test("passes on the compliant fixture", async () => {
@@ -508,6 +525,59 @@ describe("validatePlugins", () => {
     ]);
   });
 
+  test("flags a plugin.json that carries a version", async () => {
+    expect(
+      await problemsIn({
+        "plugins/demo/.claude-plugin/plugin.json": JSON.stringify(
+          { name: "demo", version: "1.2.0", description: "Prunes." },
+          null,
+          2,
+        ),
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/.claude-plugin/plugin.json",
+        line: 3,
+        message:
+          'carries "version", and CLAUDE.md says: "plugin.json carries no version, so every merge reaches users." Remove the "version" key.',
+      },
+    ]);
+  });
+
+  test("flags a plugin without a plugin.json, or with one that does not parse", async () => {
+    expect(
+      withParserTextHidden(
+        await problemsIn({
+          "plugins/demo/.claude-plugin/plugin.json": "{ name: demo }",
+          "plugins/extra/README.md": "# Extra\n",
+        }),
+      ),
+    ).toEqual([
+      {
+        file: "plugins/demo/.claude-plugin/plugin.json",
+        line: 1,
+        message: "is not valid JSON (<parser text>). Fix the syntax.",
+      },
+      {
+        file: "plugins/extra/.claude-plugin/plugin.json",
+        message:
+          'is missing, so Claude Code cannot install plugins/extra. Add it with "name": "extra" and a "description".',
+      },
+    ]);
+  });
+
+  test("flags a plugin.json that is not an object", async () => {
+    expect(
+      await problemsIn({ "plugins/demo/.claude-plugin/plugin.json": "[]" }),
+    ).toEqual([
+      {
+        file: "plugins/demo/.claude-plugin/plugin.json",
+        line: 1,
+        message: "is not a JSON object. Write its keys inside { }.",
+      },
+    ]);
+  });
+
   test("names the file whose frontmatter is not valid YAML", async () => {
     const problems = await problemsIn({
       "plugins/demo/skills/audit/SKILL.md": "---\nname: [audit\n---\n",
@@ -525,7 +595,9 @@ describe("main", () => {
 
     try {
       expect(await main()).toBe(0);
-      expect(log.mock.calls[0]?.[0]).toMatch(/^checked \d+ Markdown files/);
+      expect(log.mock.calls[0]?.[0]).toMatch(
+        /^checked \d+ Markdown files and \d+ plugins$/,
+      );
     } finally {
       log.mockRestore();
     }

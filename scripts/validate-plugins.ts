@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 // Fails when a relative Markdown link points at a missing file, when a
-// SKILL.md names a bundled file that does not exist, or when a SKILL.md
-// frontmatter lacks a required key.
+// SKILL.md names a bundled file that does not exist or breaks a
+// frontmatter rule, or when a plugin's manifests disagree with the tree.
 import { existsSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
@@ -12,6 +12,7 @@ import {
   lineAt,
   type Annotation,
 } from "./workflow-command";
+import { pluginNames, validatePluginManifests } from "./plugin-manifests";
 import { repoFiles } from "./repo-files";
 import { unquoteSkillVariables } from "./skill-variables";
 
@@ -327,13 +328,15 @@ function validateDescription(value: unknown, lines: string[]): Finding[] {
 }
 
 export async function validatePlugins(root: string): Promise<{
-  checked: number;
+  checked: { markdown: number; plugins: number };
   problems: Annotation[];
 }> {
-  const paths = repoFiles(root, "*.md");
+  const files = repoFiles(root);
+  const markdown = files.filter((path) => path.endsWith(".md"));
+  const plugins = pluginNames(files);
 
-  const problems = await Promise.all(
-    paths.map(async (path) => {
+  const markdownProblems = await Promise.all(
+    markdown.map(async (path) => {
       const file = join(root, path);
       const text = await Bun.file(file).text();
       const findings = [
@@ -353,7 +356,13 @@ export async function validatePlugins(root: string): Promise<{
     }),
   );
 
-  return { checked: paths.length, problems: problems.flat() };
+  return {
+    checked: { markdown: markdown.length, plugins: plugins.length },
+    problems: [
+      ...markdownProblems.flat(),
+      ...validatePluginManifests(root, plugins),
+    ],
+  };
 }
 
 export async function main(root = ROOT): Promise<number> {
@@ -367,7 +376,9 @@ export async function main(root = ROOT): Promise<number> {
     return 1;
   }
 
-  console.log(`checked ${checked} Markdown files`);
+  console.log(
+    `checked ${checked.markdown} Markdown files and ${checked.plugins} plugin${checked.plugins === 1 ? "" : "s"}`,
+  );
 
   return 0;
 }
