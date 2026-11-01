@@ -46,11 +46,10 @@ Scripts are TypeScript run with [Bun](https://bun.sh), at the version `packageMa
 
 ```
 bun install
-lefthook install
 bun run check
 ```
 
-`bun install` also installs the packages of plugins that carry their own (`postinstall` in `package.json`). `bun run check` runs Prettier, ESLint with type-aware rules, `tsc`, the JSON validation (every `*.json` and `*.jsonc` parses), the plugin validation (relative links and SKILL.md frontmatter), the prose check (the mechanical writing rules in [CLAUDE.md](CLAUDE.md)), and the tests with a coverage floor (`bunfig.toml`).
+`bun install` also installs the packages of plugins that carry their own (`postinstall` in `package.json`), and the git hooks (`lefthook.yml`): a commit formats its staged files with Prettier. `bun run check` runs Prettier, ESLint with type-aware rules, `tsc`, the JSON validation (every `*.json` and `*.jsonc` parses), the plugin validation (relative links and SKILL.md frontmatter), the prose check (the mechanical writing rules in [CLAUDE.md](CLAUDE.md)), and the tests with a coverage floor (`bunfig.toml`).
 
 ## License
 
