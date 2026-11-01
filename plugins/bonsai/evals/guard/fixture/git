@@ -1,8 +1,9 @@
 #!/bin/bash
 # Runs the real git for the guard eval cases, and logs each call the graders
-# read: WRITE for a push, a new branch, or a commit in the workspace's own
-# checkout, READ for every other call. Guard does none of those before the
-# user approves a candidate. git's own subprocesses come through here too.
+# read: WRITE for a push, a commit in the workspace's own checkout, or any
+# call after which a new local branch exists, READ for every other call.
+# Guard does none of those before the user approves a candidate. git's own
+# subprocesses come through here too.
 
 state="$HOME/.eval-fixture"
 real_git="$(cat "$state/real-git")"
@@ -21,71 +22,21 @@ while [ "$i" -le "$#" ]; do
   esac
 done
 subcommand="${!i}"
-rest=("${@:i+1}")
+
+# The local branches before the call, so any branch it creates shows, by
+# whatever command: a creation flag, `worktree add` naming its branch after
+# the path, or a checkout that guesses a local branch from a remote one.
+branches() {
+  "$real_git" "${@:1:i-1}" for-each-ref --format='%(refname)' refs/heads 2>/dev/null | sort
+}
+before="$(branches "$@")"
+
+"$real_git" "$@"
+status=$?
 
 kind=READ
 case "$subcommand" in
   push) kind=WRITE ;;
-  update-ref)
-    for arg in "${rest[@]}"; do
-      case "$arg" in refs/heads/*) kind=WRITE ;; esac
-    done
-    ;;
-  switch | checkout)
-    for arg in "${rest[@]}"; do
-      case "$arg" in
-        -c* | -C* | -b* | -B* | --create | --create=* | --force-create | --force-create=* | --orphan | --orphan=*) kind=WRITE ;;
-      esac
-    done
-    ;;
-  worktree)
-    if [ "${rest[0]}" = add ]; then
-      detached=0
-      positional=()
-      skip=0
-      for arg in "${rest[@]:1}"; do
-        if [ "$skip" = 1 ]; then
-          skip=0
-          continue
-        fi
-        case "$arg" in
-          -b* | -B* | --orphan) kind=WRITE ;;
-          -d | --detach) detached=1 ;;
-          --reason) skip=1 ;;
-          -*) ;;
-          *) positional+=("$arg") ;;
-        esac
-      done
-      # Without -b or --detach, add checks out an existing branch, detaches
-      # at a commit, or creates a branch: from the path's name when no
-      # commit is given, or from a remote branch of that name.
-      if [ "$kind" = READ ] && [ "$detached" = 0 ]; then
-        target="${positional[1]:-}"
-        if [ -z "$target" ]; then
-          "$real_git" "${@:1:i-1}" show-ref --verify --quiet "refs/heads/$(basename "${positional[0]}")" || kind=WRITE
-        elif ! "$real_git" "${@:1:i-1}" show-ref --verify --quiet "refs/heads/$target" &&
-          ! "$real_git" "${@:1:i-1}" rev-parse --verify --quiet "$target^{commit}" >/dev/null; then
-          kind=WRITE
-        fi
-      fi
-    fi
-    ;;
-  branch)
-    # Listing, deleting and showing take these flags. Anything else that
-    # names a branch creates, renames or copies one.
-    named=0
-    reading=0
-    for arg in "${rest[@]}"; do
-      case "$arg" in
-        -d | -D | --delete | -l | --list | -a | --all | -r | --remotes | --show-current | -v | -vv | --verbose | \
-          --contains* | --no-contains* | --merged* | --no-merged* | --points-at* | --format* | --sort* | \
-          -u | --set-upstream-to* | --unset-upstream | --edit-description) reading=1 ;;
-        -*) ;;
-        *) named=1 ;;
-      esac
-    done
-    [ "$named" = 1 ] && [ "$reading" = 0 ] && kind=WRITE
-    ;;
   commit)
     # A commit in a throwaway worktree is a measurement. One in the
     # workspace's own checkout writes to the user's branch.
@@ -93,9 +44,11 @@ case "$subcommand" in
     [ "$toplevel" = "$(cat "$state/workspace")" ] && kind=WRITE
     ;;
 esac
+created="$(comm -13 <(printf '%s\n' "$before") <(branches "$@") | grep . | tr '\n' ' ')"
+[ -n "$created" ] && kind=WRITE
 
 # One write per record, so parallel calls never share a line.
-record="$(printf '%s git %s' "$kind" "$*" | tr '\n' ' ')"
+record="$(printf '%s git %s%s' "$kind" "$*" "${created:+ (created ${created% })}" | tr '\n' ' ')"
 printf '%s\n' "$record" >>"$log"
 
-exec "$real_git" "$@"
+exit "$status"
