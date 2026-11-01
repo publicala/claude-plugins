@@ -59,8 +59,8 @@ interface Fixture {
   kept: Record<string, unknown>[];
 }
 
-async function exampleData(): Promise<Fixture> {
-  return await Bun.file(join(EXAMPLE, "data.json")).json();
+function exampleData(): Promise<Fixture> {
+  return Bun.file(join(EXAMPLE, "data.json")).json();
 }
 
 interface GuardCandidate {
@@ -95,8 +95,8 @@ const MONEY = "money-by-hand";
 const RUNG_LIST =
   "1 Unwritable, 2 Auto-fix, 3 Static analysis, 4 Arch or guard test, 5 ast-grep, 6 Git hook, 7 Runtime guard, 8 CLAUDE.md line";
 
-async function guardData(): Promise<GuardFixture> {
-  return await Bun.file(join(EXAMPLE, "guard-data.json")).json();
+function guardData(): Promise<GuardFixture> {
+  return Bun.file(join(EXAMPLE, "guard-data.json")).json();
 }
 
 function firstQuote(candidate: GuardCandidate): Record<string, unknown> {
