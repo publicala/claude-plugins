@@ -54,10 +54,11 @@ const scene = (overrides: Partial<SceneTiming> = {}): SceneTiming => ({
 const walkthrough = (scenes: string) =>
   `<div class="canvas" data-size="video"><main class="stage">${scenes}</main><footer class="colophon"><span data-fig></span><i class="progress"></i></footer></div>`;
 
-// Chrome on macOS can render a few channel values one level apart in two
-// captures of the same frame, so two frames match when no channel differs by
-// more than this.
-const SAME_FRAME = 2;
+// Two captures of the same frame are not pixel-identical: Chrome renders
+// thousands of channels a level apart and an anti-aliased edge a few levels
+// apart, more often on a busy machine. Averaged over the frame, that stays
+// under 0.0005 a channel, and the next frame differs by over 0.02.
+const SAME_FRAME = 0.003;
 
 // The stand-in encoder keeps the PNGs it receives back to back, and each ends
 // with its IEND chunk.
@@ -76,20 +77,25 @@ function pngFrames(stream: Uint8Array): Uint8Array[] {
   return frames;
 }
 
-async function largestChannelDifference(
+async function meanChannelDifference(
   a: Uint8Array,
   b: Uint8Array,
 ): Promise<number> {
-  const [first, second] = await Promise.all(
+  const [first = [], second = []] = await Promise.all(
     [a, b].map((png) => sharp(png).raw().toBuffer()),
   );
-  let largest = first?.length === second?.length ? 0 : Infinity;
 
-  for (const [index, value] of (first ?? []).entries()) {
-    largest = Math.max(largest, Math.abs(value - (second?.[index] ?? 0)));
+  if (first.length !== second.length) {
+    return Infinity;
   }
 
-  return largest;
+  let total = 0;
+
+  for (const [index, value] of first.entries()) {
+    total += Math.abs(value - (second[index] ?? 0));
+  }
+
+  return total / first.length;
 }
 
 const measurement = (right: number, bottom: number) => ({
@@ -481,7 +487,7 @@ describe.skipIf(!chromeFound)("in Chrome", () => {
       const [pairs, neighbours] = await Promise.all([
         Promise.all(
           single.map((frame, index) =>
-            largestChannelDifference(frame, split[index] ?? new Uint8Array()),
+            meanChannelDifference(frame, split[index] ?? new Uint8Array()),
           ),
         ),
         // Each frame differs from the next by more than a matching pair, so a
@@ -490,7 +496,7 @@ describe.skipIf(!chromeFound)("in Chrome", () => {
           single
             .slice(0, -1)
             .map((frame, index) =>
-              largestChannelDifference(
+              meanChannelDifference(
                 frame,
                 single[index + 1] ?? new Uint8Array(),
               ),
