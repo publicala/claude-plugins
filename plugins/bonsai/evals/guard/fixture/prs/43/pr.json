@@ -20,8 +20,8 @@
         "isResolved": false,
         "isOutdated": false,
         "path": "internal/archtest/println_test.go",
-        "line": 16,
-        "originalLine": 16,
+        "line": 18,
+        "originalLine": 18,
         "comments": {
           "totalCount": 1,
           "nodes": [

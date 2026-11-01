@@ -1,10 +1,12 @@
 package archtest
 
 import (
-	"bytes"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/fs"
-	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -14,6 +16,9 @@ import (
 var printlnAllowed = map[string]string{
 	"cmd/inventory/main.go": "the command writes its own output",
 }
+
+// printing names the fmt functions that write to the terminal.
+var printing = map[string]bool{"Print": true, "Printf": true, "Println": true}
 
 func TestNoPrintlnOutsideCmd(t *testing.T) {
 	root := filepath.Join("..", "..")
@@ -37,11 +42,12 @@ func TestNoPrintlnOutsideCmd(t *testing.T) {
 			return nil
 		}
 
-		src, err := os.ReadFile(path)
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
 		if err != nil {
-			return err
+			t.Errorf("%s does not parse, so the Println guard cannot read it: %v", rel, err)
+			return nil
 		}
-		if bytes.Contains(src, []byte("fmt.Print")) {
+		if printsToTerminal(file) {
 			t.Errorf("%s prints to the terminal: return the text from the internal package and print it in cmd/inventory/main.go", rel)
 		}
 		return nil
@@ -52,4 +58,42 @@ func TestNoPrintlnOutsideCmd(t *testing.T) {
 	if scanned == 0 {
 		t.Fatal("scanned no Go files: the source moved, so update root")
 	}
+}
+
+// printsToTerminal reports whether the file calls fmt.Print, Printf or
+// Println, under whatever name it imports fmt.
+func printsToTerminal(file *ast.File) bool {
+	name := ""
+	for _, spec := range file.Imports {
+		if path, _ := strconv.Unquote(spec.Path.Value); path != "fmt" {
+			continue
+		}
+		name = "fmt"
+		if spec.Name != nil {
+			name = spec.Name.Name
+		}
+	}
+	if name == "" || name == "_" {
+		return false
+	}
+
+	found := false
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		switch fun := call.Fun.(type) {
+		case *ast.SelectorExpr:
+			if pkg, ok := fun.X.(*ast.Ident); ok && pkg.Name == name && printing[fun.Sel.Name] {
+				found = true
+			}
+		case *ast.Ident:
+			if name == "." && printing[fun.Name] {
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
 }
