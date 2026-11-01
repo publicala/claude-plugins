@@ -4,7 +4,7 @@
 
 ## Run the guard suite
 
-From `plugins/bonsai`:
+The suite runs on a developer's Claude Code login, never in CI. Run it before a change to `skills/guard/` merges, from `plugins/bonsai`:
 
 ```bash
 claude plugin eval . --case 'guard-*' --scaffold --allow-tools Bash Write Edit --judge-model sonnet -j 3
@@ -14,9 +14,9 @@ claude plugin eval . --case 'guard-*' --scaffold --allow-tools Bash Write Edit -
 - **`--allow-tools Bash Write Edit`**: guard reads pull requests with `gh` and the repository with `git`, and writes its scratch files. Bash runs inside the eval's OS sandbox: writes stay in the workspace and the network is closed.
 - **`--judge-model sonnet`**: the judge answers PASS or FAIL in one word, and the default small judge flips on replies this long.
 - **`-j 3`**: three sessions at a time, on one rate limit.
-- **`--trust-plugin`**: add it when the shell cannot answer the trust prompt (CI, or a run Claude starts for you).
+- **`--trust-plugin`**: add it when the shell cannot answer the trust prompt, as in a run Claude starts for you.
 
-Each case runs three times with the plugin and three times without it, so a full run is 18 sessions on your login: about 5 minutes and $5 at list price with `-j 3`. One case once, while you change a grader: `--case guard-design-choice-is-none --runs 1 --ablation none`. Results land in `results/`, which git ignores. Add `--keep-temp` to keep each run's workspace and transcript.
+Each case runs three times with the plugin and three times without it, so a full run is 18 sessions on your login: about 5 minutes and $5 at list price with `-j 3`. The command exits 1 when a case scores below the default threshold of 1.0, and a change to the skill merges when every case scores 1.00. One case once, while you change a grader: `--case guard-design-choice-is-none --runs 1 --ablation none`. Results land in `results/`, which git ignores. Add `--keep-temp` to keep each run's workspace and transcript.
 
 ## The fixture
 
