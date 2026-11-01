@@ -12,6 +12,7 @@ import {
 } from "happy-dom";
 
 import {
+  bundlePageScript,
   DATA_PLACEHOLDER,
   DataError,
   build,
@@ -20,6 +21,7 @@ import {
   main,
   type Page,
   render,
+  SCRIPT_PLACEHOLDER,
   summary,
   TOKENS_PLACEHOLDER,
 } from "./build";
@@ -1727,6 +1729,64 @@ describe("render", () => {
     expect(html).not.toContain(DATA_PLACEHOLDER);
     expect(html).not.toContain("Ends a script tag: </script>");
     expect(html).toContain("Ends a script tag: \\u003c/script> $'");
+  });
+
+  test("inlines the page script once, and keeps placeholders in the data as text", async () => {
+    const data = await exampleData();
+    const placeholders = `${SCRIPT_PLACEHOLDER} ${TOKENS_PLACEHOLDER}`;
+    changeIn(data.changes, "livewire").why = placeholders;
+
+    const html = await render(await build(data, EXAMPLE));
+
+    expect(html.split("function renderSummary()")).toHaveLength(2);
+    expect(html.split(SCRIPT_PLACEHOLDER)).toHaveLength(2);
+    expect(html).toContain(`"why":"${placeholders}"`);
+  });
+});
+
+describe("bundlePageScript", () => {
+  async function bundle(source: string): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), "bonsai-bundle-"));
+
+    try {
+      await Bun.write(join(dir, "main.ts"), source);
+      return await bundlePageScript(join(dir, "main.ts"));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  test("bundles the page modules into one script with no imports", async () => {
+    const script = await bundlePageScript(join(HERE, "page", "main.ts"));
+
+    expect(script).toContain("function renderSummary()");
+    expect(script).toContain("function wdiff(");
+    expect(script).not.toMatch(/^\s*(import|export)\b/m);
+  });
+
+  test("names no path from the machine that built it", async () => {
+    const script = await bundlePageScript(join(HERE, "page", "main.ts"));
+
+    expect(script).not.toContain(HERE);
+    expect(script).not.toMatch(/^\/\/ .*\//m);
+  });
+
+  test("refuses code that would end the script block", () => {
+    expect(bundle('console.log("</SCRIPT>");')).rejects.toThrow(
+      'bundles to code with "</script" or "<!--"',
+    );
+  });
+
+  test("refuses code that would open a comment in the script block", () => {
+    expect(bundle('console.log("<!--");')).rejects.toThrow(
+      'Split the string, as in "<" + "/script".',
+    );
+  });
+
+  test("names a page script that does not build", () => {
+    expect(bundle("const = ;")).rejects.toThrow(
+      /Unable to bundle .*main\.ts:\n.+/,
+    );
   });
 });
 

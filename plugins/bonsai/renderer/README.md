@@ -9,6 +9,8 @@ bun build.ts data.json --check
 
 The script needs [Bun](https://bun.sh) 1.1.9 or later and nothing else: no install step, no dependencies. It prints a one-line summary on success, and on failure one error that names the change and what to fix. The page draws in Blueprint's tokens (`blueprint-tokens.css`, owned by the blueprint plugin).
 
+The page's markup and style are in `template.html`, and its script is TypeScript in `page/`: `main.ts` runs the page, and the modules it imports hold the data's types, the word diff and the text helpers. The build bundles `page/` with Bun into the page's one `<script>`, so the page needs nothing at runtime. `bun run typecheck` checks `page/` against the DOM.
+
 ## The data file
 
 `example/data.json` is a complete run against the fixture in `example/repo/`. Start from it. A guard run has its own shape: see [Guard runs](#guard-runs) and `example/guard-data.json`. A trimmed audit run:

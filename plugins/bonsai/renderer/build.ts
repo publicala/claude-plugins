@@ -8,15 +8,17 @@
  */
 
 import { existsSync, realpathSync, statSync } from "node:fs";
-import { dirname, format, isAbsolute, join, parse } from "node:path";
+import { basename, dirname, format, isAbsolute, join, parse } from "node:path";
 import { parseArgs } from "node:util";
 
 type JsonObject = Record<string, unknown>;
 
 const TEMPLATE = join(import.meta.dir, "template.html");
 const TOKENS = join(import.meta.dir, "blueprint-tokens.css");
+const PAGE_SCRIPT = join(import.meta.dir, "page", "main.ts");
 export const TOKENS_PLACEHOLDER = "/*__BLUEPRINT_TOKENS__*/";
 export const DATA_PLACEHOLDER = "/*__DATA__*/ null";
+export const SCRIPT_PLACEHOLDER = "/*__PAGE_SCRIPT__*/";
 const TITLE_PLACEHOLDER = "<title>bonsai</title>";
 
 const SKILLS = ["audit", "bake", "feed", "guard", "split"] as const;
@@ -1346,23 +1348,60 @@ export async function build(
   };
 }
 
+/**
+ * Bundles a page script for the browser, to inline in a <script> block.
+ * Refuses code that would end the block or open a comment in it.
+ */
+export async function bundlePageScript(entry: string): Promise<string> {
+  // The bundler names each module in a comment, relative to its working
+  // directory. Run from the entry's own directory, the comments name the
+  // modules alone, the same on every machine.
+  const bundler = Bun.spawn(
+    [process.execPath, "build", basename(entry), "--target=browser"],
+    { cwd: dirname(entry), stdout: "pipe", stderr: "pipe" },
+  );
+  const [code, errors, exitCode] = await Promise.all([
+    new Response(bundler.stdout).text(),
+    new Response(bundler.stderr).text(),
+    bundler.exited,
+  ]);
+
+  if (exitCode !== 0) {
+    throw new Error(`Unable to bundle ${entry}:\n${errors.trim()}`);
+  }
+
+  if (/<\/script|<!--/i.test(code)) {
+    throw new Error(
+      `${entry} bundles to code with "</script" or "<!--", which breaks the page's script block. Split the string, as in "<" + "/script".`,
+    );
+  }
+
+  return code;
+}
+
+let pageScript: Promise<string> | undefined;
+
 export async function render(page: Page): Promise<string> {
-  const [template, tokens] = await Promise.all([
+  pageScript ??= bundlePageScript(PAGE_SCRIPT);
+  const [template, tokens, script] = await Promise.all([
     Bun.file(TEMPLATE).text(),
     Bun.file(TOKENS).text(),
+    pageScript,
   ]);
 
   // Escaping every "<" keeps the HTML tokenizer out of comment and
   // script states, so only the template's own tag closes the script.
   const payload = JSON.stringify(page).replaceAll("<", "\\u003c");
 
-  // Replacer functions keep `$` sequences in the data literal.
+  // Replacer functions keep `$` sequences in the data literal, and the
+  // data goes in last, so no placeholder matches inside it.
   return template
     .replace(TOKENS_PLACEHOLDER, () => tokens)
     .replace(
       TITLE_PLACEHOLDER,
       () => `<title>${Bun.escapeHTML(page.run.title)}</title>`,
     )
+    .replace(SCRIPT_PLACEHOLDER, () => script)
     .replace(DATA_PLACEHOLDER, () => payload);
 }
 
