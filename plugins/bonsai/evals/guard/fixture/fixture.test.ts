@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -19,6 +19,10 @@ let home = "";
 let workspace = "";
 let environment: Record<string, string> = {};
 
+// A runner without Go gets a gofmt that exits 0, so the wrapper's logging is
+// still covered there. The tests that need gofmt's own output skip.
+const realGofmt = Bun.which("gofmt");
+
 beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), "guard-fixture-"));
   home = join(root, "home");
@@ -32,15 +36,23 @@ beforeAll(async () => {
         : [[name, value]],
     ),
   );
+  let path = process.env["PATH"] ?? "";
+  if (realGofmt === null) {
+    const stub = join(root, "stub-bin");
+    await mkdir(stub);
+    await Bun.write(join(stub, "gofmt"), "#!/bin/sh\nexit 0\n");
+    await chmod(join(stub, "gofmt"), 0o755);
+    path = `${stub}:${path}`;
+  }
   environment = {
     ...inherited,
     HOME: home,
-    PATH: `${join(home, ".eval-fixture", "bin")}:${process.env["PATH"] ?? ""}`,
+    PATH: `${join(home, ".eval-fixture", "bin")}:${path}`,
   };
 
   const setup = Bun.spawnSync(["bash", SETUP], {
     cwd: workspace,
-    env: { ...inherited, HOME: home },
+    env: { ...inherited, HOME: home, PATH: path },
   });
   expect(setup.stderr.toString()).toBe("");
   expect(setup.exitCode).toBe(0);
@@ -190,13 +202,6 @@ describe("the gofmt wrapper", () => {
       "origin/main",
     ]);
 
-    const inside = Bun.spawnSync(
-      [join(home, ".eval-fixture", "bin", "gofmt"), "-s", "-l", "."],
-      { cwd: scratch, env: environment },
-    );
-    expect(inside.stdout.toString()).toBe(
-      "internal/catalog/seed.go\ninternal/stock/stock.go\n",
-    );
     expect((await run("gofmt", ["-s", "-l", "."], scratch)).logged).toBe(
       "RAN gofmt -s -l . where=worktree exit=0",
     );
@@ -211,15 +216,34 @@ describe("the gofmt wrapper", () => {
     );
   });
 
-  test("logs a run outside the repository and returns gofmt's exit code", async () => {
+  test("logs a run outside the repository", async () => {
     const outside = join(root, "outside.go");
-    await Bun.write(outside, "package x\nfunc (");
+    await Bun.write(outside, "package x\n");
 
-    const { exitCode, logged } = await run("gofmt", ["-l", outside]);
-
-    expect(exitCode).toBe(2);
-    expect(logged).toBe(`RAN gofmt -l ${outside} where=elsewhere exit=2`);
+    expect((await run("gofmt", ["-l", outside])).logged).toBe(
+      `RAN gofmt -l ${outside} where=elsewhere exit=0`,
+    );
   });
+
+  test.skipIf(realGofmt === null)(
+    "passes gofmt's output and exit code through",
+    async () => {
+      const listed = Bun.spawnSync(
+        [join(home, ".eval-fixture", "bin", "gofmt"), "-s", "-l", "internal"],
+        { cwd: workspace, env: environment },
+      );
+      expect(listed.stdout.toString()).toBe(
+        "internal/catalog/seed.go\ninternal/stock/stock.go\n",
+      );
+
+      const broken = join(root, "broken.go");
+      await Bun.write(broken, "package x\nfunc (");
+      const { exitCode, logged } = await run("gofmt", ["-l", broken]);
+
+      expect(exitCode).toBe(2);
+      expect(logged).toBe(`RAN gofmt -l ${broken} where=elsewhere exit=2`);
+    },
+  );
 });
 
 describe("the fake gh", () => {
