@@ -3,6 +3,8 @@
 import { lstatSync } from "node:fs";
 import { join, posix } from "node:path";
 
+import { type Node, parseTree } from "jsonc-parser";
+
 import { type Finding, lineAt, type Annotation } from "./workflow-command";
 import { unquoteSkillVariables } from "./skill-variables";
 
@@ -14,8 +16,24 @@ const VARIABLE_PATH = /\$\{(CLAUDE_SKILL_DIR|CLAUDE_PLUGIN_ROOT)\}[\w.@~+/-]*/g;
 // A Markdown link or image destination, inline or in a definition.
 const LINK_DESTINATION = /(?:\]\(\s*<?|^ {0,3}\[[^\]]+\]:\s*<?)([^\s)>]+)/gm;
 
-// A string literal on one line.
-const STRING_LITERAL = /(["'])((?:\\.|(?!\1)[^\\\n])*)\1/g;
+// The plugin.json keys that hold component paths, per
+// https://code.claude.com/docs/en/plugins-reference#fields. Each takes a
+// path or an array of paths, and `commands` also a map whose entries name
+// a file in `source`. Inline hooks and servers reach files through
+// ${CLAUDE_PLUGIN_ROOT}, which every file is checked for.
+const MANIFEST_PATH_KEYS = [
+  "skills",
+  "commands",
+  "agents",
+  "hooks",
+  "mcpServers",
+  "lspServers",
+  "outputStyles",
+  "workflows",
+  "types",
+  "icon",
+];
+const EXPERIMENTAL_PATH_KEYS = ["themes", "monitors", "evals"];
 
 // A module specifier: `from "x"`, `import "x"`, `import("x")`, `require("x")`,
 // or a URL built on the module's own.
@@ -149,7 +167,12 @@ function fileReferences(
   }
 
   if (path.endsWith("/.claude-plugin/plugin.json")) {
-    return relativeTo(STRING_LITERAL, 2);
+    return manifestPaths(source).map(({ index, written }) => ({
+      index,
+      written,
+      base: directory,
+      relativePath: written,
+    }));
   }
 
   if (!path.endsWith(".ts")) {
@@ -176,6 +199,56 @@ function fileReferences(
       }),
     ),
   ];
+}
+
+/**
+ * The strings of a plugin.json that name a path: the values of the
+ * component keys, a command's `source`, and any string that starts with
+ * `./`. A description or a keyword is text, so its `../` counts for nothing.
+ */
+function manifestPaths(source: string): { index: number; written: string }[] {
+  const strings: { index: number; written: string }[] = [];
+
+  const visit = (node: Node, keys: (string | number)[]): void => {
+    if (node.type === "string" && typeof node.value === "string") {
+      const isExperimental = keys[0] === "experimental";
+      const [key, ...inner] = isExperimental ? keys.slice(1) : keys;
+      const isComponentPath =
+        typeof key === "string" &&
+        (isExperimental ? EXPERIMENTAL_PATH_KEYS : MANIFEST_PATH_KEYS).includes(
+          key,
+        ) &&
+        (inner.length === 0 ||
+          (inner.length === 1 && typeof inner[0] === "number") ||
+          (key === "commands" && inner.at(-1) === "source"));
+
+      if (isComponentPath || node.value.startsWith("./")) {
+        strings.push({ index: node.offset, written: node.value });
+      }
+
+      return;
+    }
+
+    for (const child of node.children ?? []) {
+      if (child.type === "property") {
+        const [name, value] = child.children ?? [];
+
+        if (typeof name?.value === "string" && value !== undefined) {
+          visit(value, [...keys, name.value]);
+        }
+      } else {
+        visit(child, [...keys, node.children?.indexOf(child) ?? 0]);
+      }
+    }
+  };
+
+  const tree = parseTree(source);
+
+  if (tree !== undefined) {
+    visit(tree, []);
+  }
+
+  return strings;
 }
 
 /**

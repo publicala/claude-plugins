@@ -93,13 +93,46 @@ describe("findEscapingPaths", () => {
     ]);
   });
 
+  test("reads the component paths of plugin.json, never its text", () => {
+    const manifest = "plugins/demo/.claude-plugin/plugin.json";
+    const text = JSON.stringify(
+      {
+        name: "demo",
+        description: "Reads ../notes and ../../shared before it starts.",
+        keywords: ["../tag"],
+        skills: ["./skills/", "../other/skills"],
+        commands: {
+          status: { source: "../../shared/status.md", description: "../x" },
+        },
+        agents: "../agents/reviewer.md",
+        experimental: { themes: ["../themes"], evals: "../evals" },
+        metadata: { extra: "./../outside.json" },
+      },
+      null,
+      2,
+    );
+
+    expect(
+      findEscapingPaths(manifest, text).map(
+        ({ line, message }) => `${line} ${message.split(", which")[0]}`,
+      ),
+    ).toEqual([
+      "9 reads ../other/skills",
+      "13 reads ../../shared/status.md",
+      "17 reads ../agents/reviewer.md",
+      "20 reads ../themes",
+      "22 reads ../evals",
+      "25 reads ./../outside.json",
+    ]);
+  });
+
   test("reads the paths in plugin.json from the plugin's root", () => {
     const manifest = "plugins/demo/.claude-plugin/plugin.json";
 
     expect(
       escapes(manifest, [
-        '{ "skills": "./skills/../skills" }',
-        '{ "skills": "./../other/skills" }',
+        '{ "skills": ["./skills/../skills",',
+        '  "./../other/skills"] }',
       ]),
     ).toEqual(["2 reads ./../other/skills"]);
   });
