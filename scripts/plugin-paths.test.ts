@@ -130,6 +130,24 @@ describe("findEscapingPaths", () => {
     ).toEqual(["1 reads ../../../escaped"]);
   });
 
+  test("reads @import and url() in a stylesheet, never a comment or a URL", () => {
+    expect(
+      escapes("plugins/demo/style/page.css", [
+        '@import "../../../shared/tokens.css";',
+        "@import url('../../../shared/reset.css');",
+        "body { background: url(../../../shared/paper.png); }",
+        "@font-face { src: url(\"../assets/inter.woff2\") format('woff2'); }",
+        '@import "./local.css";',
+        "/* url(../../../commented.png) */",
+        "a { background: url(data:image/png;base64,AAAA) url(https://example.com/../x.png); }",
+      ]),
+    ).toEqual([
+      "1 reads ../../../shared/tokens.css",
+      "2 reads ../../../shared/reset.css",
+      "3 reads ../../../shared/paper.png",
+    ]);
+  });
+
   test("reads the component paths of plugin.json, never its text", () => {
     const manifest = "plugins/demo/.claude-plugin/plugin.json";
     const text = JSON.stringify(
@@ -189,7 +207,7 @@ describe("findEscapingPaths", () => {
 });
 
 describe("validatePluginPaths", () => {
-  test("reads code, docs, manifests and pages in plugins, and skips symlinks, whose target install copies", async () => {
+  test("reads code, docs, manifests, pages and stylesheets in plugins, and skips symlinks, whose target install copies", async () => {
     const root = await tempRepo({
       "shared/tokens.css": ":root {}\n",
       "shared/notes.md": "See [the README](../README.md).\n",
@@ -222,6 +240,12 @@ describe("validatePluginPaths", () => {
         },
         {
           file: "plugins/demo/page.html",
+          line: 1,
+          message: `reads ../../shared/tokens.css, which resolves to shared/tokens.css, outside plugins/demo/. ${FIX}`,
+        },
+
+        {
+          file: "plugins/demo/style.css",
           line: 1,
           message: `reads ../../shared/tokens.css, which resolves to shared/tokens.css, outside plugins/demo/. ${FIX}`,
         },

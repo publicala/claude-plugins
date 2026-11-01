@@ -9,7 +9,7 @@ import { type Finding, lineAt, type Annotation } from "./workflow-command";
 import { unquoteSkillVariables } from "./skill-variables";
 import { readTypeScript } from "./typescript-source";
 
-const SCANNED = /\.(?:ts|md|json|html)$/;
+const SCANNED = /\.(?:ts|md|json|html|css)$/;
 
 // A path behind a variable Claude Code expands, anywhere in a file.
 const VARIABLE_PATH = /\$\{(CLAUDE_SKILL_DIR|CLAUDE_PLUGIN_ROOT)\}[\w.@~+/-]*/g;
@@ -53,6 +53,11 @@ const DIRECTORY_TEMPLATE =
 const DIRECTORY_CALL =
   /\b(?:join|resolve)\(\s*(?:import\.meta\.dirname|import\.meta\.dir|__dirname)((?:\s*,\s*(["'])[^"'\n]*\2)+)\s*,?\s*\)/g;
 
+// A stylesheet's @import, quoted or as url(), and any other url().
+const CSS_REFERENCE =
+  /@import\s+(["'])([^"'\n]+)\1|url\(\s*(["']?)([^"')\s]+)\3\s*\)/g;
+const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
+
 // An HTML attribute that loads a file relative to the page.
 const HTML_REFERENCE = /\b(?:src|href)\s*=\s*(["'])([^"'\n]+)\1/g;
 
@@ -68,7 +73,8 @@ interface Reference {
  * Finds the paths in a plugin file that resolve above the plugin's root:
  * `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_SKILL_DIR}` paths anywhere, links
  * in Markdown, module specifiers and paths built on the file's directory
- * in code, `src` and `href` in HTML, and the paths of plugin.json. Other
+ * in code, `src` and `href` in HTML, `@import` and `url()` in CSS, and
+ * the paths of plugin.json. Other
  * relative paths (a command's argument, a string of data) resolve from a
  * directory the file does not name, so they are left alone. The file's
  * path is relative to the repository root.
@@ -162,6 +168,27 @@ function fileReferences(
 
   if (path.endsWith(".html")) {
     return relativeTo(HTML_REFERENCE, 2);
+  }
+
+  if (path.endsWith(".css")) {
+    return [
+      ...source
+        .replaceAll(CSS_COMMENT, (comment) => comment.replaceAll(/[^\n]/g, " "))
+        .matchAll(CSS_REFERENCE),
+    ].flatMap(({ 2: quoted, 4: url, index }) => {
+      const written = quoted ?? url ?? "";
+
+      return /^[a-z][a-z0-9+.-]*:/i.test(written)
+        ? []
+        : [
+            {
+              index,
+              written,
+              base: directory,
+              relativePath: written.split(/[?#]/)[0] ?? "",
+            },
+          ];
+    });
   }
 
   if (path.endsWith("/.claude-plugin/plugin.json")) {
