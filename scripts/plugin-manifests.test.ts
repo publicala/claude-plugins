@@ -68,9 +68,11 @@ describe("validatePluginManifest", () => {
   });
 
   test("names the directory when the name differs or is missing", () => {
-    const text = '{\n  "name": "other",\n  "description": "Does a thing."\n}';
+    const renamed = { name: "other", description: "Does a thing." };
 
-    expect(validatePluginManifest("demo", text, JSON.parse(text))).toEqual([
+    expect(
+      validatePluginManifest("demo", JSON.stringify(renamed, null, 2), renamed),
+    ).toEqual([
       {
         line: 2,
         message:
@@ -101,10 +103,19 @@ describe("validatePluginManifest", () => {
   });
 
   test("refuses a version, quoting the rule", () => {
-    const text =
-      '{\n  "name": "demo",\n  "version": "1.0.0",\n  "description": "Does a thing."\n}';
+    const versioned = {
+      name: "demo",
+      version: "1.0.0",
+      description: "Does a thing.",
+    };
 
-    expect(validatePluginManifest("demo", text, JSON.parse(text))).toEqual([
+    expect(
+      validatePluginManifest(
+        "demo",
+        JSON.stringify(versioned, null, 2),
+        versioned,
+      ),
+    ).toEqual([
       {
         line: 3,
         message:

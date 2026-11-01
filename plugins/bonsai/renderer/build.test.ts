@@ -1675,7 +1675,8 @@ describe("render", () => {
     const data = await exampleData();
     const quoted = "Quotes <!-- <script> from a template.";
     changeIn(data.changes, "livewire").why = quoted;
-    const html = `${await render(await build(data, EXAMPLE))}<p id="after"></p>`;
+    const page = await build(data, EXAMPLE);
+    const html = `${await render(page)}<p id="after"></p>`;
 
     let script = "";
     let parsesAfter = false;
@@ -1692,10 +1693,10 @@ describe("render", () => {
       })
       .transform(html);
     const payload = /const D = (.+);$/m.exec(script)?.[1] ?? "null";
-    const page: Page = JSON.parse(payload);
 
     expect(parsesAfter).toBe(true);
     expect(changeIn(page.changes, "livewire").why).toBe(quoted);
+    expect(JSON.parse(payload)).toEqual(page);
   });
 
   test("carries Blueprint's tokens, light and dark, from the blueprint plugin", async () => {
