@@ -9,6 +9,7 @@ import {
   findRestrictedWords,
   main,
   parseHashList,
+  redactPath,
 } from "./check-restricted-names";
 import { tempRepo } from "./temp-repo";
 
@@ -74,6 +75,14 @@ describe("findRestrictedWords", () => {
   });
 });
 
+describe("redactPath", () => {
+  test("replaces each restricted word, in any case, with its hash prefix", () => {
+    expect(redactPath("Zorblax/zorblaxian/a.zorblax.md", HASHES)).toBe(
+      `[sha256 ${ZORBLAX}]/zorblaxian/a.[sha256 ${ZORBLAX}].md`,
+    );
+  });
+});
+
 describe("checkRestrictedNames", () => {
   const hit = (where: string) =>
     `${where} has a restricted project name (sha256 ${ZORBLAX}). Replace it with a made-up one such as Acme Books.`;
@@ -96,28 +105,35 @@ describe("checkRestrictedNames", () => {
     }
   });
 
-  test("checks every path, lockfiles and binary files included", async () => {
+  test("checks every path, and prints it with the name redacted", async () => {
     const root = await tempRepo({
-      "docs/zorblax/notes.md": "Acme Books\n",
+      "docs/zorblax/notes.md": "Acme Books and Zorblax\n",
       "zorblax/bun.lock": "{}\n",
       "assets/zorblax.bin": "\u0000\n",
     });
+    const redacted = `[sha256 ${ZORBLAX}]`;
 
     try {
       expect(await checkRestrictedNames(root, HASHES)).toEqual({
         scanned: 1,
         hits: [
           {
-            file: "assets/zorblax.bin",
-            message: hit("The path assets/zorblax.bin"),
+            file: `assets/${redacted}.bin`,
+            message: hit(`The path assets/${redacted}.bin`),
           },
           {
-            file: "docs/zorblax/notes.md",
-            message: hit("The path docs/zorblax/notes.md"),
+            file: `docs/${redacted}/notes.md`,
+            message: hit(`The path docs/${redacted}/notes.md`),
           },
           {
-            file: "zorblax/bun.lock",
-            message: hit("The path zorblax/bun.lock"),
+            file: `docs/${redacted}/notes.md`,
+            line: 1,
+            col: 16,
+            message: hit(`docs/${redacted}/notes.md line 1, column 16`),
+          },
+          {
+            file: `${redacted}/bun.lock`,
+            message: hit(`The path ${redacted}/bun.lock`),
           },
         ],
       });

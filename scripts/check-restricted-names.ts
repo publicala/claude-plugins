@@ -87,35 +87,43 @@ export function findRestrictedWords(
   text: string,
   hashes: ReadonlySet<string>,
 ): RestrictedWord[] {
-  const hashOf = memoizedWordHash();
-
   return text.split("\n").flatMap((line, index) =>
     [...line.matchAll(WORD)]
       .map((match) => ({
         line: index + 1,
         column: match.index + 1,
-        hash: hashOf(match[0]),
+        hash: hashWord(match[0]),
       }))
       .filter(({ hash }) => hashes.has(hash)),
   );
 }
 
-function memoizedWordHash(): (word: string) => string {
-  const cache = new Map<string, string>();
+/**
+ * The path with each restricted word replaced by its hash prefix, so an
+ * annotation never prints the name.
+ */
+export function redactPath(path: string, hashes: ReadonlySet<string>): string {
+  return path.replace(WORD, (word) => {
+    const hash = hashWord(word);
 
-  return (word) => {
-    const lowercase = word.toLowerCase();
-    const cached = cache.get(lowercase);
+    return hashes.has(hash) ? `[sha256 ${hash.slice(0, 8)}]` : word;
+  });
+}
 
-    if (cached !== undefined) {
-      return cached;
-    }
+const wordHashes = new Map<string, string>();
 
-    const hash = createHash("sha256").update(lowercase).digest("hex");
-    cache.set(lowercase, hash);
+function hashWord(word: string): string {
+  const lowercase = word.toLowerCase();
+  const cached = wordHashes.get(lowercase);
 
-    return hash;
-  };
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const hash = createHash("sha256").update(lowercase).digest("hex");
+  wordHashes.set(lowercase, hash);
+
+  return hash;
 }
 
 function isBinary(bytes: Uint8Array): boolean {
@@ -137,9 +145,12 @@ export async function checkRestrictedNames(
 ): Promise<{ scanned: number; hits: Annotation[] }> {
   const results = await Promise.all(
     repoPaths(root).map(async (path) => {
+      // A path with a hit loses its diff annotation, which keeps the name out of the log.
+      const shownPath = redactPath(path, hashes);
+
       const pathHits = findRestrictedWords(path, hashes).map(({ hash }) => ({
-        file: path,
-        message: describeHit(`The path ${path}`, hash),
+        file: shownPath,
+        message: describeHit(`The path ${shownPath}`, hash),
       }));
 
       const text = await committedText(root, path);
@@ -150,10 +161,13 @@ export async function checkRestrictedNames(
 
       const textHits = findRestrictedWords(text, hashes).map(
         ({ line, column, hash }) => ({
-          file: path,
+          file: shownPath,
           line,
           col: column,
-          message: describeHit(`${path} line ${line}, column ${column}`, hash),
+          message: describeHit(
+            `${shownPath} line ${line}, column ${column}`,
+            hash,
+          ),
         }),
       );
 

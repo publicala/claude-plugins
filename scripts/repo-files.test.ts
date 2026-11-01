@@ -3,7 +3,7 @@ import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { repoFiles, repoPaths } from "./repo-files";
+import { cwdGitEnvironment, repoFiles, repoPaths } from "./repo-files";
 import { tempRepo } from "./temp-repo";
 
 describe("repoFiles", () => {
@@ -103,6 +103,29 @@ describe("repoPaths", () => {
 
       expect(repoPaths(root, "*.md")).toEqual(["a.md", "b.md"]);
       expect(repoFiles(root, "*.md")).toEqual(["a.md"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("drops a tracked path under a directory a file has replaced", async () => {
+    const root = await tempRepo({ "a.md": "", "docs/b.md": "" });
+    const git = (...args: string[]) =>
+      Bun.spawnSync(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", ...args],
+        {
+          cwd: root,
+          env: cwdGitEnvironment(),
+        },
+      );
+
+    try {
+      git("add", ".");
+      git("commit", "--quiet", "--message", "init");
+      await rm(join(root, "docs"), { recursive: true });
+      await Bun.write(join(root, "docs"), "");
+
+      expect(repoPaths(root, "*.md")).toEqual(["a.md"]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

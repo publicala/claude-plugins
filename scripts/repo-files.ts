@@ -55,10 +55,17 @@ export function repoPaths(root: string, ...pathspecs: string[]): string[] {
   }
 
   return [...new Set(listed.stdout.toString().split("\0"))]
-    .filter(
-      (path) =>
-        path !== "" &&
-        lstatSync(join(root, path), { throwIfNoEntry: false }) !== undefined,
-    )
+    .filter((path) => path !== "" && isOnDisk(join(root, path)))
     .toSorted();
+}
+
+// A tracked path under a directory since replaced by a file throws ENOTDIR.
+function isOnDisk(path: string): boolean {
+  try {
+    lstatSync(path);
+
+    return true;
+  } catch {
+    return false;
+  }
 }
