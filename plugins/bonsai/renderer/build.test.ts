@@ -60,7 +60,7 @@ interface Fixture {
 }
 
 async function exampleData(): Promise<Fixture> {
-  return (await Bun.file(join(EXAMPLE, "data.json")).json()) as Fixture;
+  return await Bun.file(join(EXAMPLE, "data.json")).json();
 }
 
 interface GuardCandidate {
@@ -96,9 +96,7 @@ const RUNG_LIST =
   "1 Unwritable, 2 Auto-fix, 3 Static analysis, 4 Arch or guard test, 5 ast-grep, 6 Git hook, 7 Runtime guard, 8 CLAUDE.md line";
 
 async function guardData(): Promise<GuardFixture> {
-  return (await Bun.file(
-    join(EXAMPLE, "guard-data.json"),
-  ).json()) as GuardFixture;
+  return await Bun.file(join(EXAMPLE, "guard-data.json")).json();
 }
 
 function firstQuote(candidate: GuardCandidate): Record<string, unknown> {
@@ -129,6 +127,11 @@ function withoutProse(data: GuardFixture): GuardFixture {
   data.files = [];
 
   return data;
+}
+
+/** Writes a value the fixture's type rules out, for a case the build must refuse. */
+function setField(target: object, key: string, value: unknown): void {
+  Reflect.set(target, key, value);
 }
 
 function changeIn<T extends { id: string }>(changes: T[], changeId: string): T {
@@ -607,7 +610,7 @@ describe("build refuses data that would mislead", () => {
     [
       "files that are not objects",
       (data) => {
-        (data as unknown as Record<string, unknown>).files = "CLAUDE.md";
+        setField(data, "files", "CLAUDE.md");
       },
       'The data needs "files" as a list of objects.',
     ],
@@ -787,17 +790,14 @@ describe("build refuses data that would mislead", () => {
     [
       "edits that are not objects",
       (data) => {
-        (changeIn(data.changes, "stack") as { edits: unknown }).edits = [
-          "CLAUDE.md",
-        ];
+        setField(changeIn(data.changes, "stack"), "edits", ["CLAUDE.md"]);
       },
       "Change 'stack' needs \"edits\" as a list of objects.",
     ],
     [
       "evidence that is not a list",
       (data) => {
-        (changeIn(data.changes, "stack") as { evidence: unknown }).evidence =
-          "composer.json";
+        setField(changeIn(data.changes, "stack"), "evidence", "composer.json");
       },
       "Change 'stack' needs \"evidence\" as a list of objects.",
     ],
@@ -870,67 +870,67 @@ describe("build refuses data that would mislead", () => {
     [
       "ship that is not an object",
       (data) => {
-        (data as unknown as Record<string, unknown>).ship = "pr";
+        setField(data, "ship", "pr");
       },
       '"ship" must be an object.',
     ],
     [
       "ship with one option",
       (data) => {
-        (data as unknown as Record<string, unknown>).ship = {
+        setField(data, "ship", {
           default: "pr",
           options: [{ id: "pr", label: "PR" }],
-        };
+        });
       },
       '"ship" needs at least two options.',
     ],
     [
       "ship without a matching default",
       (data) => {
-        (data as unknown as Record<string, unknown>).ship = {
+        setField(data, "ship", {
           default: "merge",
           options: [
             { id: "pr", label: "PR" },
             { id: "local", label: "Local" },
           ],
-        };
+        });
       },
       '"ship.default" must be the id of one of its options, got "merge".',
     ],
     [
       "a ship option id used twice",
       (data) => {
-        (data as unknown as Record<string, unknown>).ship = {
+        setField(data, "ship", {
           default: "pr",
           options: [
             { id: "pr", label: "PR" },
             { id: "pr", label: "Local" },
           ],
-        };
+        });
       },
       "The id 'pr' appears twice in \"ship.options\".",
     ],
     [
       "next that is not a list",
       (data) => {
-        (data as unknown as Record<string, unknown>).next = {};
+        setField(data, "next", {});
       },
       'The data needs "next" as a list of objects.',
     ],
     [
       "a next item without a title",
       (data) => {
-        (data as unknown as Record<string, unknown>).next = [{ id: "bake" }];
+        setField(data, "next", [{ id: "bake" }]);
       },
       "Every next item needs an id and a title.",
     ],
     [
       "a next item id used twice",
       (data) => {
-        (data as unknown as Record<string, unknown>).next = [
+        setField(data, "next", [
           { id: "bake", title: "Bake" },
           { id: "bake", title: "Bake again" },
-        ];
+        ]);
       },
       "The id 'bake' appears twice in \"next\".",
     ],
@@ -1044,26 +1044,21 @@ describe("build refuses data that would mislead", () => {
     [
       "a not-now list outside a guard run",
       (data) => {
-        (data as unknown as Record<string, unknown>).notNow = [];
+        setField(data, "notNow", []);
       },
       '"notNow" belongs to a guard run. Remove it, or set run.skill to "guard".',
     ],
     [
       "a no-guardrail list outside a guard run",
       (data) => {
-        (data as unknown as Record<string, unknown>).none = [];
+        setField(data, "none", []);
       },
       '"none" belongs to a guard run.',
     ],
     [
       "a guardrail on a change outside a guard run",
       (data) => {
-        (
-          changeIn(data.changes, "livewire") as unknown as Record<
-            string,
-            unknown
-          >
-        ).guardrail = { rung: 3 };
+        setField(changeIn(data.changes, "livewire"), "guardrail", { rung: 3 });
       },
       "Change 'livewire' has \"guardrail\", which only a guard run shows.",
     ],
@@ -1269,9 +1264,7 @@ describe("guard build refuses data that would mislead", () => {
     [
       "a guardrail that is not an object",
       (data) => {
-        (
-          changeIn(data.changes, TOTAL) as unknown as Record<string, unknown>
-        ).guardrail = "PHPStan";
+        setField(changeIn(data.changes, TOTAL), "guardrail", "PHPStan");
       },
       `Candidate '${TOTAL}' needs "guardrail": { "rung", "tool", "where", "message" }.`,
     ],
@@ -1349,9 +1342,7 @@ describe("guard build refuses data that would mislead", () => {
     [
       "caught that is not an object",
       (data) => {
-        (
-          changeIn(data.changes, TOTAL) as unknown as Record<string, unknown>
-        ).caught = [];
+        setField(changeIn(data.changes, TOTAL), "caught", []);
       },
       `Candidate '${TOTAL}' needs "caught": the review quotes that flagged the mistake.`,
     ],
@@ -1545,13 +1536,13 @@ describe("guard build refuses data that would mislead", () => {
     [
       "a ship choice in a guard run",
       (data) => {
-        (data as unknown as Record<string, unknown>).ship = {
+        setField(data, "ship", {
           default: "pr",
           options: [
             { id: "pr", label: "PR" },
             { id: "local", label: "Local" },
           ],
-        };
+        });
       },
       'A guard run ships every built candidate as its own PR, so it takes no "ship".',
     ],
@@ -1701,7 +1692,7 @@ describe("render", () => {
       })
       .transform(html);
     const payload = /const D = (.+);$/m.exec(script)?.[1] ?? "null";
-    const page = JSON.parse(payload) as Page;
+    const page: Page = JSON.parse(payload);
 
     expect(parsesAfter).toBe(true);
     expect(changeIn(page.changes, "livewire").why).toBe(quoted);
@@ -1775,7 +1766,9 @@ async function openPage(page: Page) {
   });
   const errors: unknown[] = [];
   window.addEventListener("error", (event) => {
-    errors.push((event as unknown as { error: unknown }).error);
+    if ("error" in event) {
+      errors.push(event.error);
+    }
   });
 
   window.document.write(await render(page));

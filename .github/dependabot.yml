@@ -20,11 +20,6 @@ updates:
         patterns: ["lucide-static"]
       npm:
         patterns: ["*"]
-    # typescript-eslint rejects TypeScript 7. Drop this once it supports it:
-    # https://github.com/typescript-eslint/typescript-eslint/issues/10940
-    ignore:
-      - dependency-name: typescript
-        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: bun
     directory: /plugins/blueprint

@@ -92,28 +92,28 @@ async function largestChannelDifference(
   return largest;
 }
 
-describe("findCanvasProblems", () => {
-  const measurement = (right: number, bottom: number) => ({
-    failedFonts: [],
-    overflow: { x: 0, y: 0 },
-    texts: [],
-    elements: [
-      {
-        parent: -1,
-        classes: ["canvas"],
-        tag: "div",
-        text: "",
-        box: { left: 0, top: 0, right, bottom },
-        scrollWidth: right,
-        clientWidth: right,
-        scrollHeight: bottom,
-        clientHeight: bottom,
-        fontSize: 16,
-        lineHeight: 20,
-      },
-    ],
-  });
+const measurement = (right: number, bottom: number) => ({
+  failedFonts: [],
+  overflow: { x: 0, y: 0 },
+  texts: [],
+  elements: [
+    {
+      parent: -1,
+      classes: ["canvas"],
+      tag: "div",
+      text: "",
+      box: { left: 0, top: 0, right, bottom },
+      scrollWidth: right,
+      clientWidth: right,
+      scrollHeight: bottom,
+      clientHeight: bottom,
+      fontSize: 16,
+      lineHeight: 20,
+    },
+  ],
+});
 
+describe("findCanvasProblems", () => {
   test("passes a video canvas", () => {
     expect(findCanvasProblems(measurement(1280, 720))).toEqual([]);
   });
@@ -313,10 +313,10 @@ describe.skipIf(!chromeFound)("in Chrome", () => {
 
   test("the player plays and scrubs", async () => {
     const page = await browser.newPage();
-    const read = async (selector: string, expression: string) =>
-      (await page.evaluate(
+    const read = (selector: string, expression: string) =>
+      page.evaluate(
         `document.querySelector(${JSON.stringify(selector)}).${expression}`,
-      )) as string;
+      );
 
     try {
       await page.setContent(
@@ -478,23 +478,32 @@ describe.skipIf(!chromeFound)("in Chrome", () => {
 
       expect(split).toHaveLength(single.length);
 
-      for (const [index, frame] of single.entries()) {
-        expect(
-          await largestChannelDifference(
-            frame,
-            split[index] ?? new Uint8Array(),
+      const [pairs, neighbours] = await Promise.all([
+        Promise.all(
+          single.map((frame, index) =>
+            largestChannelDifference(frame, split[index] ?? new Uint8Array()),
           ),
-        ).toBeLessThanOrEqual(SAME_FRAME);
-
+        ),
         // Each frame differs from the next by more than a matching pair, so a
-        // frame out of order fails the check above.
-        const next = single[index + 1];
+        // frame out of order fails the check on the pairs.
+        Promise.all(
+          single
+            .slice(0, -1)
+            .map((frame, index) =>
+              largestChannelDifference(
+                frame,
+                single[index + 1] ?? new Uint8Array(),
+              ),
+            ),
+        ),
+      ]);
 
-        if (next !== undefined) {
-          expect(await largestChannelDifference(frame, next)).toBeGreaterThan(
-            SAME_FRAME,
-          );
-        }
+      for (const difference of pairs) {
+        expect(difference).toBeLessThanOrEqual(SAME_FRAME);
+      }
+
+      for (const difference of neighbours) {
+        expect(difference).toBeGreaterThan(SAME_FRAME);
       }
     } finally {
       which.mockRestore();

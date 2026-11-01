@@ -149,8 +149,8 @@ export function validatePluginManifests(
       return [read.problem];
     }
 
-    return validatePluginManifest(name, read.text, read.json).map(
-      (finding) => ({ file, ...finding }),
+    return validatePluginManifest(name, read.text, read.json).map((finding) =>
+      Object.assign(finding, { file }),
     );
   });
 }

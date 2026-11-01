@@ -94,16 +94,16 @@ describe("expandLogo", () => {
   });
 });
 
-describe("buildPage", () => {
-  const page = (source: string) =>
-    buildPage({
-      source,
-      stylesheet: ".canvas{}",
-      fontFaceCss: "@font-face{}",
-      logoSvg: '<svg id="logo"></svg>',
-      icons,
-    });
+const page = (source: string) =>
+  buildPage({
+    source,
+    stylesheet: ".canvas{}",
+    fontFaceCss: "@font-face{}",
+    logoSvg: '<svg id="logo"></svg>',
+    icons,
+  });
 
+describe("buildPage", () => {
   test("wraps the source with the fonts, the stylesheet and the logo", () => {
     const html = page('<div class="canvas"><i data-logo></i></div>');
 

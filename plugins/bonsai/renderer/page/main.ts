@@ -211,14 +211,23 @@ function locHtml(c: Change) {
 }
 
 /* ---------- totals ---------- */
+interface Totals {
+  apply: Change[];
+  skip: Change[];
+  later: Change[];
+  open: Change[];
+  tok: number;
+  openQuestions: Question[];
+  after: number;
+}
 function totals() {
-  const t = {
-    apply: [] as Change[],
-    skip: [] as Change[],
-    later: [] as Change[],
-    open: [] as Change[],
+  const t: Totals = {
+    apply: [],
+    skip: [],
+    later: [],
+    open: [],
     tok: 0,
-    openQuestions: [] as Question[],
+    openQuestions: [],
     after: 0,
   };
   for (const c of changes) {
@@ -351,7 +360,7 @@ function guardCard(c: Candidate, p = "") {
   const g = c.guardrail,
     m = c.mistake,
     caught = c.caught,
-    line = g.rung === 8;
+    isLine = g.rung === 8;
   const flagged =
     caught.count > 1
       ? `<span>${caught.count} reviews flagged this${caught.count > caught.quotes.length ? `, ${caught.quotes.length} quoted` : ""}</span>`
@@ -374,7 +383,7 @@ function guardCard(c: Candidate, p = "") {
         .join("<br>"),
     ],
   ];
-  const shows = line
+  const shows = isLine
     ? `<div data-diff="${c.id}">${diffHtml(c)}</div>`
     : g.message
       ? codeBlock(
@@ -390,7 +399,7 @@ function guardCard(c: Candidate, p = "") {
       ${builtLink(c.id)}
       <section class="g-sec"><h4>What the review caught ${flagged}</h4><ul class="quotes">${quotes}</ul></section>
       <section class="g-sec"><h4>The mistake</h4><div class="pair">${codeBlock("wrong", "Wrong", m.lang, m.wrong)}${codeBlock("right", "Write instead", m.lang, m.right)}</div>${m.note ? `<p class="g-note">${prose(m.note)}</p>` : ""}</section>
-      <section class="g-sec"><h4>${line ? "The line" : "The check"}${line ? ` <span class="tok num" data-tok="${c.id}">${tokText(c)}</span>` : ""}</h4>${kv(facts)}${shows}</section>
+      <section class="g-sec"><h4>${isLine ? "The line" : "The check"}${isLine ? ` <span class="tok num" data-tok="${c.id}">${tokText(c)}</span>` : ""}</h4>${kv(facts)}${shows}</section>
       <section class="g-sec"><h4>Cost</h4>${kv(c.cost.map((r): [string, string] => [prose(r.label), prose(r.value)]))}</section>
       <p class="ifskip"><b>If you skip:</b> ${prose(c.skip)}</p>
       ${c.alternative ? `<p class="ifskip"><b>Alternative:</b> ${prose(c.alternative)}</p>` : ""}
@@ -829,7 +838,6 @@ async function redraft(id: string, btn: HTMLButtonElement) {
     (o) => (o.innerHTML = `<p class="pending">Claude is redrafting.</p>`),
   );
   // A candidate may carry no why, or an empty one: the title stands in.
-  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   const reason = plain(c.why || c.title);
   const prompt = `You rewrite lines of a CLAUDE.md file: instructions an AI coding agent loads in its sessions.
 Rules: keep every identifier in backticks exactly as written. State the rule in the present tense, imperative. Keep the line count of the proposal unless the reviewer asks otherwise. No history and no rationale the code already shows. Do not widen or weaken the rule beyond what the reviewer asks.
@@ -919,11 +927,13 @@ function message() {
 }
 
 /* ---------- check answers, then the one way out ---------- */
+/* A row of the answers sheet, with a Change button when it can jump back. */
+const row = (label: string, body: string, jump: string | null) =>
+  `<div><dt>${label}</dt><dd>${body}</dd>${jump ? `<button type="button" data-jump="${esc(jump)}">Change</button>` : "<span></span>"}</div>`;
+const names = (list: Change[]) => list.map((c) => prose(c.title)).join("; ");
+const first = (list: Change[]) => must(list[0], "change").id;
 function openSheet() {
   const t = totals();
-  const row = (label: string, body: string, jump: string | null) =>
-    `<div><dt>${label}</dt><dd>${body}</dd>${jump ? `<button type="button" data-jump="${esc(jump)}">Change</button>` : "<span></span>"}</div>`;
-  const names = (list: Change[]) => list.map((c) => prose(c.title)).join("; ");
   const notes =
     Object.values(S.note).filter(Boolean).length +
     Object.values(S.gnote).filter(Boolean).length;
@@ -933,7 +943,6 @@ function openSheet() {
     ...t.apply.map((c) => prose(c.title)),
     ...pulled.map((n) => `${prose(n.title)} (not now)`),
   ];
-  const first = (list: Change[]) => must(list[0], "change").id;
   $("sheet-in").innerHTML = `
       <h2 id="sheet-title">Check and send</h2>
       <dl class="answers">

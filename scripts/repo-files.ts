@@ -3,18 +3,18 @@ import { join } from "node:path";
 
 // A git hook or `git rebase --exec` sets these, and they point git at that
 // repository whatever the working directory.
-const REPOSITORY_VARIABLES = [
+const REPOSITORY_VARIABLES = new Set([
   "GIT_DIR",
   "GIT_WORK_TREE",
   "GIT_INDEX_FILE",
   "GIT_COMMON_DIR",
-];
+]);
 
 /** The environment for a git command that works on its cwd's repository. */
 export function cwdGitEnvironment(): Record<string, string | undefined> {
   return Object.fromEntries(
     Object.entries(process.env).filter(
-      ([name]) => !REPOSITORY_VARIABLES.includes(name),
+      ([name]) => !REPOSITORY_VARIABLES.has(name),
     ),
   );
 }

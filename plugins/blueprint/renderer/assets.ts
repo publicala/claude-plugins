@@ -48,9 +48,9 @@ export async function readFontFaceCss(): Promise<string> {
  * by scripts/update-blueprint-icons.ts.
  */
 export async function readLucideIcons(): Promise<Map<string, string>> {
-  const icons = (await Bun.file(
+  const icons: Record<string, string> = await Bun.file(
     join(ROOT, "assets/icons.json"),
-  ).json()) as Record<string, string>;
+  ).json();
 
   return new Map(Object.entries(icons));
 }

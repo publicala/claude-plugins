@@ -11,6 +11,7 @@ import { existsSync, realpathSync, statSync } from "node:fs";
 import { dirname, format, isAbsolute, join, parse } from "node:path";
 import { parseArgs } from "node:util";
 
+import { errorMessage } from "./error-message";
 import { bundlePageScript } from "./page-script";
 
 type JsonObject = Record<string, unknown>;
@@ -201,7 +202,15 @@ function isRecord(value: unknown): value is JsonObject {
 }
 
 function isPositiveInteger(value: unknown): value is number {
-  return Number.isInteger(value) && (value as number) >= 1;
+  return typeof value === "number" && Number.isInteger(value) && value >= 1;
+}
+
+function isLineRange(value: unknown): value is [number, number] {
+  return (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    value.every((line) => typeof line === "number" && Number.isInteger(line))
+  );
 }
 
 function isWebUrl(value: unknown): value is string {
@@ -381,6 +390,8 @@ async function loadFiles(
       );
     }
 
+    // In list order, so an unreadable file is reported before the next one.
+    // oxlint-disable-next-line no-await-in-loop
     const lines = isNew ? [] : await readLines(path, absolutePath);
 
     files.set(path, {
@@ -415,11 +426,11 @@ function ensureLinesInFile(
   const path = file.page.path;
   const count = file.page.lines.length;
   ensure(
-    Array.isArray(lines) && lines.length === 2 && lines.every(Number.isInteger),
+    isLineRange(lines),
     `${owner} needs "lines" in ${path} as [first, last].`,
   );
 
-  const [first, last] = lines as [number, number];
+  const [first, last] = lines;
   ensure(
     1 <= first && first <= last && last <= count,
     `${owner} ${action} ${path} lines ${first}-${last}, but the file has ${count} lines.`,
@@ -735,8 +746,8 @@ function resolveMistake(owner: string, value: unknown): JsonObject {
   };
 }
 
-function resolveCost(owner: string, value: unknown): JsonObject[] {
-  const rows = listOfObjects(value, "cost", owner);
+function resolveCost(owner: string, cost: unknown): JsonObject[] {
+  const rows = listOfObjects(cost, "cost", owner);
   ensure(
     rows.length > 0,
     `${owner} needs "cost": the rows of its cost line, as { "label", "value" }.`,
@@ -962,7 +973,7 @@ function indexNextItems(next: JsonObject[]): Set<string> {
 function resolveNotNow(
   entries: JsonObject[],
   changes: PageChange[],
-): JsonObject[] {
+): (JsonObject & { id: string })[] {
   const items = entries.map((item) => {
     ensure(
       isId(item.id) && isFilledString(item.title) && isFilledString(item.why),
@@ -1240,10 +1251,11 @@ export async function build(
     isOneOf(SKILLS, run.skill),
     `run.skill must be one of ${listChoices(SKILLS)}, got ${quote(run.skill)}.`,
   );
-  for (const key of ["title", "heading", "target", "date", "outcome"]) {
+  const title = run.title;
+  ensure(isFilledString(title), "run.title is required.");
+  for (const key of ["heading", "target", "date", "outcome"]) {
     ensure(isFilledString(run[key]), `run.${key} is required.`);
   }
-  const title = run.title as string;
   const skill = run.skill;
   validateSkillShape(data, run, skill);
 
@@ -1263,7 +1275,7 @@ export async function build(
   // The page adds waiting to a count of changes.
   const waiting = run.waiting ?? 0;
   ensure(
-    Number.isInteger(waiting) && (waiting as number) >= 0,
+    typeof waiting === "number" && Number.isInteger(waiting) && waiting >= 0,
     `run.waiting must be a whole number from 0, got ${quote(waiting)}.`,
   );
 
@@ -1316,7 +1328,7 @@ export async function build(
     questionOptions,
     next: indexNextItems(next),
     shipOptions,
-    notNow: new Set(notNow.map((item) => item.id as string)),
+    notNow: new Set(notNow.map((item) => item.id)),
   });
 
   const usedGroups = new Set(changes.map((change) => change.group));
@@ -1429,10 +1441,10 @@ async function readData(path: string): Promise<unknown> {
   ensure(await file.exists(), `Unable to find the data file at ${path}.`);
 
   try {
-    return (await file.json()) as unknown;
+    return await file.json();
   } catch (error) {
     throw new DataError(
-      `The data file ${path} is not valid JSON: ${(error as Error).message}`,
+      `The data file ${path} is not valid JSON: ${errorMessage(error)}`,
     );
   }
 }
@@ -1449,7 +1461,7 @@ function parseCommandLine(argv: string[]) {
       },
     });
   } catch (error) {
-    console.error(`bonsai: ${(error as Error).message}\n${USAGE}`);
+    console.error(`bonsai: ${errorMessage(error)}\n${USAGE}`);
     return null;
   }
 }

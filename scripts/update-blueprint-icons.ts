@@ -33,14 +33,14 @@ export async function iconsJson(iconsDir = lucideIconsDir()): Promise<string> {
     .filter((file) => file.endsWith(".svg"))
     .toSorted();
 
-  const icons: Record<string, string> = {};
-
-  for (const file of files) {
-    icons[file.slice(0, -".svg".length)] = innerSvg(
-      await Bun.file(join(iconsDir, file)).text(),
-      file,
-    );
-  }
+  const icons = Object.fromEntries(
+    await Promise.all(
+      files.map(async (file) => [
+        file.slice(0, -".svg".length),
+        innerSvg(await Bun.file(join(iconsDir, file)).text(), file),
+      ]),
+    ),
+  );
 
   return `${JSON.stringify(icons, null, 2)}\n`;
 }

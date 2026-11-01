@@ -97,6 +97,11 @@ const LABELED_BULLETS = [
   /^\s*(?:[-*+]|\d+[.)])\s+(([^\s*`#[]\S*(?: \S+){0,3}?) [-–—])\s\S/d,
 ];
 
+/** A placeholder no Markdown holds, to find a line again after parsing. */
+function tag(index: number): string {
+  return `\uE010${index}\uE011`;
+}
+
 /**
  * Finds the labeled bullets that use a dash or a period where the house
  * style takes a colon. Each candidate gets a numbered tag right after its
@@ -124,7 +129,6 @@ function labeledBullets(
       : [];
   });
 
-  const tag = (index: number): string => `\uE010${index}\uE011`;
   const tagged = lines.map((text, index) => {
     const candidate = candidates.find((found) => found.index === index);
 
@@ -199,7 +203,7 @@ export async function checkProse(root: string): Promise<{
   const problems = await Promise.all(
     paths.map(async (file) =>
       findProseProblems(await Bun.file(join(root, file)).text()).map(
-        (finding) => ({ file, ...finding }),
+        (finding) => Object.assign(finding, { file }),
       ),
     ),
   );

@@ -92,12 +92,12 @@ export function locatedLinkTargets(
   const targets = linkTargets(text);
   const claimed: { start: number; end: number }[] = [];
 
-  for (const target of [...new Set(targets)].toSorted(
-    (a, b) => b.length - a.length,
-  )) {
+  for (const target of [...new Set(targets)]
+    .filter((candidate) => candidate !== "")
+    .toSorted((a, b) => b.length - a.length)) {
     for (
       let start = text.indexOf(target);
-      start !== -1 && target !== "";
+      start !== -1;
       start = text.indexOf(target, start + 1)
     ) {
       const end = start + target.length;
@@ -357,10 +357,9 @@ export async function validatePlugins(root: string): Promise<{
           : []),
       ];
 
-      return findings.map((finding) => ({
-        file: relative(root, file),
-        ...finding,
-      }));
+      return findings.map((finding) =>
+        Object.assign(finding, { file: relative(root, file) }),
+      );
     }),
   );
 

@@ -11,6 +11,7 @@ import type { Browser, Page } from "puppeteer-core";
 import sharp from "sharp";
 
 import { findFigureProblems, type Measurement } from "./checks";
+import { errorMessage } from "./error-message";
 import { measureFigure } from "./measure";
 import { outputPathFor } from "./page";
 import { bundlePageScript } from "./page-script";
@@ -54,9 +55,9 @@ let playerScript: Promise<string> | undefined;
 
 // player.html starts with the player's style, which goes in the head. The
 // rest wraps the figure, which fills the slot in .screen, and runs the
-// script bundled from player.ts.
+// script bundled from page/player.ts.
 export async function buildPlayerPage(source: string): Promise<string> {
-  playerScript ??= bundlePageScript(`${import.meta.dir}/player.ts`);
+  playerScript ??= bundlePageScript(`${import.meta.dir}/page/player.ts`);
   const [player, script] = await Promise.all([
     Bun.file(`${import.meta.dir}/player.html`).text(),
     playerScript,
@@ -186,6 +187,8 @@ async function findSceneProblems({
 }: OpenWalkthrough): Promise<string[]> {
   const problems: string[] = [];
 
+  // One page shows one scene at a time, so the scenes go in turn.
+  /* oxlint-disable no-await-in-loop */
   for (const [index, scene] of timing.scenes.entries()) {
     await page.evaluate(isolateScene, index);
     await page.evaluate(renderFrame, scene.fullAt);
@@ -196,6 +199,7 @@ async function findSceneProblems({
       problems.push(`Scene ${index + 1}: ${problem}`);
     }
   }
+  /* oxlint-enable no-await-in-loop */
 
   await page.evaluate(showAllScenes);
 
@@ -224,6 +228,8 @@ async function writeContactSheet(
   const rows = Math.ceil(timing.scenes.length / columns);
   const tiles = [];
 
+  // One page renders one frame at a time, so the scenes go in turn.
+  /* oxlint-disable no-await-in-loop */
   for (const [index, scene] of timing.scenes.entries()) {
     const frame = await frameAt(page, scene.fullAt);
 
@@ -233,6 +239,7 @@ async function writeContactSheet(
       top: gap + Math.floor(index / columns) * (tile.height + gap),
     });
   }
+  /* oxlint-enable no-await-in-loop */
 
   await sharp({
     create: {
@@ -305,13 +312,20 @@ export async function writeVideo(
     const capturing = Promise.all(
       pages.map(async (capturer, first) => {
         for (let frame = first; frame < frames; frame += pages.length) {
-          captured[frame]?.resolve(
-            await frameAt(capturer, frameTime(timing.poster, frame)),
+          // One page renders one frame at a time.
+          // oxlint-disable-next-line no-await-in-loop
+          const image = await frameAt(
+            capturer,
+            frameTime(timing.poster, frame),
           );
+
+          captured[frame]?.resolve(image);
         }
       }),
     );
 
+    // The encoder takes the frames in order.
+    /* oxlint-disable no-await-in-loop */
     for (const { promise } of captured) {
       // A failed capture leaves its frame unresolved, so the race ends the
       // wait with the capture's error.
@@ -320,6 +334,7 @@ export async function writeVideo(
       );
       await encoder.stdin.flush();
     }
+    /* oxlint-enable no-await-in-loop */
 
     await encoder.stdin.end();
 
@@ -352,7 +367,7 @@ function parseCommandLine(args: string[]) {
       },
     });
   } catch (error) {
-    return `${(error as Error).message}\n${USAGE}`;
+    return `${errorMessage(error)}\n${USAGE}`;
   }
 }
 
@@ -388,6 +403,10 @@ export function parseArguments(args: string[]): Options | string {
   };
 }
 
+function displayPath(path: string): string {
+  return relative(process.cwd(), path);
+}
+
 export async function main(args: string[]): Promise<number> {
   const options = parseArguments(args);
 
@@ -397,7 +416,6 @@ export async function main(args: string[]): Promise<number> {
     return 1;
   }
 
-  const displayPath = (path: string) => relative(process.cwd(), path);
   const browser = await launchBrowser();
 
   try {
@@ -435,6 +453,8 @@ export async function main(args: string[]): Promise<number> {
     for (const t of options.stills) {
       const still = outputPathFor(options.source, SOURCE_SUFFIX, `.${t}s.png`);
 
+      // One page renders one frame at a time.
+      // oxlint-disable-next-line no-await-in-loop
       await Bun.write(still, await frameAt(walkthrough.page, t));
       console.log(displayPath(still));
     }
@@ -465,7 +485,7 @@ export async function main(args: string[]): Promise<number> {
     return 0;
   } catch (error) {
     console.error(
-      `${displayPath(options.source)} did not render:\n${(error as Error).message}`,
+      `${displayPath(options.source)} did not render:\n${errorMessage(error)}`,
     );
 
     return 1;

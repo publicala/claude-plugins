@@ -4,6 +4,7 @@
 import { relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
+import { errorMessage } from "./error-message";
 import { launchBrowser, renderFigure } from "./renderer";
 
 const USAGE =
@@ -17,7 +18,7 @@ function parseCommandLine(args: string[]) {
       options: { pdf: { type: "boolean", default: false } },
     });
   } catch (error) {
-    console.error(`${(error as Error).message}\n${USAGE}`);
+    console.error(`${errorMessage(error)}\n${USAGE}`);
 
     return null;
   }
@@ -44,6 +45,8 @@ export async function main(args: string[]): Promise<number> {
   try {
     for (const sourcePath of positionals.map((source) => resolve(source))) {
       try {
+        // One figure at a time, reported in the order given.
+        // oxlint-disable-next-line no-await-in-loop
         const written = await renderFigure(browser, sourcePath, {
           pdf: values.pdf,
         });
@@ -55,7 +58,7 @@ export async function main(args: string[]): Promise<number> {
         }
       } catch (error) {
         console.error(
-          `${relative(process.cwd(), sourcePath)} did not render:\n${(error as Error).message}`,
+          `${relative(process.cwd(), sourcePath)} did not render:\n${errorMessage(error)}`,
         );
         exitCode = 1;
       }
