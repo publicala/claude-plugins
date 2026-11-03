@@ -40,7 +40,7 @@ A round holds at most 5 calls (questions included) and 3 ready groups, and the b
 - **No method words on the card**: Write "3 small models did the task without the line: 2 said cut, 1 said keep". Never "capability-floor panel", "step 2", "probe", "derivable", "resident" or a model name. The method paragraph (`run.method`) holds the how, collapsed.
 - **Evidence is one fact per item**, with the file and line it rests on, so the build can link it. The user must never need the repo open to decide.
 - **Text the user approves is final and whole**: `write` lines are the exact text the apply writes. Never abridge them, and never elide inside a line: a UUID shown as `0ae0ec65-...` reads as the file itself being broken.
-- **A guard card stands alone**: Quote the reviewers' own words, show the wrong code from the PR or the default branch next to the code to write instead, print the check's message as the tool prints it, and fill every row the cost gate measured.
+- **A guard card stands alone**: Open with what goes wrong when the mistake ships and why it comes back (a candidate has no skip line), quote the reviewers' own words, show the wrong code from the PR or the default branch next to the code to write instead, print the check's message as the tool prints it, say what the check forbids and what breaks it, and fill every row the cost gate measured. A cost row is the only place a count lives: the reason the gate weighed goes in the why.
 - **A question is for intent only**: Offer two to four options with one marked `recommended`, each with a detail line that says what happens. A standing preference (how edits ship) belongs in the settings.
 
 ## Publish

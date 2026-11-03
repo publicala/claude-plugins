@@ -107,13 +107,17 @@ An edit either replaces lines or inserts new ones:
 
 ## Guard runs
 
-`/bonsai:guard` turns one review round into candidate checks, and the user decides each one with Build, Skip or Later. A card carries everything the decision needs, so the user never opens the repository or the PR: the review quotes, the mistake as code, the check with its exact message, and its cost. `example/guard-data.json` is a complete round. One candidate:
+`/bonsai:guard` turns one review round into candidate checks, and the user decides each one with Build, Skip or Later. A card carries everything the decision needs, so the user never opens the repository or the PR: why the mistake comes back, the mistake as code, the check with its exact message, what it forbids and what breaks it, its cost, and the review quotes. `example/guard-data.json` is a complete round. One candidate:
 
 ```json
 {
   "id": "order-total-summed-by-hand",
   "title": "Read every order total from `Order::total()`",
   "recommendation": "recommended",
+  "why": {
+    "recurs": "seen-again",
+    "text": "A hand-built total skips the discount and VAT, so an invoice comes out low and a refund pays back too much. Three reviews caught it in three files, and summing the lines is the first thing a session writes when it needs a total. Recommended: one PHPStan rule holds it, with one exception."
+  },
   "caught": {
     "count": 3,
     "quotes": [
@@ -135,8 +139,18 @@ An edit either replaces lines or inserts new ones:
     "where": ["app/PHPStan/OrderTotalRule.php", "phpstan.neon"],
     "message": "Order totals come from Order::total(), which applies discounts and VAT."
   },
-  "cost": [{ "label": "Violations on `main`", "value": "4, all fixed in this PR" }],
-  "skip": "The next invoice that needs a total sums the lines by hand and drops the discount."
+  "tradeoff": {
+    "forbids": "Any sum over `$order->lines`, even one that wants the subtotal. The way past it is `Order::subtotal()`.",
+    "breaks": "`Order::total()` is renamed: the rule names it, so its test fails and names the rename."
+  },
+  "cost": {
+    "violations": "4, all fixed in this PR",
+    "exceptions": "1: `Order::total()` itself sums the lines",
+    "falsePositives": "None",
+    "runTime": "+1s on `composer phpstan`",
+    "newTools": "None. PHPStan runs in `composer test` and CI.",
+    "overlap": "#61 edits `InvoicePdf.php`. Merge this one after it."
+  }
 }
 ```
 
@@ -145,30 +159,34 @@ An edit either replaces lines or inserts new ones:
 | `id` | As for changes. Name it by the mistake a session makes. |
 | `title` | The rule in plain words. |
 | `recommendation` | `recommended`, `close call` or `low value`, shown as a badge. |
-| `caught` | `quotes`: 1 to 4 of `{ "reviewer", "text", "url" }`, each excerpt at most 300 characters, with the http or https link to its thread. `count`: how many threads raised it, shown as "3 reviews flagged this". It defaults to the number of quotes. |
+| `why` | Why the guardrail is worth building, first on the card. `recurs` says why a fresh session writes the mistake again: `framework-default` (the framework's own helper or default), `seen-again` (the review raised it in two or more threads), `code-shows-it` (the surrounding code teaches the wrong form) or `once` (one caller wrote it once). `text` is two or three sentences in this order: what goes wrong when the mistake ships, why a session writes it again, and what the recommendation rests on. A close call or a low value says so in the last one. The build refuses a text under two sentences. |
+| `caught` | `quotes`: 1 to 4 of `{ "reviewer", "text", "url" }`, each excerpt at most 300 characters, with the http or https link to its thread. The card shows two and folds the rest. `count`: how many threads raised it, shown as "3 reviews flagged this". It defaults to the number of quotes. |
 | `mistake` | `wrong` and `right`: the code a session wrote and the code to write instead, shown as two blocks. `lang` labels both, and `note` adds one line under them. |
 | `guardrail` | `rung` from 1 to 8, `tool`, `where` (the files the check lives in) and `message` (the exact text it prints when it fails). The table below says which each rung needs. |
-| `cost` | The cost line as rows of `{ "label", "value" }`: violations on the default branch and whether the PR fixes them, exceptions, run time, new tools, overlap with open PRs. |
-| `skip` | The mistake the next session makes when the user skips it. |
+| `tradeoff` | What the check costs in rigidity. `forbids`: the forms it blocks that someone may write on purpose, and the way past it (a helper, an exception list, a suppression with its reason). `breaks`: the change that makes the check fail for the wrong reason or scan nothing (a moved path, a renamed helper, a constant that drifts from the real value). Checks only: a CLAUDE.md line carries none, and its card says that nothing enforces a line. |
+| `cost` | The cost line as an object with one text value per row. A check: `violations` (on the default branch, and whether this PR fixes them), `exceptions`, `falsePositives`, `runTime`, `newTools`, `overlap` (with open PRs). A CLAUDE.md line: `violations`, `tokens`, `loadsWhen` (which sessions load the file), `alreadyStated`, `overlap`. Every row is required, and the build refuses any other: a reason the cost gate weighed goes in `why.text`, and a rigidity in `tradeoff`. |
 | `alternative` | Optional. A cheaper or narrower check, in one sentence. |
 | `edits` | Only for a CLAUDE.md line: the line it writes, as for changes. |
 | `evidence`, `check` | Optional, as for changes. |
 
-A candidate is always a call, so it needs no `lane`, `verb` or `why`, and a guard run has no groups.
+A candidate is always a call, so it needs no `lane` or `verb`, and a guard run has no groups. It carries no `skip` either: the first sentence of `why.text` says what goes wrong when the mistake ships.
 
-| Rung | `tool` and `where` | `message` |
-| --- | --- | --- |
-| 1 Unwritable | Required | Required: the error the type or schema raises |
-| 2 Auto-fix | Required | Optional. Without one the card says the tool rewrites the code on commit. |
-| 3 Static analysis, 4 Arch or guard test, 5 ast-grep, 6 Git hook, 7 Runtime guard | Required | Required |
-| 8 CLAUDE.md line | Optional. The card names the files its `edits` write. | None. The line goes in `edits`. |
+| Rung | `tool` and `where` | `message` | `tradeoff` |
+| --- | --- | --- | --- |
+| 1 Unwritable | Required | Required: the error the type or schema raises | Required |
+| 2 Auto-fix | Required | Optional. Without one the card says the tool rewrites the code on commit. | Required |
+| 3 Static analysis, 4 Arch or guard test, 5 ast-grep, 6 Git hook, 7 Runtime guard | Required | Required | Required |
+| 8 CLAUDE.md line | Optional. The card names the files its `edits` write. | None. The line goes in `edits`. | None |
 
 The rest of a guard round:
 
+- `run.branch`: optional. The default branch the checks ran on, so the cost table reads "Violations on `main`". Without it the label says "the default branch".
 - `run.prs`: optional. One sentence on how built candidates land, shown in the summary and before sending. It defaults to "Each candidate you build becomes its own pull request from the default branch, labelled `guardrail`."
 - `notNow`: `{ "id", "title", "why", "threads" }` for the candidates the cost gate stopped. `why` is the reason, and `threads` lists their thread links. They render collapsed, each with a "Build anyway" switch.
 - `none`: `{ "finding", "verdict", "url" }` for the findings with no guardrail, as the triage table states them: "Inbox keys act under an open dialog" with "One-off bug, fixed in the PR". They render collapsed, with nothing to decide.
 - `questions` and `next` work as in any run. A guard run takes no `ship`.
+
+A card reads top down in the order a decision needs: the title and badge, `why.text`, then a strip of facts the build computed (threads and PRs from the quotes, the `recurs` chip, the rung, and the first sentence of `violations`, `runTime` and `exceptions`, or of `tokens` and `loadsWhen` for a line), the mistake, the check, the tradeoff, the cost table, and the quotes. The strip shows a cost row's first sentence as it is, so the build refuses one over 72 characters: put the count or the time first, and the detail in a second sentence.
 
 The page has no preview pane, since each card shows the whole line it writes. The token meter appears only when a CLAUDE.md line edits a resident file. The buttons read Build, Skip and Later (keys `b`, `s` and `l`), and the message opens with `Build the bonsai guard of <target>, round <n>, with these decisions:`. It holds one line per candidate with its rung and tool, then `- not now <id>: build anyway` for each candidate the user pulled back in.
 
@@ -176,14 +194,16 @@ In record mode, `run.status.state` set to `built` shows as Built, `run.status.pr
 
 The build refuses, in a guard run:
 
-- A candidate without `title`, `recommendation`, `caught`, `mistake`, `guardrail`, `cost` or `skip`, or a `recommendation` other than the three
+- A candidate without `title`, `recommendation`, `why`, `caught`, `mistake`, `guardrail` or `cost`, with a `skip`, or with a `recommendation` other than the three
+- A `why` without `text` or with a `text` under two sentences, with a `recurs` other than the four, or with `seen-again` on a `caught.count` of 1
 - A `rung` that is not a whole number from 1 to 8, or a rung that lacks what the table above requires
-- A check (rungs 1 to 7) that carries `edits`, a CLAUDE.md line without them, or a CLAUDE.md line with a `message`
+- A check (rungs 1 to 7) that carries `edits` or lacks `tradeoff.forbids` or `tradeoff.breaks`, a CLAUDE.md line without `edits`, or a CLAUDE.md line with a `message` or a `tradeoff`
+- A `cost` that is a list, that lacks a row its rung measures, that holds a row its rung does not, that holds a value other than text, or whose `violations`, `runTime`, `exceptions`, `tokens` or `loadsWhen` runs past 72 characters before its first full stop
 - No quotes or more than 4, a quote over 300 characters or without a `reviewer`, a quote `url` or a `notNow` thread that is not http or https, or a `count` below the quotes shown
 - A `notNow` item without `id`, `title` and `why`, or with an id another not-now item or a candidate uses, and a `none` row without `finding` and `verdict`
 - A `ship`, or a round with no candidate and nothing not now
 - A `run.status.prs` link for a candidate the decisions do not build: one without `apply` in `decisions.d`, or a not-now id without `true` in `decisions.pull`
-- `notNow`, `none`, `run.prs`, `run.status.prs` or a candidate field in any other run
+- `notNow`, `none`, `run.branch`, `run.prs`, `run.status.prs` or a candidate field in any other run
 
 ## What the build refuses
 

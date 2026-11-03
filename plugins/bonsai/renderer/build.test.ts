@@ -68,10 +68,12 @@ interface GuardCandidate {
   lane?: string;
   title?: string;
   recommendation?: unknown;
+  why?: unknown;
   caught: { count?: unknown; quotes: Record<string, unknown>[] };
   mistake: Record<string, unknown>;
   guardrail: Record<string, unknown>;
-  cost: unknown;
+  tradeoff?: unknown;
+  cost: Record<string, unknown>;
   skip?: string;
   alternative?: unknown;
   edits?: unknown;
@@ -1070,6 +1072,13 @@ describe("build refuses data that would mislead", () => {
       "run.prs belongs to a guard run.",
     ],
     [
+      "a default branch outside a guard run",
+      (data) => {
+        data.run.branch = "main";
+      },
+      "run.branch belongs to a guard run.",
+    ],
+    [
       "PR links per change outside a guard run",
       (data) => {
         data.run.status = {
@@ -1119,6 +1128,46 @@ describe("guard build", () => {
         "Order totals come from Order::total(), which applies discounts and VAT.\nReplace this sum over $order->lines with $order->total().",
     });
     expect(total.caught).toMatchObject({ count: 3 });
+    expect(total.why).toMatchObject({ recurs: "seen-again" });
+    expect(total.tradeoff).toEqual({
+      forbids:
+        "Any sum over `$order->lines`, even one that wants the subtotal before discounts. The way past it is `Order::subtotal()`, or a `@phpstan-ignore` with the reason on the line.",
+      breaks:
+        "`Order::total()` is renamed or the lines relation moves: the rule names both, so its test fails and names the rename.",
+    });
+    expect(total.cost).toEqual([
+      {
+        key: "violations",
+        value: "4, all fixed in this PR",
+        lead: "4, all fixed in this PR",
+      },
+      {
+        key: "exceptions",
+        value: "1: `Order::total()` itself sums the lines",
+        lead: "1: `Order::total()` itself sums the lines",
+      },
+      {
+        key: "falsePositives",
+        value: "None: `Order::total()` is the one sum the rule allows",
+        lead: null,
+      },
+      {
+        key: "runTime",
+        value: "+1s on `composer phpstan`",
+        lead: "+1s on `composer phpstan`",
+      },
+      {
+        key: "newTools",
+        value: "None. PHPStan runs in `composer test` and CI.",
+        lead: null,
+      },
+      {
+        key: "overlap",
+        value: "#61 edits `InvoicePdf.php`. Merge this one after it.",
+        lead: null,
+      },
+    ]);
+    expect(page.run.branch).toBe("main");
     expect(page.notNow.map((item) => item.id)).toEqual([
       MONEY,
       "import-queue-unnamed",
@@ -1144,6 +1193,31 @@ describe("guard build", () => {
       where: [],
       message: null,
     });
+    expect(changeIn(page.changes, USERS).tradeoff).toBeNull();
+    expect(changeIn(page.changes, USERS).cost).toEqual([
+      {
+        key: "violations",
+        value: "1 in `InviteUser`, which the source PR fixes",
+        lead: null,
+      },
+      {
+        key: "tokens",
+        value: "About 50, only in sessions that read `app/Users`",
+        lead: "About 50, only in sessions that read `app/Users`",
+      },
+      {
+        key: "loadsWhen",
+        value: "A session touches a file under `app/Users/`",
+        lead: "A session touches a file under `app/Users/`",
+      },
+      {
+        key: "alreadyStated",
+        value:
+          "No. The unique index lives in a migration, and no CLAUDE.md names it",
+        lead: null,
+      },
+      { key: "overlap", value: "None", lead: null },
+    ]);
     expect(changeIn(page.changes, PAYMENTS).mistake).toMatchObject({
       note: null,
     });
@@ -1375,27 +1449,131 @@ describe("guard build refuses data that would mislead", () => {
       `Candidate '${TOTAL}' needs "mistake.lang" and "mistake.note" as text, or left out.`,
     ],
     [
-      "a candidate without a cost",
+      "a candidate without a why",
       (data) => {
-        changeIn(data.changes, TOTAL).cost = [];
+        delete changeIn(data.changes, TOTAL).why;
       },
-      `Candidate '${TOTAL}' needs "cost": the rows of its cost line, as { "label", "value" }.`,
+      `Candidate '${TOTAL}' needs "why": { "recurs", "text" }. The text says why a fresh session writes the mistake again, and what the recommendation rests on.`,
+    ],
+    [
+      "a why without its text",
+      (data) => {
+        changeIn(data.changes, TOTAL).why = { recurs: "seen-again" };
+      },
+      `Candidate '${TOTAL}' needs "why": { "recurs", "text" }.`,
+    ],
+    [
+      "a why with an unknown recurrence",
+      (data) => {
+        changeIn(data.changes, TOTAL).why = {
+          recurs: "always",
+          text: "Totals come out low. Everyone sums by hand.",
+        };
+      },
+      `Candidate '${TOTAL}' has "why.recurs" "always". Use framework-default, seen-again, code-shows-it or once.`,
+    ],
+    [
+      "a why that says the review saw it again, from one thread",
+      (data) => {
+        changeIn(data.changes, NOW).why = {
+          recurs: "seen-again",
+          text: "The clock has two names. Everyone writes it.",
+        };
+      },
+      `Candidate '${NOW}' says the review saw the mistake again, but "caught.count" is 1. Count every thread that raised it, or pick another "why.recurs".`,
+    ],
+    [
+      "a check without its tradeoff",
+      (data) => {
+        delete changeIn(data.changes, TOTAL).tradeoff;
+      },
+      `Candidate '${TOTAL}' needs "tradeoff": { "forbids", "breaks" }. "forbids" names the forms the check blocks and the way past it. "breaks" names the change that makes the check fail or go stale.`,
+    ],
+    [
+      "a tradeoff that names nothing it breaks on",
+      (data) => {
+        changeIn(data.changes, TOTAL).tradeoff = { forbids: "Any sum." };
+      },
+      `Candidate '${TOTAL}' needs "tradeoff": { "forbids", "breaks" }.`,
+    ],
+    [
+      "a CLAUDE.md line with a tradeoff",
+      (data) => {
+        changeIn(data.changes, USERS).tradeoff = {
+          forbids: "Nothing.",
+          breaks: "Nothing.",
+        };
+      },
+      `Candidate '${USERS}' is a CLAUDE.md line (rung 8), so it carries no "tradeoff": nothing enforces a line, so it forbids nothing and nothing breaks it.`,
+    ],
+    [
+      "a cost as a list of rows",
+      (data) => {
+        setField(changeIn(data.changes, TOTAL), "cost", [
+          { label: "Violations", value: "4" },
+        ]);
+      },
+      `Candidate '${TOTAL}' needs "cost": an object with violations, exceptions, falsePositives, runTime, newTools, overlap, each as text.`,
+    ],
+    [
+      "a cost row a check does not measure",
+      (data) => {
+        changeIn(data.changes, TOTAL).cost.proof = "A planted sum fails it.";
+      },
+      `Candidate '${TOTAL}' has cost row "proof", which a check does not measure. Use violations, exceptions, falsePositives, runTime, newTools, overlap. A reason the cost gate weighed goes in "why.text", and what the check forbids or what breaks it in "tradeoff".`,
+    ],
+    [
+      "a cost row a CLAUDE.md line does not measure",
+      (data) => {
+        changeIn(data.changes, USERS).cost.runTime = "None";
+      },
+      `Candidate '${USERS}' has cost row "runTime", which a CLAUDE.md line does not measure. Use violations, tokens, loadsWhen, alreadyStated, overlap.`,
+    ],
+    [
+      "a check missing a cost row",
+      (data) => {
+        delete changeIn(data.changes, TOTAL).cost.falsePositives;
+      },
+      `Candidate '${TOTAL}' needs cost row "falsePositives": what it flags that is right, after the check is narrowed, or None.`,
+    ],
+    [
+      "a CLAUDE.md line missing a cost row",
+      (data) => {
+        delete changeIn(data.changes, USERS).cost.loadsWhen;
+      },
+      `Candidate '${USERS}' needs cost row "loadsWhen": which sessions load the file, by the paths they touch.`,
     ],
     [
       "a cost row that is not text",
       (data) => {
-        changeIn(data.changes, TOTAL).cost = [
-          { label: "Violations", value: 4 },
-        ];
+        changeIn(data.changes, TOTAL).cost.violations = 4;
       },
-      `Candidate '${TOTAL}' needs "label" and "value" as text in every cost row.`,
+      `Candidate '${TOTAL}' needs cost row "violations" as text.`,
     ],
     [
-      "a candidate without skip",
+      "a cost row whose first sentence outgrows the strip",
       (data) => {
-        delete changeIn(data.changes, TOTAL).skip;
+        changeIn(data.changes, TOTAL).cost.violations =
+          "Four sites on main break it, all of them fixed by hand in this pull request with one call each";
       },
-      `Candidate '${TOTAL}' is a call, so it needs "skip": what goes wrong if the user skips it.`,
+      `Candidate '${TOTAL}' cost row "violations" runs 94 characters before its first full stop, and the decision strip shows that sentence. Put the count or the time first, and the detail in a second sentence.`,
+    ],
+    [
+      "a candidate with a skip line",
+      (data) => {
+        changeIn(data.changes, TOTAL).skip = "The next invoice sums by hand.";
+      },
+      `Candidate '${TOTAL}' carries "skip", which a candidate says in "why.text": its first sentence names what goes wrong when the mistake ships.`,
+    ],
+    [
+      "a why in one sentence",
+      (data) => {
+        changeIn(data.changes, TOTAL).why = {
+          recurs: "seen-again",
+          text: "Everyone sums the lines by hand, as 3 reviews said.",
+        };
+      },
+      `Candidate '${TOTAL}' needs "why.text" in 2 sentences at least: what goes wrong when the mistake ships, then why a fresh session writes it again.`,
     ],
     [
       "an alternative that is not text",
@@ -1716,7 +1894,9 @@ describe("render", () => {
     const html = await render(await build(data, EXAMPLE));
 
     expect(
-      html.startsWith("<title>Audit &lt;script&gt; &amp; $&amp;</title>"),
+      html.startsWith(
+        '<title>Audit &lt;script&gt; &amp; $&amp;</title>\n<meta charset="utf-8" />',
+      ),
     ).toBe(true);
     expect(html).not.toContain(DATA_PLACEHOLDER);
     expect(html).not.toContain("Ends a script tag: </script>");
@@ -1854,10 +2034,61 @@ describe("guard page", () => {
     expect(document.querySelector(".tabs")?.hasAttribute("hidden")).toBe(true);
     expect(document.querySelector(".meter")).toBeNull();
     expect(total?.querySelector(".badge")?.textContent).toBe("recommended");
+    expect(total?.querySelector(".g-why")?.textContent).toStartWith(
+      "A hand-built total skips the discount and VAT",
+    );
+    expect(total?.querySelector(".ifskip")).toBeNull();
+    expect(
+      Array.from(total?.querySelectorAll(".strip li") ?? []).map(
+        (chip) => chip.textContent,
+      ),
+    ).toEqual([
+      "3 threads in PR #57",
+      "review saw it again",
+      "rung 3 · Static analysis",
+      "violations4, all fixed in this PR",
+      "exceptions1: Order::total() itself sums the lines",
+      "run time+1s on composer phpstan",
+    ]);
     expect(total?.querySelectorAll(".quotes li")).toHaveLength(3);
-    expect(total?.querySelector(".g-sec h4 span")?.textContent).toBe(
+    expect(total?.querySelectorAll(".quotes")[0]?.children).toHaveLength(2);
+    expect(total?.querySelector("details.more > summary")?.textContent).toBe(
+      "1 more quote",
+    );
+    expect(total?.querySelector(".caught h4 span")?.textContent).toBe(
       "3 reviews flagged this",
     );
+    expect(total?.querySelector(".tradeoff")?.textContent).toContain(
+      "Breaks when",
+    );
+    expect(total?.querySelector(".cost")?.textContent).toContain(
+      "Violations on main",
+    );
+    expect(
+      Array.from(total?.children ?? []).map((node) => node.className),
+    ).toEqual([
+      "g-head",
+      "why g-why",
+      "strip",
+      "g-sec",
+      "g-sec",
+      "g-sec tradeoff",
+      "g-sec cost",
+      "g-sec caught",
+      "",
+      "choice",
+    ]);
+    expect(
+      document.getElementById(`card-${STATUS}`)?.querySelector("details.more"),
+    ).toBeNull();
+    expect(
+      document.getElementById(`card-${USERS}`)?.querySelector(".tradeoff")
+        ?.textContent,
+    ).toContain("Holds only while a session reads it");
+    expect(
+      document.getElementById(`card-${USERS}`)?.querySelector(".cost")
+        ?.textContent,
+    ).toContain("Loads when");
     expect(total?.querySelector(".code.msg")?.textContent).toContain(
       "Replace this sum over $order->lines with $order->total().",
     );

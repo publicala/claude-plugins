@@ -105,7 +105,7 @@ The artifact is the rung and the check's shape per candidate, with the message i
 
 ### 5. Cost gate
 
-A check costs run time, false positives and upkeep, so each candidate earns its place. Count by running a scratch version of the check in a throwaway worktree of the fresh default branch, dependencies installed: a grep sees only what grep can see, and a tightened rule has to run to show its hits. Record per candidate:
+A check costs run time, false positives, rigidity and upkeep, so each candidate earns its place. Count by running a scratch version of the check in a throwaway worktree of the fresh default branch, dependencies installed: a grep sees only what grep can see, and a tightened rule has to run to show its hits. Record per candidate, with the count or the time first and the detail after it:
 
 - **Violations** on the default branch: the count, and whether a tool fixes them. Narrowing a type so the check passes is a fix.
 - **Exceptions** it needs: a suppression at one site, or a path or name left out in the check's config, each with its reason.
@@ -113,14 +113,18 @@ A check costs run time, false positives and upkeep, so each candidate earns its 
 - **Run time** it adds to the lint or test command.
 - **New tools or dependencies**, and their cost.
 - **Overlap** with open PRs on the same hunks, which decides merge order. Name a draft with the date of its last update.
+- **Forbids**: the forms the check blocks that someone may write on purpose, and the way past it (a helper, an exception list, a suppression with its reason). A check with no way past it is a design decision the card must show.
+- **Breaks when**: the change that makes the check fail for the wrong reason or scan nothing. A moved path, a renamed helper, a constant that drifts from the value it mirrors, a regex over source text.
+
+A CLAUDE.md line records **violations**, **tokens** per session that loads it, **loads when** (which sessions load the file, by the paths they touch), **already stated** (whether a loaded file states the rule today) and **overlap**. A line forbids nothing and nothing breaks it, since nothing enforces it.
 
 A candidate passes when three things hold:
 
-- **Value**: a fresh session would plausibly write the wrong form again. It is the framework's default, the review saw it more than once, or the surrounding code shows it. A form one caller wrote once is upkeep for little: rank it low value.
+- **Value**: a fresh session would plausibly write the wrong form again. It is the framework's default, the review saw it more than once, or the surrounding code shows it. A form one caller wrote once is upkeep for little: rank it low value. Record the verdict as the **why** the card opens with, in two or three sentences: what goes wrong when the mistake ships, which of the four holds and the evidence for it, and what tipped a close call or a low value.
 - **Fit**: a tool the repository runs expresses it, with few exceptions.
 - **Size**: its fixes fit one PR. An auto-fix fits at any count. More than about 20 fixes by hand, or fixes that need a refactor, go to a prep PR first, and the guardrail PR stacks on it: make the change easy, then make the easy change.
 
-Cover only the code forms in use today. A check that guards forms nobody writes yet is upkeep with nothing to catch. A candidate that fails the gate is **not now**, with the reason. A close call goes to the user as one. The artifact is one cost line per candidate.
+Cover only the code forms in use today. A check that guards forms nobody writes yet is upkeep with nothing to catch. A candidate that fails the gate is **not now**, with the reason. A close call goes to the user as one. The artifact is one cost line per candidate, with its why and its tradeoff.
 
 ### 6. Prose gate
 
@@ -137,11 +141,12 @@ The user decides on a page, since an option label cannot carry a review quote, a
 Rank the candidates by evidence (how many reviews and threads raised it), then value, then cost. A round holds the first five, and the rest wait for the next round of the run. Each card carries what the user needs to decide without opening the repository:
 
 - **The rule**, in plain words, as the title, with the recommendation: recommended, close call or low value.
-- **What the review caught**: up to four quotes with the reviewer and the thread link, and the count when more threads raised it.
+- **Why build it**, first under the title: what goes wrong when the mistake ships, why a fresh session writes it again (the value verdict of step 5), and what the recommendation rests on. The page shows the reason as a chip beside the thread count, the rung and the first sentence of the violations, run time and exceptions, so put the number first in each.
 - **The mistake**: the wrong code from the PR or the default branch, and what to write instead.
 - **The check**: the rung, the tool, the file it lives in, and the exact message it prints.
+- **The tradeoff**: what the check forbids and the way past it, and what breaks it. A CLAUDE.md line has none.
 - **The cost**: the rows of the cost line, and the cheaper rung when step 4 found one.
-- **If you skip**: the mistake the next session makes.
+- **What the review caught**: up to four quotes with the reviewer and the thread link, and the count when more threads raised it. The page shows two and folds the rest.
 
 The page also lists the **not now** candidates with their reasons, so the user can pull one back in, and the triage table's **none** rows, collapsed. Act on the decisions the page sends back, as the reference describes.
 

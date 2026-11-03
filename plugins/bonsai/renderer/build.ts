@@ -68,11 +68,39 @@ const AUTO_FIX_RUNG = 2;
 const PROSE_RUNG = 8;
 const MAX_QUOTES = 4;
 const MAX_QUOTE_LENGTH = 300;
+const RECURRENCES = [
+  "framework-default",
+  "seen-again",
+  "code-shows-it",
+  "once",
+] as const;
+const CHECK_COST_KEYS = [
+  "violations",
+  "exceptions",
+  "falsePositives",
+  "runTime",
+  "newTools",
+  "overlap",
+] as const;
+const LINE_COST_KEYS = [
+  "violations",
+  "tokens",
+  "loadsWhen",
+  "alreadyStated",
+  "overlap",
+] as const;
+const STRIP_COST_KEYS = {
+  check: ["violations", "runTime", "exceptions"],
+  line: ["tokens", "loadsWhen"],
+} as const;
+const MAX_STRIP_SENTENCE_LENGTH = 72;
+const MIN_WHY_SENTENCES = 2;
 const GUARD_CHANGE_FIELDS = [
   "recommendation",
   "caught",
   "mistake",
   "guardrail",
+  "tradeoff",
   "cost",
   "alternative",
 ] as const;
@@ -145,6 +173,35 @@ interface PageGuardrail {
   tool: string | null;
   where: string[];
   message: string | null;
+}
+
+interface PageCaught {
+  count: number;
+  quotes: { reviewer: string; text: string; url: string }[];
+}
+
+interface PageWhy {
+  recurs: (typeof RECURRENCES)[number];
+  text: string;
+}
+
+interface PageTradeoff {
+  forbids: string;
+  breaks: string;
+}
+
+type CostKey =
+  | (typeof CHECK_COST_KEYS)[number]
+  | (typeof LINE_COST_KEYS)[number];
+
+/**
+ * One cost row as the card shows it, with its first sentence
+ * on its own when the decision strip summarizes it.
+ */
+interface PageCostRow {
+  key: CostKey;
+  value: string;
+  lead: string | null;
 }
 
 interface ChangeContext {
@@ -685,7 +742,7 @@ function resolveGuardrail(owner: string, value: unknown): PageGuardrail {
   };
 }
 
-function resolveCaught(owner: string, value: unknown): JsonObject {
+function resolveCaught(owner: string, value: unknown): PageCaught {
   ensure(
     isRecord(value),
     `${owner} needs "caught": the review quotes that flagged the mistake.`,
@@ -697,7 +754,7 @@ function resolveCaught(owner: string, value: unknown): JsonObject {
     `${owner} needs 1 to ${MAX_QUOTES} quotes in "caught.quotes", got ${quotes.length}.`,
   );
 
-  for (const item of quotes) {
+  const checked = quotes.map((item) => {
     ensure(
       isFilledString(item.reviewer) && isFilledString(item.text),
       `${owner} needs "reviewer" and "text" in every quote.`,
@@ -712,7 +769,9 @@ function resolveCaught(owner: string, value: unknown): JsonObject {
       isWebUrl(item.url),
       `${owner} has a quote with "url" ${quote(item.url)}. Use the http or https link to the thread.`,
     );
-  }
+
+    return { reviewer: item.reviewer, text: item.text, url: item.url };
+  });
 
   const count = value.count ?? quotes.length;
   ensure(
@@ -720,10 +779,7 @@ function resolveCaught(owner: string, value: unknown): JsonObject {
     `${owner} has "caught.count" ${quote(count)}. Count every thread that raised it, at least the ${quotes.length} quoted.`,
   );
 
-  return {
-    count,
-    quotes: quotes.map(({ reviewer, text, url }) => ({ reviewer, text, url })),
-  };
+  return { count, quotes: checked };
 }
 
 function resolveMistake(owner: string, value: unknown): JsonObject {
@@ -746,18 +802,120 @@ function resolveMistake(owner: string, value: unknown): JsonObject {
   };
 }
 
-function resolveCost(owner: string, cost: unknown): JsonObject[] {
-  const rows = listOfObjects(cost, "cost", owner);
+function resolveWhy(owner: string, value: unknown, threads: number): PageWhy {
   ensure(
-    rows.length > 0,
-    `${owner} needs "cost": the rows of its cost line, as { "label", "value" }.`,
+    isRecord(value) && isFilledString(value.text),
+    `${owner} needs "why": { "recurs", "text" }. The text says why a fresh session writes the mistake again, and what the recommendation rests on.`,
   );
   ensure(
-    rows.every((row) => isFilledString(row.label) && isFilledString(row.value)),
-    `${owner} needs "label" and "value" as text in every cost row.`,
+    sentences(value.text) >= MIN_WHY_SENTENCES,
+    `${owner} needs "why.text" in ${MIN_WHY_SENTENCES} sentences at least: what goes wrong when the mistake ships, then why a fresh session writes it again.`,
+  );
+  ensure(
+    isOneOf(RECURRENCES, value.recurs),
+    `${owner} has "why.recurs" ${quote(value.recurs)}. Use ${listChoices(RECURRENCES)}.`,
+  );
+  ensure(
+    value.recurs !== "seen-again" || threads >= 2,
+    `${owner} says the review saw the mistake again, but "caught.count" is 1. Count every thread that raised it, or pick another "why.recurs".`,
   );
 
-  return rows.map(({ label, value }) => ({ label, value }));
+  return { recurs: value.recurs, text: value.text };
+}
+
+function resolveTradeoff(
+  owner: string,
+  value: unknown,
+  rung: number,
+): PageTradeoff | null {
+  if (rung === PROSE_RUNG) {
+    ensure(
+      value === undefined,
+      `${owner} is a CLAUDE.md line (rung ${PROSE_RUNG}), so it carries no "tradeoff": nothing enforces a line, so it forbids nothing and nothing breaks it.`,
+    );
+
+    return null;
+  }
+
+  ensure(
+    isRecord(value) &&
+      isFilledString(value.forbids) &&
+      isFilledString(value.breaks),
+    `${owner} needs "tradeoff": { "forbids", "breaks" }. "forbids" names the forms the check blocks and the way past it. "breaks" names the change that makes the check fail or go stale.`,
+  );
+
+  return { forbids: value.forbids, breaks: value.breaks };
+}
+
+const COST_HINTS: Record<CostKey, string> = {
+  violations:
+    "how many sites on the default branch break it, and whether this PR fixes them",
+  exceptions:
+    "the suppressions and the paths left out, each with its reason, or None",
+  falsePositives:
+    "what it flags that is right, after the check is narrowed, or None",
+  runTime: "what it adds to the lint or test command",
+  newTools: "a tool or dependency the repository does not run, or None",
+  overlap: "open PRs on the same hunks, or None",
+  tokens: "what the line costs a session that loads its file",
+  loadsWhen: "which sessions load the file, by the paths they touch",
+  alreadyStated: "whether a file the session loads states the rule today",
+};
+
+const sentences = (text: string): number =>
+  text.split(/\.(?=\s|$)/).filter((part) => part.trim() !== "").length;
+
+/**
+ * The text up to the first full stop that ends a sentence,
+ * so "0.5 s on a cold run. Cached, 0.1 s." leads with the time.
+ */
+function firstSentence(text: string): string {
+  const match = /^(.*?)\.(?=\s|$)/s.exec(text);
+
+  return match?.[1] ?? text;
+}
+
+function resolveCost(
+  owner: string,
+  value: unknown,
+  rung: number,
+): PageCostRow[] {
+  const line = rung === PROSE_RUNG;
+  const keys: readonly CostKey[] = line ? LINE_COST_KEYS : CHECK_COST_KEYS;
+  const stripKeys: readonly CostKey[] = line
+    ? STRIP_COST_KEYS.line
+    : STRIP_COST_KEYS.check;
+  const rows = keys.join(", ");
+  ensure(
+    isRecord(value),
+    `${owner} needs "cost": an object with ${rows}, each as text.`,
+  );
+
+  const unknown = Object.keys(value).find((key) => !isOneOf(keys, key));
+  ensure(
+    unknown === undefined,
+    `${owner} has cost row "${unknown ?? ""}", which ${line ? "a CLAUDE.md line" : "a check"} does not measure. Use ${rows}. A reason the cost gate weighed goes in "why.text", and what the check forbids or what breaks it in "tradeoff".`,
+  );
+
+  const missing = keys.find((key) => value[key] === undefined);
+  ensure(
+    missing === undefined,
+    `${owner} needs cost row "${missing ?? ""}": ${missing ? COST_HINTS[missing] : ""}.`,
+  );
+
+  return keys.map((key) => {
+    const text = value[key];
+    ensure(isFilledString(text), `${owner} needs cost row "${key}" as text.`);
+
+    const lead = stripKeys.includes(key) ? firstSentence(text) : null;
+    const length = lead === null ? 0 : Array.from(lead).length;
+    ensure(
+      length <= MAX_STRIP_SENTENCE_LENGTH,
+      `${owner} cost row "${key}" runs ${length} characters before its first full stop, and the decision strip shows that sentence. Put the count or the time first, and the detail in a second sentence.`,
+    );
+
+    return { key, value: text, lead };
+  });
 }
 
 /**
@@ -789,8 +947,8 @@ function resolveCandidate(
     `${owner} has recommendation ${quote(candidate.recommendation)}. Use ${listChoices(RECOMMENDATIONS)}.`,
   );
   ensure(
-    isFilledString(candidate.skip),
-    `${owner} is a call, so it needs "skip": what goes wrong if the user skips it.`,
+    candidate.skip === undefined,
+    `${owner} carries "skip", which a candidate says in "why.text": its first sentence names what goes wrong when the mistake ships.`,
   );
   ensure(
     isOptionalText(candidate.alternative),
@@ -798,9 +956,11 @@ function resolveCandidate(
   );
 
   const caught = resolveCaught(owner, candidate.caught);
+  const why = resolveWhy(owner, candidate.why, caught.count);
   const mistake = resolveMistake(owner, candidate.mistake);
   const guardrail = resolveGuardrail(owner, candidate.guardrail);
-  const cost = resolveCost(owner, candidate.cost);
+  const tradeoff = resolveTradeoff(owner, candidate.tradeoff, guardrail.rung);
+  const cost = resolveCost(owner, candidate.cost, guardrail.rung);
 
   const edits = listOfObjects(candidate.edits, "edits", owner);
   if (guardrail.rung === PROSE_RUNG) {
@@ -822,8 +982,10 @@ function resolveCandidate(
     id: candidateId,
     lane: "call",
     caught,
+    why,
     mistake,
     guardrail,
+    tradeoff,
     cost,
     edits: edits.map((edit) =>
       resolveEdit(owner, edit, context.files, context.editor),
@@ -1222,6 +1384,10 @@ function validateSkillShape(
       isOptionalText(run.prs),
       `run.prs must be one sentence on how the built candidates land, got ${quote(run.prs)}.`,
     );
+    ensure(
+      isOptionalText(run.branch),
+      `run.branch must name the default branch the checks run on, got ${quote(run.branch)}.`,
+    );
 
     return;
   }
@@ -1236,6 +1402,10 @@ function validateSkillShape(
   ensure(
     run.prs === undefined,
     'run.prs belongs to a guard run. Remove it, or set run.skill to "guard".',
+  );
+  ensure(
+    run.branch === undefined,
+    'run.branch belongs to a guard run. Remove it, or set run.skill to "guard".',
   );
 }
 
