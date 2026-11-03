@@ -2107,6 +2107,20 @@ describe("guard page", () => {
     await window.happyDOM.close();
   });
 
+  test("names the quoted PRs as the sample when more threads raised it", async () => {
+    const data = await guardData();
+    changeIn(data.changes, TOTAL).caught.count = 6;
+    const { window, document, errors } = await openPage(
+      await build(data, EXAMPLE),
+    );
+
+    expect(errors).toEqual([]);
+    expect(
+      document.querySelector(`#card-${TOTAL} .strip li`)?.textContent,
+    ).toBe("6 threads, 3 quoted from PR #57");
+    await window.happyDOM.close();
+  });
+
   test("sends the decisions as a build message", async () => {
     const { window, document, errors } = await openPage(
       await build(await guardData(), EXAMPLE),

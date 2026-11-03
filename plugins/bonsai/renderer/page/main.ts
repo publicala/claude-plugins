@@ -398,14 +398,20 @@ function stripHtml(c: Candidate) {
         .filter((label) => label !== "open"),
     ),
   ];
-  const inPrs =
+  const prList =
+    prs.length === 1
+      ? (prs[0] ?? "")
+      : `PRs ${prs.map((pr) => pr.replace("PR ", "")).join(", ")}`;
+  // The quotes are a sample of the threads, so their PRs name the sample alone.
+  const quoted = c.caught.quotes.length;
+  const sources =
     prs.length === 0
       ? ""
-      : prs.length === 1
-        ? ` in ${prs[0] ?? ""}`
-        : ` in PRs ${prs.map((pr) => pr.replace("PR ", "")).join(", ")}`;
+      : count === quoted
+        ? ` in ${prList}`
+        : `, ${quoted} quoted from ${prList}`;
   const items = [
-    `<li><b>${count}</b> ${count === 1 ? "thread" : "threads"}${inPrs}</li>`,
+    `<li><b>${count}</b> ${count === 1 ? "thread" : "threads"}${sources}</li>`,
     `<li class="recurs ${c.why.recurs}">${RECURS[c.why.recurs]}</li>`,
     `<li>rung ${c.guardrail.rung} · ${esc(c.guardrail.name)}</li>`,
     ...c.cost
