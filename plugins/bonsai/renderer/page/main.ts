@@ -3,6 +3,7 @@
 import type {
   Candidate,
   Change,
+  CostKey,
   Decision,
   Edit,
   Group,
@@ -10,6 +11,8 @@ import type {
   PageData,
   PageFile,
   Question,
+  Quote,
+  Recurrence,
   ReplaceEdit,
 } from "./data";
 import { editRows, line } from "./diff";
@@ -302,6 +305,9 @@ function choiceHtml(id: string) {
     `<button type="button" data-id="${id}" data-v="${val}" aria-pressed="${String(v === val)}" ${disabled}>${label} <kbd>${key}</kbd></button>`;
   return `<div class="choice" role="group" aria-label="Decision">${b("apply", APPLY.label, APPLY.key)}${b("skip", "Skip", "s")}${b("later", "Later", "l")}</div>`;
 }
+/* A change says its why in prose. A guard candidate's why carries a reason too. */
+const whyText = (c: Change): string =>
+  typeof c.why === "object" ? c.why.text : (c.why ?? "");
 function callCard(c: Change, p = "") {
   return `
     <article class="card" id="${p}card-${c.id}" data-id="${c.id}" tabindex="-1">
@@ -312,7 +318,7 @@ function callCard(c: Change, p = "") {
         <span class="tok num" data-tok="${c.id}">${tokText(c)}</span>
       </div>
       <h3>${prose(c.title)}</h3>
-      <p class="why">${prose(c.why)}</p>
+      <p class="why">${prose(whyText(c))}</p>
       <div data-diff="${c.id}">${diffHtml(c)}</div>
       ${checkHtml(c)}
       <p class="ifskip"><b>If you skip:</b> ${prose(c.skip)}</p>
@@ -356,6 +362,86 @@ const homes = (c: Candidate) =>
   c.guardrail.where.length
     ? c.guardrail.where
     : [...new Set(c.edits.map((e) => e.file))];
+const RECURS: Record<Recurrence, string> = {
+  "framework-default": "the framework's default",
+  "seen-again": "review saw it again",
+  "code-shows-it": "the code shows the wrong form",
+  once: "written once",
+};
+const BRANCH = run.branch ? `\`${run.branch}\`` : "the default branch";
+const COST_LABELS: Record<CostKey, string> = {
+  violations: `Violations on ${BRANCH}`,
+  exceptions: "Exceptions",
+  falsePositives: "False positives",
+  runTime: "Run time",
+  newTools: "New tools",
+  overlap: "Overlap with open PRs",
+  tokens: "Tokens",
+  loadsWhen: "Loads when",
+  alreadyStated: "Already stated",
+};
+const STRIP_LABELS: Partial<Record<CostKey, string>> = {
+  violations: "violations",
+  runTime: "run time",
+  exceptions: "exceptions",
+  tokens: "tokens",
+  loadsWhen: "loads",
+};
+const QUOTES_SHOWN = 2;
+/* The facts a decision rests on, read from the data the build checked. */
+function stripHtml(c: Candidate) {
+  const count = c.caught.count;
+  const prs = [
+    ...new Set(
+      c.caught.quotes
+        .map((q) => prLabel(q.url))
+        .filter((label) => label !== "open"),
+    ),
+  ];
+  const prList =
+    prs.length === 1
+      ? (prs[0] ?? "")
+      : `PRs ${prs.map((pr) => pr.replace("PR ", "")).join(", ")}`;
+  // The quotes are a sample of the threads, so their PRs name the sample alone.
+  const quoted = c.caught.quotes.length;
+  const sources =
+    prs.length === 0
+      ? ""
+      : count === quoted
+        ? ` in ${prList}`
+        : `, ${quoted} quoted from ${prList}`;
+  const items = [
+    `<li><b>${count}</b> ${count === 1 ? "thread" : "threads"}${sources}</li>`,
+    `<li class="recurs ${c.why.recurs}">${RECURS[c.why.recurs]}</li>`,
+    `<li>rung ${c.guardrail.rung} · ${esc(c.guardrail.name)}</li>`,
+    ...c.cost
+      .filter((r) => r.lead !== null)
+      .map(
+        (r) =>
+          `<li><span class="k">${STRIP_LABELS[r.key] ?? r.key}</span>${prose(r.lead ?? "")}</li>`,
+      ),
+  ];
+  return `<ul class="strip" aria-label="At a glance">${items.join("")}</ul>`;
+}
+const quoteHtml = (q: Quote) =>
+  `<li><blockquote>${prose(q.text)}</blockquote><cite><b>${esc(q.reviewer)}</b> · ${ext(q.url, prLabel(q.url))}</cite></li>`;
+function quotesHtml(caught: Candidate["caught"]) {
+  const shown = caught.quotes.slice(0, QUOTES_SHOWN),
+    rest = caught.quotes.slice(QUOTES_SHOWN);
+  return `<ul class="quotes">${shown.map(quoteHtml).join("")}</ul>${
+    rest.length
+      ? `<details class="more"><summary>${plural(rest.length, "more quote")}</summary><ul class="quotes">${rest.map(quoteHtml).join("")}</ul></details>`
+      : ""
+  }`;
+}
+function tradeoffHtml(c: Candidate) {
+  if (!c.tradeoff)
+    return `<p class="g-note">Holds only while a session reads it: nothing fails when a session breaks the line, and review catches it by hand again.</p>`;
+  return kv([
+    ["Forbids", prose(c.tradeoff.forbids)],
+    ["Breaks when", prose(c.tradeoff.breaks)],
+  ]);
+}
 function guardCard(c: Candidate, p = "") {
   const g = c.guardrail,
     m = c.mistake,
@@ -365,12 +451,6 @@ function guardCard(c: Candidate, p = "") {
     caught.count > 1
       ? `<span>${caught.count} reviews flagged this${caught.count > caught.quotes.length ? `, ${caught.quotes.length} quoted` : ""}</span>`
       : "";
-  const quotes = caught.quotes
-    .map(
-      (q) =>
-        `<li><blockquote>${prose(q.text)}</blockquote><cite><b>${esc(q.reviewer)}</b> · ${ext(q.url, prLabel(q.url))}</cite></li>`,
-    )
-    .join("");
   const facts: [string, string][] = [
     ["Rung", `${g.rung} · ${esc(g.name)}`],
     ...(g.tool ? [["Tool", prose(g.tool)] satisfies [string, string]] : []),
@@ -397,11 +477,13 @@ function guardCard(c: Candidate, p = "") {
     <article class="card guard" id="${p}card-${c.id}" data-id="${c.id}" tabindex="-1">
       <div class="g-head"><h3>${prose(c.title)}</h3><span class="badge ${c.recommendation.replace(" ", "-")}">${esc(c.recommendation)}</span></div>
       ${builtLink(c.id)}
-      <section class="g-sec"><h4>What the review caught ${flagged}</h4><ul class="quotes">${quotes}</ul></section>
+      <p class="why g-why">${prose(c.why.text)}</p>
+      ${stripHtml(c)}
       <section class="g-sec"><h4>The mistake</h4><div class="pair">${codeBlock("wrong", "Wrong", m.lang, m.wrong)}${codeBlock("right", "Write instead", m.lang, m.right)}</div>${m.note ? `<p class="g-note">${prose(m.note)}</p>` : ""}</section>
       <section class="g-sec"><h4>${isLine ? "The line" : "The check"}${isLine ? ` <span class="tok num" data-tok="${c.id}">${tokText(c)}</span>` : ""}</h4>${kv(facts)}${shows}</section>
-      <section class="g-sec"><h4>Cost</h4>${kv(c.cost.map((r): [string, string] => [prose(r.label), prose(r.value)]))}</section>
-      <p class="ifskip"><b>If you skip:</b> ${prose(c.skip)}</p>
+      <section class="g-sec tradeoff"><h4>Tradeoff</h4>${tradeoffHtml(c)}</section>
+      <section class="g-sec cost"><h4>Cost</h4>${kv(c.cost.map((r): [string, string] => [prose(COST_LABELS[r.key]), prose(r.value)]))}</section>
+      <section class="g-sec caught"><h4>What the review caught ${flagged}</h4>${quotesHtml(caught)}</section>
       ${c.alternative ? `<p class="ifskip"><b>Alternative:</b> ${prose(c.alternative)}</p>` : ""}
       ${checkHtml(c)}
       ${evidenceHtml(c)}
@@ -449,7 +531,7 @@ function groupCard(g: Group, p = "") {
         <input type="checkbox" id="${p}cb-${c.id}" data-cb="${c.id}" ${S.d[c.id] === "apply" ? "checked" : ""} ${disabled}>
         <div class="it">
           <div class="it-top"><label class="it-title" for="${p}cb-${c.id}">${prose(c.title)}</label>${locHtml(c)}<span class="tok num muted" data-tok="${c.id}">${tokText(c)}</span></div>
-          <p class="it-why">${prose(c.why)}${c.evidence[0]?.href ? ` <a href="${esc(c.evidence[0].href)}" target="_blank" rel="noopener">open</a>` : ""}</p>
+          <p class="it-why">${prose(whyText(c))}${c.evidence[0]?.href ? ` <a href="${esc(c.evidence[0].href)}" target="_blank" rel="noopener">open</a>` : ""}</p>
           <div data-diff="${c.id}">${diffHtml(c)}</div>
           ${checkHtml(c)}
           <textarea id="${p}why-${c.id}" data-note="${c.id}" rows="1" maxlength="600" placeholder="Why skip it? (optional)" ${S.d[c.id] === "apply" && !S.note[c.id] ? "hidden" : ""} ${disabled}>${esc(S.note[c.id] ?? "")}</textarea>
@@ -837,8 +919,8 @@ async function redraft(id: string, btn: HTMLButtonElement) {
   outs.forEach(
     (o) => (o.innerHTML = `<p class="pending">Claude is redrafting.</p>`),
   );
-  // A candidate may carry no why, or an empty one: the title stands in.
-  const reason = plain(c.why || c.title);
+  // A change may carry an empty why: the title stands in.
+  const reason = plain(whyText(c) || c.title);
   const prompt = `You rewrite lines of a CLAUDE.md file: instructions an AI coding agent loads in its sessions.
 Rules: keep every identifier in backticks exactly as written. State the rule in the present tense, imperative. Keep the line count of the proposal unless the reviewer asks otherwise. No history and no rationale the code already shows. Do not widen or weaken the rule beyond what the reviewer asks.
 Current lines:

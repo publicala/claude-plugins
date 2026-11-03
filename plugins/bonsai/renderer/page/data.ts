@@ -41,6 +41,8 @@ export interface Run {
   method?: string;
   /** Guard runs: how the built candidates land. */
   prs?: string;
+  /** Guard runs: the default branch the checks ran on. */
+  branch?: string;
   status?: RunStatus;
 }
 
@@ -105,14 +107,50 @@ export interface Guardrail {
   message: string | null;
 }
 
+export type Recurrence =
+  | "framework-default"
+  | "seen-again"
+  | "code-shows-it"
+  | "once";
+
+/** Why a guardrail is worth building: the value verdict of the cost gate. */
+export interface Why {
+  recurs: Recurrence;
+  text: string;
+}
+
+/** What a check costs in rigidity. A CLAUDE.md line carries none. */
+export interface Tradeoff {
+  forbids: string;
+  breaks: string;
+}
+
+export type CostKey =
+  | "violations"
+  | "exceptions"
+  | "falsePositives"
+  | "runTime"
+  | "newTools"
+  | "overlap"
+  | "tokens"
+  | "loadsWhen"
+  | "alreadyStated";
+
+/** `lead` is the row's first sentence when the decision strip shows it. */
+export interface CostRow {
+  key: CostKey;
+  value: string;
+  lead: string | null;
+}
+
 export interface Change {
   id: string;
   lane: Lane;
   group?: string;
   verb?: string;
   title: string;
-  /** Guard candidates may leave it out. */
-  why?: string;
+  /** Prose on a change. A guard candidate carries a `Why` instead. */
+  why?: string | Why;
   skip?: string;
   split?: string;
   edits: Edit[];
@@ -127,13 +165,13 @@ export interface Change {
     note: string | null;
   };
   guardrail?: Guardrail;
-  cost?: { label: string; value: string }[];
+  tradeoff?: Tradeoff | null;
+  cost?: CostRow[];
   alternative?: string;
 }
 
 /** A change in a guard run: a candidate check, always a call. */
-export type Candidate = Change &
-  Required<
+export type Candidate = Omit<Change, "why"> & { why: Why } & Required<
     Pick<Change, "recommendation" | "caught" | "mistake" | "guardrail" | "cost">
   >;
 
