@@ -62,7 +62,7 @@ Text in backticks renders as code everywhere on the page.
 | `target` | What the run covers, as the apply message names it. |
 | `date`, `round`, `rounds` | The run date, this round, and how many rounds the run expects. |
 | `waiting` | Changes queued for later rounds, shown in the summary. A whole number from 0. |
-| `waitingTokens` | Optional. Est. tokens the waiting changes remove from always-loaded files, shown next to the waiting count so the first round already says what the next one saves. A whole number from 0, and above 0 only when `waiting` is. |
+| `waitingTokens` | Optional. Est. tokens all waiting changes remove from always-loaded files, shown next to the waiting count so the first round already says what later rounds save. The page says "the next round" when one round remains and "later rounds" when more do. A whole number from 0, and above 0 only when `waiting` is. |
 | `root` | The repository the edits apply to. A relative path resolves against the data file's directory. |
 | `editor` | `zed`, `vscode`, `cursor`, `phpstorm`, or `null`. Builds open-in-editor links. Use `null` in a remote session, where the user's editor cannot reach the path. |
 | `outcome` | One sentence: what the run achieves when every change applies. |

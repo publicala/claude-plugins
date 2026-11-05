@@ -31,7 +31,7 @@ Group ready and auto changes by cause, one group per cause, and name the cause a
 
 ## Keep a round small
 
-A round holds at most 5 calls (questions included) and 3 ready groups, and the build enforces both limits. [rounds.md](rounds.md) says how to rank the changes, where the rest wait, and how the next run continues. Count the waiting changes in `run.waiting` and their est. token saving in `run.waitingTokens`. Say in the outcome sentence what this round achieves, and what the next round saves when that is the larger cut.
+A round holds at most 5 calls (questions included) and 3 ready groups, and the build enforces both limits. [rounds.md](rounds.md) says how to rank the changes, where the rest wait, and how the next run continues. Count the waiting changes in `run.waiting` and their est. token saving in `run.waitingTokens`. Say in the outcome sentence what this round achieves, and what later rounds save when that is the larger cut.
 
 ## Write for the reader
 

@@ -155,7 +155,7 @@ export interface Page {
     round: number;
     rounds: number;
     waiting: unknown;
-    waitingTokens?: unknown;
+    waitingTokens: unknown;
   };
   files: PageFile[];
   groups: PageGroup[];
@@ -1450,8 +1450,9 @@ export async function build(
     `run.waiting must be a whole number from 0, got ${quote(waiting)}.`,
   );
 
-  // The page shows what the next round saves, so only waiting changes can carry it.
-  const waitingTokens = run.waitingTokens ?? 0;
+  // The page shows what later rounds save, so only waiting changes can carry it.
+  // Only an absent field defaults: an explicit null is refused below.
+  const waitingTokens = run.waitingTokens === undefined ? 0 : run.waitingTokens;
   ensure(
     typeof waitingTokens === "number" &&
       Number.isInteger(waitingTokens) &&

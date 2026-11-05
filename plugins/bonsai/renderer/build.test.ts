@@ -1043,6 +1043,13 @@ describe("build refuses data that would mislead", () => {
       "run.waitingTokens must be a whole number from 0, got 12.5.",
     ],
     [
+      "a waiting saving that is null",
+      (data) => {
+        data.run.waitingTokens = null;
+      },
+      "run.waitingTokens must be a whole number from 0, got null.",
+    ],
+    [
       "a waiting saving with nothing waiting",
       (data) => {
         data.run.waiting = 0;
@@ -2011,6 +2018,52 @@ describe("page", () => {
     expect(document.body.classList.contains("record")).toBe(true);
     expect(document.querySelector(".status-banner")?.textContent).toContain(
       "Applied",
+    );
+    await window.happyDOM.close();
+  });
+
+  test("names what the waiting changes save, and the rounds they wait for", async () => {
+    const data = await exampleData();
+    const twoRounds = await openPage(await build(data, EXAMPLE));
+    data.run.rounds = 3;
+    const threeRounds = await openPage(await build(data, EXAMPLE));
+
+    expect(twoRounds.document.querySelector(".facts")?.textContent).toContain(
+      "3 wait for the next round, about −1,200 tokens",
+    );
+    expect(threeRounds.document.querySelector(".facts")?.textContent).toContain(
+      "3 wait for later rounds, about −1,200 tokens",
+    );
+    await twoRounds.window.happyDOM.close();
+    await threeRounds.window.happyDOM.close();
+  });
+
+  test("adds the changes marked Later to the waiting saving", async () => {
+    const { window, document, errors } = await openPage(
+      await build(await exampleData(), EXAMPLE),
+    );
+
+    press(document, "imports", "later");
+
+    expect(errors).toEqual([]);
+    expect(document.getElementById("later-line")?.textContent).toBe(
+      "4 changes wait for the next round, about 1,215 fewer tokens in every session. Run /bonsai:audit again after this lands.",
+    );
+    await window.happyDOM.close();
+  });
+
+  test("lets a Later change that adds tokens lower the waiting saving", async () => {
+    const data = await exampleData();
+    data.run.waitingTokens = 100;
+    const [edit] = changeIn(data.changes, "livewire").edits;
+    if (!edit) throw new Error("The example's livewire change has no edit.");
+    edit.write = ["- " + "A much longer rule. ".repeat(8)];
+    const { window, document } = await openPage(await build(data, EXAMPLE));
+
+    press(document, "livewire", "later");
+
+    expect(document.getElementById("later-line")?.textContent).toBe(
+      "4 changes wait for the next round, about 85 fewer tokens in every session. Run /bonsai:audit again after this lands.",
     );
     await window.happyDOM.close();
   });
