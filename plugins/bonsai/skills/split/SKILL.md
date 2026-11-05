@@ -17,6 +17,20 @@ This skill decides where rules live. Whether they live is `/bonsai:audit`'s call
 
 Default scope is the current project tree. Writes only ever land in the project's CLAUDE.md files and `.claude/rules/` files. User-level and ancestor-directory files are out of scope in both directions: they load in every project, so no in-project placement can host their content.
 
+## Audit first
+
+Placing lines an audit would cut wastes the pass, and its probes are the costly part. So after the inventory, and before any grep or probe, check whether the audit is obviously due. It is when both hold:
+
+- **No audit since the files changed**: `~/.claude/bonsai/runs/<key>/` holds no `audit-*.json`, or a resident file took commits after the newest one (`git log --since=<its date> -- <file>`). `<key>` is the repository key from [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory).
+- **A bloat sign**: a resident file carries more than 4,000 est. tokens, or one of its sections carries more than a third of the file's.
+
+When both hold, stop and ask one AskUserQuestion that names the numbers: "CLAUDE.md is est. 14.2k tokens, unaudited since 40 commits, and one section holds 54% of it." Offer two options:
+
+- **Run /bonsai:audit first** (recommended): the run ends with the command to type, since the audit starts only on the user's command. Its detail line says the split then places only what survives.
+- **Split anyway**: the pass continues, and the closing report opens with the recommendation again.
+
+A `--headless` run asks nothing: it continues and opens the PR body with the recommendation. Record the check in the run file as `audit_first`, with both signals and the answer.
+
 ## Load model
 
 Placement chooses among the load classes in [../../references/load-model.md](../../references/load-model.md) (relative to this skill's directory): always resident, nested CLAUDE.md, or path-scoped rule. Read it before the pass. Every demotion verdict hangs on the read trigger it describes: a scoped file loads on a read, and only on a read.
