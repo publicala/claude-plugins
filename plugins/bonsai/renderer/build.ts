@@ -25,6 +25,7 @@ export const SCRIPT_PLACEHOLDER = "/*__PAGE_SCRIPT__*/";
 const TITLE_PLACEHOLDER = "<title>bonsai</title>";
 
 const SKILLS = ["audit", "bake", "feed", "guard", "split"] as const;
+const CHANNELS = ["send", "paste"] as const;
 const LANES = ["call", "ready", "auto"] as const;
 const GROUP_LANES = ["ready", "auto"] as const;
 const VERBS = [
@@ -156,6 +157,7 @@ export interface Page {
     rounds: number;
     waiting: unknown;
     waitingTokens: unknown;
+    channel: (typeof CHANNELS)[number];
   };
   files: PageFile[];
   groups: PageGroup[];
@@ -1464,6 +1466,14 @@ export async function build(
     `run.waitingTokens is ${waitingTokens}, but run.waiting is 0: only waiting changes save tokens in a later round.`,
   );
 
+  // Only a session the host can wake receives a sent comment: anywhere else a
+  // send reports success and reaches nobody, so the page must copy instead.
+  const channel = run.channel ?? "send";
+  ensure(
+    isOneOf(CHANNELS, channel),
+    `run.channel must be one of ${listChoices(CHANNELS)}, got ${quote(channel)}.`,
+  );
+
   ensure(
     isFilledString(run.root),
     "run.root is required: the repository the changes edit.",
@@ -1535,6 +1545,7 @@ export async function build(
       rounds: Math.max(rounds, round),
       waiting,
       waitingTokens,
+      channel,
     },
     files: [...files.values()].map((file) => file.page),
     groups: [...groups.values()],
