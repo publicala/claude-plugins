@@ -270,7 +270,7 @@ function renderSummary() {
         ${D.kept.length ? `<span class="fact"><b>${D.kept.length}</b> stay as they are</span>` : ""}
         ${notNow.length ? `<span class="fact"><b>${notNow.length}</b> not now</span>` : ""}
         ${none.length ? `<span class="fact"><b>${none.length}</b> with no guardrail</span>` : ""}
-        ${run.waiting ? `<span class="fact"><b>${run.waiting}</b> wait for the next round</span>` : ""}
+        ${run.waiting ? `<span class="fact"><b>${run.waiting}</b> wait for the next round${run.waitingTokens ? `, about <b>−${fmt(run.waitingTokens)}</b> tokens` : ""}</span>` : ""}
         ${RECORD ? "" : `<span class="fact">about ${plural(minutes, "minute")}</span>`}
       </div>
       ${GUARD ? `<p class="ships"><b>How they ship:</b> ${prose(run.prs ?? SHIPS)}</p>` : ""}
@@ -883,11 +883,14 @@ function sync() {
     document
       .querySelectorAll<HTMLInputElement>(`[data-pull="${n.id}"]`)
       .forEach((cb) => (cb.checked = Boolean(S.pull[n.id])));
-  const waiting = totals().later.length + run.waiting;
+  const later = totals().later;
+  const waiting = later.length + run.waiting;
+  const waitingTokens =
+    run.waitingTokens + later.reduce((n, c) => n + Math.max(saved(c), 0), 0);
   const laterLine = find("later-line");
   if (laterLine)
     laterLine.textContent = waiting
-      ? `${plural(waiting, NOUN)} ${waiting === 1 ? "waits" : "wait"} for the next round. Run /bonsai:${run.skill} again after this lands.`
+      ? `${plural(waiting, NOUN)} ${waiting === 1 ? "waits" : "wait"} for the next round${waitingTokens ? `, about ${fmt(waitingTokens)} fewer tokens in every session` : ""}. Run /bonsai:${run.skill} again after this lands.`
       : "";
   syncMeter();
   syncDock();

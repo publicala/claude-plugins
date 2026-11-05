@@ -239,11 +239,17 @@ describe("build", () => {
     delete data.run.round;
     delete data.run.rounds;
     delete data.run.waiting;
+    delete data.run.waitingTokens;
     delete data.run.editor;
 
     const page = await build(data, EXAMPLE);
 
-    expect(page.run).toMatchObject({ round: 1, rounds: 1, waiting: 0 });
+    expect(page.run).toMatchObject({
+      round: 1,
+      rounds: 1,
+      waiting: 0,
+      waitingTokens: 0,
+    });
     expect(page.files[0]?.href).toBeNull();
   });
 
@@ -1028,6 +1034,20 @@ describe("build refuses data that would mislead", () => {
         data.run.waiting = "3";
       },
       'run.waiting must be a whole number from 0, got "3".',
+    ],
+    [
+      "a waiting saving that is not a count",
+      (data) => {
+        data.run.waitingTokens = 12.5;
+      },
+      "run.waitingTokens must be a whole number from 0, got 12.5.",
+    ],
+    [
+      "a waiting saving with nothing waiting",
+      (data) => {
+        data.run.waiting = 0;
+      },
+      "run.waitingTokens is 1200, but run.waiting is 0: only waiting changes save tokens in a later round.",
     ],
     [
       "a run without a root",

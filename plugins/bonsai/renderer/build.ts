@@ -155,6 +155,7 @@ export interface Page {
     round: number;
     rounds: number;
     waiting: unknown;
+    waitingTokens?: unknown;
   };
   files: PageFile[];
   groups: PageGroup[];
@@ -1449,6 +1450,19 @@ export async function build(
     `run.waiting must be a whole number from 0, got ${quote(waiting)}.`,
   );
 
+  // The page shows what the next round saves, so only waiting changes can carry it.
+  const waitingTokens = run.waitingTokens ?? 0;
+  ensure(
+    typeof waitingTokens === "number" &&
+      Number.isInteger(waitingTokens) &&
+      waitingTokens >= 0,
+    `run.waitingTokens must be a whole number from 0, got ${quote(waitingTokens)}.`,
+  );
+  ensure(
+    waitingTokens === 0 || waiting > 0,
+    `run.waitingTokens is ${waitingTokens}, but run.waiting is 0: only waiting changes save tokens in a later round.`,
+  );
+
   ensure(
     isFilledString(run.root),
     "run.root is required: the repository the changes edit.",
@@ -1519,6 +1533,7 @@ export async function build(
       round,
       rounds: Math.max(rounds, round),
       waiting,
+      waitingTokens,
     },
     files: [...files.values()].map((file) => file.page),
     groups: [...groups.values()],

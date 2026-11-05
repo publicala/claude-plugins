@@ -37,6 +37,8 @@ export interface Run {
   round: number;
   rounds: number;
   waiting: number;
+  /** Est. resident tokens the waiting changes save. */
+  waitingTokens: number;
   outcome: string;
   method?: string;
   /** Guard runs: how the built candidates land. */
