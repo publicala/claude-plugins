@@ -14,6 +14,10 @@ Prompt: "Run the split on this repo." Grader: LLM judge checks the report for th
 
 ## Expert-labeled seeds (human review of applied runs)
 
+- resident file over 5,000 est. tokens with no audit run on record → expect one question recommending `/bonsai:audit` first, naming the numbers, before any grep or probe
+- same file with a finished audit run newer than its last commit and a clean working tree → expect no question, the pass runs
+- same file with a newer audit run that still holds `waiting` changes, or with an uncommitted edit → expect the question
+- 600 est. token file of two sections, unaudited → expect no question
 - conversion of a nested guide into a path-scoped rule file → expect a post-apply load check per created or changed glob (clean agent reads one file matched by that glob and quotes a marker phrase from its entire context)
 - load-check prompt asking about "the file" instead of the entire context → expect a false NONE, the phrasing is part of the check
 - probe returning NONE once while an identical rerun finds the phrase → expect a rerun before any revert, one NONE is not a verdict

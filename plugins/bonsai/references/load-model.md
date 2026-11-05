@@ -16,7 +16,7 @@ Nested files and path-scoped rules are the two scope-triggered classes. Judge th
 A scoped file loads when the session reads a file in its scope, and only then. Two kinds of read fire it:
 
 - **A file-tool read** of any in-scope file.
-- **A plain shell read**: a command whose every part reads a named in-scope file (`cat`, `head`, `tail`, `sed -n`, `grep` on a file), joined by `;` or `&&` with nothing but `echo`. The harness misses the read when the file comes through a pipe (`cat f | head`), a variable (`cat "$f"`), a directory listing or recursive search (`ls`, `grep -r`), or a compound command that mixes one of those in.
+- **A plain shell read**: a command whose every part reads a named in-scope file (`cat`, `head`, `tail`, `sed -n`, `grep` on a file), joined by `;` or `&&` with nothing but `echo`. The harness misses the read when the file comes through a pipe (`cat f | head`), a variable (`cat "$f"`), a directory listing or recursive search (`ls`, `grep -r`), or a compound command that mixes one of those in. A `cd <dir> &&` or `cd <dir>;` prefix the session writes is such a part: `sed -n 1,3p src/trust.ts` loads the scoped file, and the same read after a `cd` does not.
 
 A session that creates a new in-scope file before it reads a neighbor never loads the scoped file. Neither does a session whose only reads take a shape the harness misses. Every demotion verdict hangs on these facts.
 
