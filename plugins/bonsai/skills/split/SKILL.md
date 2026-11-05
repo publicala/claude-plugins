@@ -22,14 +22,14 @@ Default scope is the current project tree. Writes only ever land in the project'
 Placing lines an audit would cut wastes the pass, and its probes are the costly part. So after the inventory, and before any grep or probe, check whether the audit is obviously due. It is when both hold:
 
 - **No audit since the files changed**: `~/.claude/bonsai/runs/<key>/` holds no `audit-*.json`, or a resident file took commits after the newest one (`git log --since=<its date> -- <file>`). `<key>` is the repository key from [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory).
-- **A bloat sign**: a resident file carries more than 4,000 est. tokens, or one of its sections carries more than a third of the file's.
+- **A bloat sign**: a resident file carries more than 4,000 est. tokens, one of its sections carries more than a third of the file's, or most of its sections explain how a feature works where a rule would state what to do.
 
-When both hold, stop and ask one AskUserQuestion that names the numbers: "CLAUDE.md is est. 14.2k tokens, unaudited since 40 commits, and one section holds 54% of it." Offer two options:
+When both hold, stop and ask one AskUserQuestion that names the numbers: "CLAUDE.md is est. 14.2k tokens, unaudited since 40 commits, and one section holds 54% of it." Add the probe history when it predicts the result: the session reads through the shell, and an earlier split run in that harness mode (`~/.claude/bonsai/runs/*/*/split-*.json`, its `context.harness_mode`) kept every candidate it probed. Say so in one line: demotions here are unlikely to pass, so the probes would mostly confirm the file stays as it is. Offer two options:
 
 - **Run /bonsai:audit first** (recommended): the run ends with the command to type, since the audit starts only on the user's command. Its detail line says the split then places only what survives.
 - **Split anyway**: the pass continues, and the closing report opens with the recommendation again.
 
-A `--headless` run asks nothing: it continues and opens the PR body with the recommendation. Record the check in the run file as `audit_first`, with both signals and the answer.
+A `--headless` run asks nothing: it continues and opens the PR body with the recommendation. Record the check in the run file as `audit_first`, with both signals and the answer, and the harness mode the session reads in as `context.harness_mode`, so a later run can read the probe history.
 
 ## Load model
 
