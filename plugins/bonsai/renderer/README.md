@@ -63,6 +63,7 @@ Text in backticks renders as code everywhere on the page.
 | `date`, `round`, `rounds` | The run date, this round, and how many rounds the run expects. |
 | `waiting` | Changes queued for later rounds, shown in the summary. A whole number from 0. |
 | `waitingTokens` | Optional. Est. tokens all waiting changes remove from always-loaded files, shown next to the waiting count so the first round already says what later rounds save. The page says "the next round" when one round remains and "later rounds" when more do. A whole number from 0, and above 0 only when `waiting` is. |
+| `channel` | Optional. `send` (the default) or `paste`: how the decisions reach the session. `send` uses the host's comments capability when it offers one, and copies otherwise. `paste` always copies, and never calls the capability. Use `paste` when no session can receive a sent comment: the host still accepts the comment and reports it sent, and nobody receives it. |
 | `root` | The repository the edits apply to. A relative path resolves against the data file's directory. |
 | `editor` | `zed`, `vscode`, `cursor`, `phpstorm`, or `null`. Builds open-in-editor links. Use `null` in a remote session, where the user's editor cannot reach the path. |
 | `outcome` | One sentence: what the run achieves when every change applies. |
@@ -213,6 +214,7 @@ The build refuses, in a guard run:
 - More than 5 calls (questions and guard candidates included) or more than 3 ready groups in one round
 - Edit or `kept` lines outside the file, overlapping edits (in one change or across changes), an insert inside a replaced range, or a file that does not match its `new` flag
 - A `run.round` or `run.rounds` that is not a whole number from 1, a `run.waiting` or `run.waitingTokens` that is not a whole number from 0, or a `run.waitingTokens` above 0 with no waiting change
+- A `run.channel` other than `send` or `paste`
 - A change in a group of another lane, or an empty group
 - A question or `ship` with fewer than two options, or an option without a unique `id` and a `label`
 - A `ship.default` that names none of its options, or a `next` item without a unique `id` and a `title`

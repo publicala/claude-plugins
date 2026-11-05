@@ -240,6 +240,7 @@ describe("build", () => {
     delete data.run.rounds;
     delete data.run.waiting;
     delete data.run.waitingTokens;
+    delete data.run.channel;
     delete data.run.editor;
 
     const page = await build(data, EXAMPLE);
@@ -249,6 +250,7 @@ describe("build", () => {
       rounds: 1,
       waiting: 0,
       waitingTokens: 0,
+      channel: "send",
     });
     expect(page.files[0]?.href).toBeNull();
   });
@@ -1041,6 +1043,13 @@ describe("build refuses data that would mislead", () => {
         data.run.waitingTokens = 12.5;
       },
       "run.waitingTokens must be a whole number from 0, got 12.5.",
+    ],
+    [
+      "a channel the page does not know",
+      (data) => {
+        data.run.channel = "email";
+      },
+      'run.channel must be one of send or paste, got "email".',
     ],
     [
       "a waiting saving that is null",
@@ -1965,13 +1974,14 @@ describe("bundlePageScript", () => {
  * Runs the rendered page in a DOM and collects uncaught errors.
  * The template is this repository's own code, so evaluating it is safe.
  */
-async function openPage(page: Page) {
+async function openPage(page: Page, host?: object) {
   const window = new Window({
     settings: {
       enableJavaScriptEvaluation: true,
       suppressInsecureJavaScriptEnvironmentWarning: true,
     },
   });
+  if (host) Object.assign(window, { claude: host });
   const errors: unknown[] = [];
   window.addEventListener("error", (event) => {
     if ("error" in event) {
@@ -2068,6 +2078,80 @@ describe("page", () => {
     await window.happyDOM.close();
   });
 
+  test("sends through a host that can reach the session", async () => {
+    const host = commentsHost();
+    const { window, document } = await openPage(
+      await build(await exampleData(), EXAMPLE),
+      host,
+    );
+
+    await openSheetDecided(window, document);
+    document.querySelector<HTMLButtonElement>("#send")?.click();
+    await window.happyDOM.waitUntilComplete();
+
+    expect(host.sent).toHaveLength(1);
+    expect(document.getElementById("send-msg")?.textContent).toStartWith(
+      "Sent.",
+    );
+    await window.happyDOM.close();
+  });
+
+  test("never sends in a paste run, even when the host offers it", async () => {
+    const data = await exampleData();
+    data.run.channel = "paste";
+    const host = commentsHost();
+    const { window, document } = await openPage(
+      await build(data, EXAMPLE),
+      host,
+    );
+
+    await openSheetDecided(window, document);
+    const button = document.querySelector<HTMLButtonElement>("#send");
+    expect(button?.textContent).toBe("Copy for Claude");
+    button?.click();
+    await window.happyDOM.waitUntilComplete();
+
+    expect(host.sent).toHaveLength(0);
+    expect(document.getElementById("send-msg")?.textContent).not.toStartWith(
+      "Sent",
+    );
+    await window.happyDOM.close();
+  });
+
+  test("shows every note and new wording in full before sending", async () => {
+    const { window, document } = await openPage(
+      await build(await exampleData(), EXAMPLE),
+    );
+    const note = document.querySelector<HTMLTextAreaElement>(
+      'textarea[data-note="imports"]',
+    );
+    if (!note) throw new Error("The imports card has no note field.");
+    note.value = "Keep the alias for the facade.";
+    note.dispatchEvent(new window.Event("input"));
+
+    await openSheetDecided(window, document);
+
+    const sheet = document.getElementById("sheet-in")?.textContent ?? "";
+    expect(sheet).toContain("Keep the alias for the facade.");
+    expect(sheet).not.toContain("1 note for Claude");
+    await window.happyDOM.close();
+  });
+
+  test("says when the applied changes add tokens", async () => {
+    const data = await exampleData();
+    const [edit] = changeIn(data.changes, "livewire").edits;
+    if (!edit) throw new Error("The example's livewire change has no edit.");
+    edit.write = ["- " + "A much longer rule. ".repeat(40)];
+    const { window, document } = await openPage(await build(data, EXAMPLE));
+
+    await openSheetDecided(window, document, ["livewire"]);
+
+    expect(document.getElementById("sheet-in")?.textContent).toMatch(
+      /Every session loads [\d,]+ more tokens: [\d,]+ instead of [\d,]+\./,
+    );
+    await window.happyDOM.close();
+  });
+
   test("reports a page that throws", async () => {
     const page = await build(await exampleData(), EXAMPLE);
     const { window, errors } = await openPage({ ...page, next: [null] });
@@ -2076,6 +2160,62 @@ describe("page", () => {
     await window.happyDOM.close();
   });
 });
+
+/** A host whose comments capability reaches a session, recording each send. */
+function commentsHost() {
+  const sent: string[] = [];
+  const comments = {
+    canSendToClaude: () => Promise.resolve("available"),
+    anchorFor: () => Promise.resolve({}),
+    sendToClaude: (message: { text: string }) => {
+      sent.push(message.text);
+      return Promise.resolve({});
+    },
+  };
+  return {
+    sent,
+    use: (capability: string) =>
+      Promise.resolve(capability === "comments" ? comments : null),
+  };
+}
+
+/**
+ * Decides every call and question, then opens the check-and-send sheet. Calls
+ * in `apply` are applied, every other call is skipped.
+ */
+async function openSheetDecided(
+  window: Awaited<ReturnType<typeof openPage>>["window"],
+  document: Awaited<ReturnType<typeof openPage>>["document"],
+  apply?: string[],
+): Promise<void> {
+  const ids = new Set(
+    [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        ".choice button[data-id]",
+      ),
+    ].map((button) => button.dataset.id ?? ""),
+  );
+  for (const id of ids)
+    press(document, id, !apply || apply.includes(id) ? "apply" : "skip");
+  for (const radio of document.querySelectorAll<HTMLInputElement>(
+    "input[data-q]",
+  )) {
+    if (radio.checked) continue;
+    const name = radio.name;
+    if (
+      [
+        ...document.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`),
+      ].some((r) => r.checked)
+    )
+      continue;
+    radio.checked = true;
+    radio.dispatchEvent(new window.Event("change"));
+  }
+  document.querySelector<HTMLButtonElement>("#go")?.click();
+  await window.happyDOM.waitUntilComplete();
+  if (document.querySelector<HTMLElement>("#sheet")?.hidden !== false)
+    throw new Error("The check-and-send sheet did not open.");
+}
 
 /**
  * Decides a candidate the way the user does, with its button.

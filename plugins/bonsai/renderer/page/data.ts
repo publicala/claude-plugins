@@ -39,6 +39,8 @@ export interface Run {
   waiting: number;
   /** Est. resident tokens the waiting changes save. */
   waitingTokens: number;
+  /** "send" when a watching session receives a sent comment, "paste" when the user pastes the message. */
+  channel: "send" | "paste";
   outcome: string;
   method?: string;
   /** Guard runs: how the built candidates land. */

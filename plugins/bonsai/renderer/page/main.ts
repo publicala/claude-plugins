@@ -757,11 +757,13 @@ async function lightCapabilities() {
     document.querySelectorAll<HTMLElement>("[data-redraft]").forEach((r) => {
       r.hidden = false;
     });
-  try {
-    comments = await window.claude?.use?.("comments");
-  } catch {
-    comments = null;
-  }
+  // A paste run never sends: the host would accept the comment and wake nobody.
+  if (run.channel === "send")
+    try {
+      comments = await window.claude?.use?.("comments");
+    } catch {
+      comments = null;
+    }
   await refreshChannel();
 }
 async function refreshChannel() {
@@ -1021,11 +1023,44 @@ const row = (label: string, body: string, jump: string | null) =>
   `<div><dt>${label}</dt><dd>${body}</dd>${jump ? `<button type="button" data-jump="${esc(jump)}">Change</button>` : "<span></span>"}</div>`;
 const names = (list: Change[]) => list.map((c) => prose(c.title)).join("; ");
 const first = (list: Change[]) => must(list[0], "change").id;
+/* Every note and new wording in full, so the sheet (or a screenshot of it) shows
+   all the text the message carries. */
+function textRows(): string {
+  const out: string[] = [];
+  for (const c of changes) {
+    const custom = S.custom[c.id];
+    if (custom)
+      out.push(
+        row(
+          "New wording",
+          `${prose(c.title)}: <code>${esc(custom)}</code>`,
+          "card-" + c.id,
+        ),
+      );
+    const note = S.note[c.id];
+    if (note)
+      out.push(row("Note", `${prose(c.title)}: ${esc(note)}`, "card-" + c.id));
+  }
+  for (const q of questions) {
+    const note = S.note["q:" + q.id];
+    if (note)
+      out.push(row("Note", `${prose(q.text)} ${esc(note)}`, "card-q-" + q.id));
+  }
+  for (const g of groups) {
+    const note = S.gnote[g.id];
+    if (note) out.push(row("Note", `${prose(g.title)}: ${esc(note)}`, null));
+  }
+  return out.join("");
+}
+/* The token line of the Apply row. Fixes can add tokens: say so plainly. */
+function loads(after: number): string {
+  const diff = after - residentBefore;
+  return diff > 0
+    ? `Every session loads <b>${fmt(diff)}</b> more tokens: ${fmt(after)} instead of ${fmt(residentBefore)}.`
+    : `Every session loads <b>${fmt(after)}</b> tokens instead of ${fmt(residentBefore)}.`;
+}
 function openSheet() {
   const t = totals();
-  const notes =
-    Object.values(S.note).filter(Boolean).length +
-    Object.values(S.gnote).filter(Boolean).length;
   const queued = D.next.filter((n) => S.next[n.id]);
   const pulled = notNow.filter((n) => S.pull[n.id]);
   const builds = [
@@ -1035,11 +1070,11 @@ function openSheet() {
   $("sheet-in").innerHTML = `
       <h2 id="sheet-title">Check and send</h2>
       <dl class="answers">
-        ${GUARD ? row(`Build ${builds.length}`, builds.join("; ") || "Nothing", null) : row(`Apply ${t.apply.length}`, resident.length ? `Every session loads <b>${fmt(t.after)}</b> tokens instead of ${fmt(residentBefore)}.` : names(t.apply), groupsIn("ready").length ? "h-ready" : null)}
+        ${GUARD ? row(`Build ${builds.length}`, builds.join("; ") || "Nothing", null) : row(`Apply ${t.apply.length}`, resident.length ? loads(t.after) : names(t.apply), groupsIn("ready").length ? "h-ready" : null)}
         ${t.skip.length ? row(`Skip ${t.skip.length}`, names(t.skip), "card-" + first(t.skip)) : ""}
         ${t.later.length ? row(`Later ${t.later.length}`, `${names(t.later)}. Next round.`, "card-" + first(t.later)) : ""}
         ${questions.map((q) => row("Answer", `${prose(q.text)} <b>${prose(q.options.find((o) => o.id === S.q[q.id])?.label ?? "")}</b>`, "card-q-" + q.id)).join("")}
-        ${notes ? row("Notes", `${plural(notes, "note")} for Claude`, null) : ""}
+        ${textRows()}
         ${D.ship ? row("Ships as", esc(D.ship.options.find((o) => o.id === S.ship)?.label ?? S.ship), "h-next") : ""}
         ${GUARD ? row("Ships as", prose(run.prs ?? SHIPS), null) : ""}
         ${queued.length ? row("Then", queued.map((n) => prose(n.title)).join("; "), "h-next") : ""}
@@ -1101,7 +1136,8 @@ async function send() {
   }
   try {
     await navigator.clipboard.writeText(text);
-    msg.textContent = "Copied. Paste it into the Claude session.";
+    msg.textContent =
+      "Copied. Paste it into the Claude session that ran the skill.";
     btn.textContent = "Copied";
   } catch {
     const ex = $as("export", HTMLTextAreaElement);
