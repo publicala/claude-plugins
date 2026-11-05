@@ -9,6 +9,7 @@
     "round": 1,
     "rounds": 2,
     "waiting": 3,
+    "waitingTokens": 1200,
     "root": "repo",
     "editor": null,
     "outcome": "Make the always-loaded CLAUDE.md smaller, and fix two rules that point sessions the wrong way.",

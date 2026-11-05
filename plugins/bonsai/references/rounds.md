@@ -11,7 +11,7 @@ A round holds at most 5 calls (questions included) and 3 ready groups. Fill it i
 3. Close calls: split votes, borderline compliance counts.
 4. Ready groups, largest token saving first.
 
-Everything past the budget waits. Count it in `run.waiting` and set `run.rounds` to the rounds the run expects. A change the user marks Later joins the waiting set.
+Everything past the budget waits. Count it in `run.waiting`, sum the est. tokens all waiting changes remove from always-loaded files in `run.waitingTokens`, and set `run.rounds` to the rounds the run expects. A round ranked by risk can save little while a later one holds the large cut, so the page names that saving from the first round. A change the user marks Later joins the waiting set.
 
 The same limit holds in plain text: one round per message, with its own approval.
 
