@@ -30,4 +30,4 @@ Compaction adds an asymmetry: the root file is re-injected after a compaction au
 
 Both audit's "Never cut" and split's "Never demote" protect safety prohibitions, defined narrowly: rules guarding actions whose harm lands outside the working tree the moment the action runs (data loss, mutating a shared or production system, publishing, deleting history). Review cannot catch these, and the action is rarely gated behind reading one subtree, so a scoped copy can be absent at the moment it matters.
 
-A convention phrased with "never" is not a safety prohibition. "Never import Carbon\Carbon" bans a pattern a reviewer catches in the diff. Audit still keeps such a line, as a convention that differs from the default, but split places it through the normal pass.
+A convention phrased with "never" is not a safety prohibition. "Never import Carbon\Carbon" bans a pattern a reviewer catches in the diff. Audit keeps such a line as a convention that differs from the default until a check holds it, and split places it through the normal pass.

@@ -84,7 +84,7 @@ Every candidate gets one class and one status.
 Class:
 
 - **bake**: a tool the repository already runs can express the check (linter rule, static analysis, architecture test, hook, CI step, agent-harness deny rule). Record the tool and the shape of the check. Bake gets the first attempt at it. Intake never turns a bake candidate into prose.
-- **prose**: the rule needs judgment no tool can express, or a check would catch it only after the session built on the wrong shape (see [../../references/enforcement.md](../../references/enforcement.md), relative to this skill's directory).
+- **prose**: the rule needs judgment no tool can express.
 
 Status, in precedence order (the first that applies wins):
 

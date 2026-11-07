@@ -1,6 +1,6 @@
 # When a check replaces prose
 
-A session meets a checked rule when the check fails, and the failure message is all it reads about the rule. So a check makes the rule's prose redundant once its message carries what the prose carried and the session meets it while the change is still in its hands. The prose then costs tokens in every session to save one local fix in the few that break the rule.
+A session meets a checked rule when the check fails, and the failure message is all it reads about the rule. So a check makes the rule's prose redundant once its message carries what the prose carried and the session meets it while the change is still in its hands. The prose then costs tokens in every session to save one fix in the few that break the rule.
 
 ## A check holds a rule when it is
 
@@ -14,9 +14,9 @@ A formatter that rewrites the violation needs no message: the violation never su
 
 A check that misses one condition holds the rule with a gap. Treat the rule as unenforced until the gap closes: widen the paths, rewrite the message, or clear the baseline. Each of those is a `/bonsai:bake` change. A baseline counts as a gap because the code it lists still teaches the wrong pattern to every session that reads it.
 
-## When one line stays next to a check
+## No line stays next to a check
 
-When following the message means restructuring work already done (which layer owns a call, where a class lives), the session has built on the wrong shape by the time the check fails. Keep one line that states the rule. A fix that is a local edit (rename, swap a call, add an argument, name a constant) needs no line.
+Once a check holds a rule, every line of its prose goes, whatever the fix costs. A fix that moves a file or restructures work already done still lands before review: the check fails on the session's own run or its pull request, and the message names what to write instead.
 
 ## Pointers to checks
 
