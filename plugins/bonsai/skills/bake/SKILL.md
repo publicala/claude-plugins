@@ -7,9 +7,9 @@ disable-model-invocation: true
 
 # Bake
 
-Judge every CLAUDE.md rule against one question: **which tool could enforce this before code lands?** A rule a committed check enforces is context spent on nothing, because the violation never reaches review. The check's failure message is where a session meets the rule, so the message carries what the prose carried: what is wrong and what to write instead. The goal is a file where every remaining line needs judgment no tool can express, or warns of a mistake a check would catch only after the session built on it.
+Judge every CLAUDE.md rule against one question: **which tool could enforce this before code lands?** A rule a committed check enforces is context spent on nothing, because the violation never reaches review. The check's failure message is where a session meets the rule, so the message carries what the prose carried: what is wrong and what to write instead. The goal is a file where every remaining line needs judgment no tool can express.
 
-Read [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory) before the pass. It defines when a check holds a rule, and when one line stays next to a check.
+Read [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory) before the pass. It defines when a check holds a rule, and why no line stays next to one.
 
 Throughout, "automate" means recording a proposal in the report. No config edits and no CLAUDE.md edits before approval, no exceptions.
 
@@ -41,12 +41,12 @@ List the enforcement surfaces present, with the paths each one covers. For a too
 
 ### 2. Classify each rule
 
-Sort every rule into one of four. A rule whose violation takes a redesign to fix is **Prose** before anything else, whatever check holds it: a change may still close its check's gap, and it keeps the line.
+Sort every rule into one of four.
 
-- **Held**: a committed check already holds it, and fixing a violation is a local edit. Its prose goes with no new check, as a ready `delete` grouped by cause (class `bake:delete:tool-enforced`). So does every line or clause that only names the check holding a rule.
+- **Held**: a committed check already holds it. Its prose goes with no new check, as a ready `delete` grouped by cause (class `bake:delete:tool-enforced`). So does every line or clause that only names the check holding a rule.
 - **Held with a gap**: a check exists but misses a condition (a path it does not read, a message that names no fix, a baseline). The change closes the gap, and then the prose goes. Record which condition and the edit that closes it.
 - **Automate**: no check holds it yet. Record the tool and the shape of the check, and the message it prints.
-- **Prose**: record why. It needs human judgment, it depends on context no tool sees, or fixing a violation would be a redesign, whether a check holds it or not.
+- **Prose**: record why. It needs human judgment, or it depends on context no tool sees.
 
 ### 3. Read the intake candidates
 

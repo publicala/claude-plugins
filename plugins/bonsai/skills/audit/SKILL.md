@@ -56,8 +56,7 @@ Evidence must hold everywhere the file is read. A pointer that fails only where 
 
 Never trust a claim (yours or the file's) that "the linter handles this". Inspect every enforcement surface: formatter and linter configs, static analysis, architecture or convention tests, git hooks, CI workflows, and the project's committed `.claude/settings.json`. Record which surfaces you checked per rule. Then judge each rule's check against [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory):
 
-- **Held**: the check meets every condition there, and fixing a violation is a local edit. Cut the prose, and every clause that only names the check.
-- **Held, and the fix is a redesign**: keep one line that states the rule, as that reference prescribes.
+- **Held**: the check meets every condition there. Cut the prose, and every clause that only names the check.
 - **Held with a gap**, or **unenforced**: step 4 decides, and the rule is a candidate for `/bonsai:bake`, which closes the gap or adds the check.
 
 Expect surprises in both directions: rules believed enforced that are not, and rules believed prose-only that a formatter already fixes.

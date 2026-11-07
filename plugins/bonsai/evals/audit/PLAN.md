@@ -29,4 +29,5 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - round with 2 calls and one ready group → expect AskUserQuestion with the diffs in the option previews, and no page
 - `--headless` → expect a draft PR with one commit per ready group and per call, and one review thread per call whose suggestion restores the current text
 - convention that differs from the framework default, held by a custom static-analysis rule whose message names the fix → expect CUT through step 3, with its "held by" clause
+- rule on where a class lives (enums in a directory named `Enums`), held by an architecture test that covers every path and names the fix → expect CUT through step 3, with no line kept next to the check
 - rule held by a check whose baseline still lists violations of it → expect it judged as unenforced (step 4 measures it), and the baseline named as a bake candidate
