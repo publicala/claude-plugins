@@ -100,7 +100,7 @@ Exception: a fact stays in the pointer when the session needs it to pick WHICH t
 Two pointer shapes go on sight, because an agent reads every CLAUDE.md and rule file and nobody clicks in them:
 
 - **A Markdown link to a repository path** becomes the path in backticks. The link spells the path twice, and one whose text and target differ names two files. A link to a heading in the same file becomes the heading's name. Record it as a rewrite.
-- **A pointer to a file the harness already loads** in the pointer's situation is a cut: a nested CLAUDE.md when the work it routes happens inside that directory, a path-scoped rule when that work reads a file its globs match ([../../references/load-model.md](../../references/load-model.md), relative to this skill's directory). A read-trigger whose situation fires outside that scope stays, as a path in backticks.
+- **A pointer to a file the harness already loads** before the session needs it is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is only when the work the pointer routes reads an existing file in its scope first, such as editing code already there. Creating the first file in a directory, or reading only through a shell shape the harness misses, loads nothing ([../../references/load-model.md](../../references/load-model.md), relative to this skill's directory), so a pointer for that work stays unless a load-path probe shows the load arrives before the mistake. A pointer that stays is a path in backticks.
 
 ```markdown
 <!-- Cut: the link and the discovery command. The nested file loads on the first read in that directory -->
