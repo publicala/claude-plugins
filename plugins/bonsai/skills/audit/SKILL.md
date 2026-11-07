@@ -39,7 +39,7 @@ List each in-scope file with its load class and est. token cost (label every fig
 
 Cut what a fresh session reconstructs with a few tool calls:
 
-- Setup commands (`composer install`, `npm install`) and standard CLI usage
+- Setup commands (`composer install`, `npm install`) and standard CLI usage, discovery commands included (`php artisan list`, `<command> --help`, `npm run`)
 - Stack and version inventories (lockfiles are the source of truth)
 - Directory layouts and file listings
 - Model and class rosters (a `## Models` section restating what `ls` of the directory shows). A class earns a mention only where the line carries a constraint the code cannot show at a glance, and that line lives with the behavior it governs
@@ -97,6 +97,21 @@ Read docs/payments.md before touching payment or refund code.
 
 Exception: a fact stays in the pointer when the session needs it to pick WHICH target applies. A discriminator routes, so it stays.
 
+Two pointer shapes go on sight, because an agent reads every CLAUDE.md and rule file and nobody clicks in them:
+
+- **A Markdown link to a repository path** becomes the path in backticks. The link spells the path twice, and one whose text and target differ names two files. A link to a heading in the same file becomes the heading's name. Record it as a rewrite.
+- **A pointer to a file the harness already loads** before the session needs it is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is only when the work the pointer routes reads an existing file in its scope first, such as editing code already there. Creating the first file in a directory, or reading only through a shell shape the harness misses, loads nothing ([../../references/load-model.md](../../references/load-model.md), relative to this skill's directory), so a pointer for that work stays unless a load-path probe shows the load arrives before the mistake. A pointer that stays is a path in backticks.
+
+```markdown
+<!-- Cut: the link and the discovery command. The nested file loads on the first read in that directory -->
+Internal utilities live under [`app/Console/Commands/Acme/`](app/Console/Commands/Acme/CLAUDE.md); run `php artisan list acme` to see them all.
+
+<!-- After -->
+Internal utilities live under `app/Console/Commands/Acme/`.
+```
+
+When the repository already lints its CLAUDE.md files, a path link is a mechanical violation: record a `/bonsai:bake` candidate that fails the lint on it.
+
 The same rule governs skill frontmatter descriptions: triggers and routing keywords stay, mechanics and step lists move to the body. Safety and precedence clauses stay in the description ("never mutates remote state", "OVERRIDES the global skill") because they change the invocation decision itself.
 
 ### 7. Deduplication
@@ -131,7 +146,7 @@ Environment-conditional content is its own extract class: sentences that bind on
 
 Read [../../references/decision-memory.md](../../references/decision-memory.md) (relative to this skill's directory) before routing, then pick the delivery as [../../references/decision-artifact.md](../../references/decision-artifact.md) prescribes under "Delivery". For the page, build it with the renderer that reference names. Each cut, rewrite, move or extract verdict is one change. Route it:
 
-- Cut on sight (step 2), cut because a committed check holds the rule (step 3), or cut at 90% compliance or above (step 4): **ready**, grouped by cause.
+- Cut on sight (step 2, or a pointer the harness already follows in step 6), a path link rewritten to a path in backticks (step 6), cut because a committed check holds the rule (step 3), or cut at 90% compliance or above (step 4): **ready**, grouped by cause.
 - Rewrite (step 6 or "Precise but generic") the second check found the same: **ready**, grouped by cause.
 - False or stale claim, rewrite that still drifts, cut by a split panel vote or at a borderline compliance count, move, extract: **call**.
 - Evidence that holds only in the auditor's environment, a foreign-format migration proposal: **question**.
