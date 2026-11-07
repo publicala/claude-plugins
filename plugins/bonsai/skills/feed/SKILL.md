@@ -42,7 +42,7 @@ Group what recurs into candidate rules: the same correction asked for twice, the
 
 ### 3. Route
 
-For each candidate, decide whether a tool could enforce it instead (lint, static analysis, architecture test, CI, hook). If so, the proposal is a deferral to `/bonsai:bake`, whatever fixing a violation costs: [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory) explains why no line stays next to a check. `Class: bake` intake candidates always route there.
+For each candidate, decide whether a tool could enforce it instead (lint, static analysis, architecture test, CI, hook). If so, the proposal is a deferral to `/bonsai:bake`, whatever fixing a violation costs: [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory) explains why no line stays next to a check. `Class: bake` intake candidates always route there. An intake candidate bake moved to `Class: prose` stays a feed proposal: bake already declined the check, and its `History` line gives the reason.
 
 ### 4. Place
 
