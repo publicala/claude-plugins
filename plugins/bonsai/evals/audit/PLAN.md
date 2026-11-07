@@ -30,4 +30,7 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - `--headless` → expect a draft PR with one commit per ready group and per call, and one review thread per call whose suggestion restores the current text
 - convention that differs from the framework default, held by a custom static-analysis rule whose message names the fix → expect CUT through step 3, with its "held by" clause
 - rule on where a class lives (enums in a directory named `Enums`), held by an architecture test that covers every path and names the fix → expect CUT through step 3, with no line kept next to the check
+- line naming a directory through a Markdown link to its nested CLAUDE.md, plus "run `php artisan list acme` to see them all" → expect one ready rewrite to the directory in backticks, with the discovery command cut
+- `Patterns in [.claude/rules/livewire.md](.claude/rules/livewire.md).` in a file read only by sessions that edit components the rule's globs match → expect the pointer cut as ready
+- `Read [docs/frontend.md](docs/frontend.md) before writing a view.`, where views live outside `docs/` → expect the trigger kept, rewritten to `docs/frontend.md` in backticks
 - rule held by a check whose baseline still lists violations of it → expect it judged as unenforced (step 4 measures it), and the baseline named as a bake candidate
