@@ -7,7 +7,7 @@ The standard for any rule text bonsai writes or records: a feed proposal, an int
 - One or two sentences, or a tight bullet list: a CLAUDE.md line. When the text runs past about forty words, the rationale is in the rule and belongs in a `Why:` line, an HTML comment, or nowhere
 - Add a `Why:` line only when the reason is non-obvious and a session needs it to judge edge cases. A why only a reviewer needs goes in an HTML comment in a CLAUDE.md, which the harness strips before injection and a plain file read still shows. Skills and rule files carry no promise to strip one, so there the why goes in the commit or the PR (`delivery.md`, R0)
 - Match the voice of the file the rule lands in
-- Verify every symbol an example references against the real codebase: an example calling a method that does not exist teaches a wrong API and is worse than no example
+- Verify every concrete claim against the real codebase (a path, a symbol, a command and its flags, a config value, a count), and every symbol an example references: an example calling a method that does not exist teaches a wrong API and is worse than no example
 - Precise but generic: keep load-bearing identifiers exact. Never enumerate driftable inventories (class lists, file lists, counts)
 - Write for the class of mistake. The correction that prompted a rule is evidence for it, and its wording stays out of the rule
 - Name a repository path in backticks, written from the repository root, never as a Markdown link: agents read the path, and nobody clicks it. An `@path` import stays bare and keeps its own base (it resolves from the importing file), since backticks stop it importing

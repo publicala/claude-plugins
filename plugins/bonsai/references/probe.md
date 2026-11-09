@@ -17,7 +17,7 @@ Each skill states the question its probe answers. The mechanics and the validity
 
 Probes are the expensive step, and nothing above says how many. Before spawning any, group the derivability and load-path candidates by the task that would reveal them: one agent runs that task once, and its transcript yields a verdict per line the task exercised, so a section of six related lines costs one agent. Cap those at about ten agents per pass (reruns included) and report every candidate the cap left unprobed as an open question. A candidate that shares no task with any other gets its own agent only when the cap has room.
 
-Post-apply marker probes sit outside the cap: every created or changed glob gets verified, so apply only as many globs per round as the run can verify. Meaning checks and planted-violation checks sit outside it too: one agent checks every rewrite of the run, and every proposed check gets its planted violation.
+Post-apply marker probes sit outside the cap: every created or changed glob gets verified, so apply only as many globs per round as the run can verify. Meaning checks and planted-violation checks sit outside it too: one agent checks every rewrite of the run, and every proposed check gets its planted violation. So do audit's claim checks: they read and grep, and run nothing, so one agent covers a group of files.
 
 ## Validity rules
 
