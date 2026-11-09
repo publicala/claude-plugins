@@ -37,7 +37,7 @@ First read the repository's `agents` setting (`${CLAUDE_PLUGIN_ROOT}/references/
 
 List each in-scope file with its load class and est. token cost (label every figure "est."). Include equivalent rule files other agents consume (`.cursor/rules`, `AGENTS.md` and the like) in the inventory and the dedup pass, even though edits target CLAUDE.md files. Migrating a foreign-format rule file into the project's native format is never part of an audit apply: record it as a proposal and act only on explicit user approval.
 
-Then show the load map: for a few common tasks (an edit in each scoped area, a new file in one, a command run from the root), the files that load and their est. tokens. Count a path-scoped rule whose globs match a large share of the repository's files (about a third or more) as resident. When `~/.claude/bonsai/loads/<key>.jsonl` exists, an optional hook logged real loads there, one JSON line per load: count from it instead of estimating, and label those figures "measured".
+Then show the load map: for a few common tasks (an edit in each scoped area, a new file in one, a command run from the root), the files that load and their est. tokens. Count a path-scoped rule whose globs match a large share of the repository's files (about a third or more) as resident, labeled "broad globs", since nearly every task loads it. When `~/.claude/bonsai/loads/<owner>/<repo>.jsonl` exists, an optional hook logged real loads there: count which files load from it instead of estimating, as `${CLAUDE_PLUGIN_ROOT}/references/load-model.md` says, and label those counts "measured". Tokens stay estimates from each file's size. A fork clone without an `upstream` remote logs under the fork's `<owner>/<repo>`, so read that log too.
 
 ### 2. Derivability pass
 

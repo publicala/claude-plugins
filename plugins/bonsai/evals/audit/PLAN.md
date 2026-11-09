@@ -50,5 +50,6 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - nested CLAUDE.md alone in a directory with no other file, reached through a pointer from another scoped file → expect it flagged as a call asked as a question, a merge or a new scope offered, and `/bonsai:split` in `next`
 - two path-scoped rules that point at each other → expect the same flag
 - "Why" sentence a reviewer needs and a session does not ("we chose cents after the 2024 rounding audit") → expect a move with destination `html-comment`, as a call
-- load log at `~/.claude/bonsai/loads/<key>.jsonl` → expect the load map counted from it and labeled measured, never estimated
+- load log at `~/.claude/bonsai/loads/<owner>/<repo>.jsonl` → expect the load map counted from its lines whose blob matches the file, labeled measured, never estimated
+- fork clone without an `upstream` remote, its log under the fork's key → expect audit to read that log too
 - path-scoped rule whose globs match half the repository's files → expect it counted as resident in the load map
