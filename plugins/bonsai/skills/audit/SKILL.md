@@ -25,7 +25,7 @@ Check every line against this list before anything else. A match is a KEEP and s
 - Gotchas that contradict appearances (the call that silently no-ops, the flag that looks optional but is not). Greps come back clean precisely because the line works, so step 4 would misread these as derivable.
 - Conventions that differ from the framework or tool default, including conventions phrased with "never"
 - Precedence and routing clauses
-- Read-triggers for referenced docs
+- Read-triggers for referenced docs. Step 6 may still cut one whose target the harness already loads for the work it routes. A read-trigger for any other work stays
 
 ## The audit, in order
 
@@ -39,7 +39,7 @@ List each in-scope file with its load class and est. token cost (label every fig
 
 Cut what a fresh session reconstructs with a few tool calls:
 
-- Setup commands (`composer install`, `npm install`) and standard CLI usage, discovery commands included (`php artisan list`, `<command> --help`, `npm run`)
+- Setup commands (`composer install`, `npm install`) and standard CLI usage, discovery commands included (`php artisan list`, `<command> --help`, `npm run`). A step that requires a command at a given moment ("list the commands before adding one, so you never add a duplicate") is a workflow rule, judged like any other line
 - Stack and version inventories (lockfiles are the source of truth)
 - Directory layouts and file listings
 - Model and class rosters (a `## Models` section restating what `ls` of the directory shows). A class earns a mention only where the line carries a constraint the code cannot show at a glance, and that line lives with the behavior it governs
@@ -99,18 +99,18 @@ Exception: a fact stays in the pointer when the session needs it to pick WHICH t
 
 Two pointer shapes go on sight, because an agent reads every CLAUDE.md and rule file and nobody clicks in them:
 
-- **A Markdown link to a repository path** becomes the path in backticks. The link spells the path twice, and one whose text and target differ names two files. A link to a heading in the same file becomes the heading's name. Record it as a rewrite.
-- **A pointer to a file the harness already loads** before the session needs it is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is only when the work the pointer routes reads an existing file in its scope first, such as editing code already there. Creating the first file in a directory, or reading only through a shell shape the harness misses, loads nothing ([../../references/load-model.md](../../references/load-model.md), relative to this skill's directory), so a pointer for that work stays unless a load-path probe shows the load arrives before the mistake. A pointer that stays is a path in backticks.
+- **A Markdown link to a repository path** becomes the path in backticks, resolved against the file the link sits in and written from the repository root (`../README.md` in `docs/CLAUDE.md` becomes `README.md`). The link spells the path twice, and one whose text and target differ names two files. A link to a heading in the same file becomes the heading's name. An `@path` import is a load directive and stays bare. Record it as a rewrite.
+- **A pointer to a file the harness already loads** for the work it routes is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is whenever that work reads, writes or edits a file in its scope, creating the first file included: the scoped file arrives right after that call ([../../references/load-model.md](../../references/load-model.md), relative to this skill's directory). A pointer stays for work that starts with a command or acts outside the files (running a migration, a deploy, a `git` operation), and a pointer that stays is a path in backticks.
 
 ```markdown
-<!-- Cut: the link and the discovery command. The nested file loads on the first read in that directory -->
+<!-- Cut: the link and the discovery command. The nested file loads on the first file touch in that directory -->
 Internal utilities live under [`app/Console/Commands/Acme/`](app/Console/Commands/Acme/CLAUDE.md); run `php artisan list acme` to see them all.
 
 <!-- After -->
 Internal utilities live under `app/Console/Commands/Acme/`.
 ```
 
-When the repository already lints its CLAUDE.md files, a path link is a mechanical violation: record a `/bonsai:bake` candidate that fails the lint on it.
+When the repository's CLAUDE.md lint already bans path links, a path link is a violation of that check: say so on the rewrite. Otherwise record a `/bonsai:bake` candidate that adds the ban, so the rewrite cannot regress.
 
 The same rule governs skill frontmatter descriptions: triggers and routing keywords stay, mechanics and step lists move to the body. Safety and precedence clauses stay in the description ("never mutates remote state", "OVERRIDES the global skill") because they change the invocation decision itself.
 

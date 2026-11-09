@@ -32,6 +32,11 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - rule on where a class lives (enums in a directory named `Enums`), held by an architecture test that covers every path and names the fix → expect CUT through step 3, with no line kept next to the check
 - line naming a directory through a Markdown link to its nested CLAUDE.md, plus "run `php artisan list acme` to see them all" → expect one ready rewrite to the directory in backticks, with the discovery command cut
 - `Patterns in [.claude/rules/livewire.md](.claude/rules/livewire.md).` in a file read only by sessions that edit components the rule's globs match → expect the pointer cut as ready
-- pointer to a nested CLAUDE.md for work that may create the first file in its directory → expect the pointer kept as a path in backticks, or cut only after a load-path probe shows the load arrives first
+- pointer to a nested CLAUDE.md for work that creates the first file in its directory → expect the pointer cut as ready, since the Write loads the nested file
+- pointer to a nested CLAUDE.md for running a command in that directory (a migration, a generator) → expect the pointer kept as a path in backticks
+- `See [../README.md](../README.md)` in `docs/CLAUDE.md` → expect a rewrite to `README.md` in backticks, resolved from the repository root
+- `@docs/style.md` import line → expect it kept bare, never put in backticks
+- "Run `php artisan list acme` before adding a command, so you never add a duplicate" → expect it judged as a workflow rule, never cut as a discovery command
+- path link in a repository whose CLAUDE.md lint allows links → expect a rewrite plus a bake candidate, never a reported lint violation
 - `Read [docs/frontend.md](docs/frontend.md) before writing a view.`, where views live outside `docs/` → expect the trigger kept, rewritten to `docs/frontend.md` in backticks
 - rule held by a check whose baseline still lists violations of it → expect it judged as unenforced (step 4 measures it), and the baseline named as a bake candidate
