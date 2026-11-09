@@ -420,13 +420,22 @@ if (unknown.length > 0) {
   process.exit(2);
 }
 
+const jobs = Number(options.jobs);
+
+if (!Number.isInteger(jobs) || jobs < 1) {
+  console.error(
+    `The --jobs option must be a positive whole number, and it is "${options.jobs}".`,
+  );
+  process.exit(2);
+}
+
 const started = performance.now();
 const claudeVersion = Bun.spawnSync(["claude", "--version"])
   .stdout.toString()
   .trim();
 const rows = await runAll(
   CANARIES.filter((canary) => selected?.includes(canary.id) ?? true),
-  Number(options.jobs),
+  jobs,
 );
 
 console.log(`Harness canaries, ${claudeVersion}, model ${options.model}\n`);

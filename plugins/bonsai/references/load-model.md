@@ -2,7 +2,7 @@
 
 What a session pays for a CLAUDE.md line depends only on how the file reaches the context. Classify every in-scope file before judging or placing its lines.
 
-The harness canaries check every fact here against the Claude Code and Codex installed on your machine: run `bun evals/harness/run.ts` from the plugin root after an update ([../evals/README.md](../evals/README.md)).
+The harness canaries check when nested files, path rules and skills load, in a session and in a subagent, and which AGENTS.md files Codex reads, against the Claude Code and Codex installed on your machine: run `bun evals/harness/run.ts` from the plugin root after an update ([../evals/README.md](../evals/README.md)). Every other fact here rests on manual probes.
 
 ## Four classes
 
