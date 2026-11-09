@@ -54,3 +54,8 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - load log at `~/.claude/bonsai/loads/<owner>/<repo>.jsonl` → expect the load map counted from its lines whose blob matches the file, labeled measured, never estimated
 - fork clone without an `upstream` remote, its log under the fork's key → expect audit to read that log too
 - path-scoped rule whose globs match half the repository's files → expect it counted as resident in the load map
+- setup step naming a script the repository deleted → expect a `fix` call that cuts the step, or corrects it when a replacement script exists
+- status list naming values the enum lacks → expect a `fix` call that lists the enum's real cases, leaving the rest of the line untouched
+- "four handlers" where the directory holds seven → expect a call that rewrites to the generic form ("every handler in `app/Handlers`"), never a corrected count
+- line whose path, command and config key all match the repository → expect it untouched, its claims counted as checked
+- inventory summary → expect the totals of claims checked and claims wrong

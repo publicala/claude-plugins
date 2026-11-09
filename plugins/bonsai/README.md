@@ -19,7 +19,7 @@ Every line in a CLAUDE.md loads in every session, so a line that changes nothing
 - **feed**: after a working session
 - **bake**: once enough rules have accumulated to be worth automating
 - **guard**: after a review round whose findings a check could have caught before review, or once over every PR of a finished run
-- **audit**: when CLAUDE.md files have grown without review
+- **audit**: when CLAUDE.md files have grown without review. Claude Code's `/doctor prompt-audit` is a useful cross-check afterwards: it verifies the same files independently, and also lints skills and dated phrasing
 - **split**: after an audit leaves a resident file carrying rules that govern one area
 
 ## Evidence

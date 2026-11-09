@@ -29,7 +29,7 @@ Check every line against this list before anything else. A match is a KEEP and s
 
 ## The audit, in order
 
-A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 8 line by line, and present the result as one round when it fits the budget in `${CLAUDE_PLUGIN_ROOT}/references/rounds.md`. Probes and the panel still decide what the steps route to them. A small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `${CLAUDE_PLUGIN_ROOT}/references/probe.md`.
+A file under about 40 lines gets a single pass: read it whole, check its claims (step 1), apply steps 2 through 8 line by line, and present the result as one round when it fits the budget in `${CLAUDE_PLUGIN_ROOT}/references/rounds.md`. Probes and the panel still decide what the steps route to them. A small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `${CLAUDE_PLUGIN_ROOT}/references/probe.md`.
 
 ### 1. Inventory
 
@@ -38,6 +38,15 @@ First read the repository's `agents` setting (`${CLAUDE_PLUGIN_ROOT}/references/
 List each in-scope file with its load class and est. token cost (label every figure "est."). Include equivalent rule files other agents consume (`.cursor/rules`, `AGENTS.md` and the like) in the inventory and the dedup pass, even though edits target CLAUDE.md files. Migrating a foreign-format rule file into the project's native format is never part of an audit apply: record it as a proposal and act only on explicit user approval.
 
 Then show the load map: for a few common tasks (an edit in each scoped area, a new file in one, a command run from the root), the files that load and their est. tokens. Count a path-scoped rule whose globs match a large share of the repository's files (about a third or more) as resident, labeled "broad globs", since nearly every task loads it. When `~/.claude/bonsai/loads/<owner>/<repo>.jsonl` exists, an optional hook logged real loads there: count which files load from it instead of estimating, as `${CLAUDE_PLUGIN_ROOT}/references/load-model.md` says, and label those counts "measured". Tokens stay estimates from each file's size. A fork clone without an `upstream` remote logs under the fork's `<owner>/<repo>`, so read that log too.
+
+Then check every concrete claim, since a stale fact in a line the audit keeps survives every later step. Skip the lines a step 2 class cuts on sight: they go whatever their facts say. From every other line, extract each checkable claim: a path, a class, method or function name and signature, a command and its flags, a config key or value, an enum case or status value, a count, a named test, a default. Verify each against the repository with a read or a grep, never from memory, and record the evidence. A wrong claim becomes a change:
+
+- **The code shows the right value**: a `fix` that corrects the fact in place.
+- **Nothing replaces it** (a deleted script, a status the enum lost): a `fix` that cuts the clause.
+- **A count or an inventory that drifts as the code moves**: the generic rewrite of "Precise but generic" in place of the corrected number, since a corrected count drifts again.
+- **An example that calls a symbol that does not exist**: a cut, whatever later steps say, flagged because that drift means nobody has checked the examples in a while. An example that teaches a wrong API is worse than absence.
+
+Each is a false or stale claim, routed as "Report delivery" says. The check is mechanical, so batch it: one fresh low-effort agent per group of files, handed the files and the claim list above, or the auditor's own greps on a small scope. It sits outside the probe cap (`${CLAUDE_PLUGIN_ROOT}/references/probe.md`). Report the totals with the inventory, so the user sees the coverage: `412 claims checked, 9 wrong`.
 
 ### 2. Derivability pass
 
@@ -84,8 +93,6 @@ Spawn three independent low-effort agents per block. Each gets the repo path, th
 
 Tell each panelist to answer the verdict only and never perform the task: a floor model handed a block will otherwise start executing it.
 
-Separately, verify every first-party symbol an example references against the real codebase. An example that calls a method that does not exist teaches a wrong API and is worse than absence. Record it as a cut whatever the panel says, and flag it, because that drift means nobody has checked the examples in a while.
-
 ### 6. Pointer and description audit
 
 Resolve every pointer's target first and flag the broken ones. Then judge the phrasing: a pointer carries exactly two things, the trigger (when to read) and the path. Never a content summary. Summarizing the target loads its vocabulary into every session, which defeats the deferral. Record these as rewrites.
@@ -131,7 +138,7 @@ The auditor wrote every rewrite and judges it with the same blind spots. Before 
 
 ## Precise but generic
 
-Phrasing gets judged only after a line earns its keep, against the standard in `${CLAUDE_PLUGIN_ROOT}/references/rule-writing.md`. Every specific detail in a kept line (a class inventory, an enumerated list, a count) is either load-bearing, meaning generalizing it would change what a session does, or a liability that drifts as the code moves. When a kept line carries non-load-bearing specifics, record a **rewrite**: drop those specifics, keep the load-bearing identifiers verbatim, and change nothing else. A rewrite never widens scope, weakens the boundary, or adds advice, and every identifier it keeps gets verified against the codebase like any example symbol.
+Phrasing gets judged only after a line earns its keep, against the standard in `${CLAUDE_PLUGIN_ROOT}/references/rule-writing.md`. Every specific detail in a kept line (a class inventory, an enumerated list, a count) is either load-bearing, meaning generalizing it would change what a session does, or a liability that drifts as the code moves. When a kept line carries non-load-bearing specifics, record a **rewrite**: drop those specifics, keep the load-bearing identifiers verbatim, and change nothing else. A rewrite never widens scope, weakens the boundary, or adds advice, and every identifier it keeps gets verified against the codebase like any claim in step 1.
 
 Two senses of "generic" live in this skill. Step 2 cuts generic best practices because they pin no boundary. Generic here means phrased at the pattern level while still pinning one. When dropping the driftable specifics would leave nothing a session cannot derive, the line was inventory all along: cut it. Precision earns the keep, genericity makes it last.
 
@@ -166,7 +173,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md` before routing, then 
 
 - Cut on sight (step 2, or a pointer the harness already follows in step 6), a path link rewritten to a path in backticks (step 6), cut because a committed check holds the rule (step 3), or cut at 90% compliance or above (step 4): **ready**, grouped by cause.
 - Rewrite (step 6 or "Precise but generic") the second check found the same: **ready**, grouped by cause.
-- False or stale claim, rewrite that still drifts, cut by a split panel vote or at a borderline compliance count, move, extract: **call**.
+- False or stale claim (step 1), rewrite that still drifts, cut by a split panel vote or at a borderline compliance count, move, extract: **call**.
 - A transition list, a hook that meets the R6 bar, an orphan or a pair of scoped files that point at each other: **call**, asked as a question. A transition list puts `/bonsai:bake` in `next`, and a placement smell `/bonsai:split`.
 - Evidence that holds only in the auditor's environment, a foreign-format migration proposal: **question**.
 - Keep: `kept`, with nothing to decide.
