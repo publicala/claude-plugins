@@ -10,7 +10,7 @@ disable-model-invocation: false
 
 A walkthrough tells one story in about 30 seconds, without sound, so it lands while it autoplays muted in Slack. Each scene is a Blueprint figure that builds up in front of the viewer. You write one HTML source, and the renderer checks every scene, then writes a contact sheet, the mp4 and, when you want a link, a player page.
 
-Before the first scene, read [blueprint.md](../../references/blueprint.md) for the look and the vocabulary, [truth.md](../../references/truth.md) for what a scene may claim and name, and [writing.md](../../references/writing.md) for the language and the voice (paths relative to this skill's directory).
+Before the first scene, read `${CLAUDE_PLUGIN_ROOT}/references/blueprint.md` for the look and the vocabulary, `${CLAUDE_PLUGIN_ROOT}/references/truth.md` for what a scene may claim and name, and `${CLAUDE_PLUGIN_ROOT}/references/writing.md` for the language and the voice.
 
 ## The story
 
@@ -73,7 +73,7 @@ The first run checks the scenes and writes `name.contact.png`, one frame per sce
 
 Checked by the renderer:
 
-- Each scene passes every figure check in [the diagram skill](../diagram/SKILL.md), alone, once it settles.
+- Each scene passes every figure check in the diagram skill (`${CLAUDE_PLUGIN_ROOT}/skills/diagram/SKILL.md`), alone, once it settles.
 - The canvas is `data-size="video"`, the size every frame is captured at.
 - Nothing runs out of the stage, and every scene settles before it starts fading out.
 - It warns when a scene asks for more than 5 words a second (people read about 4), or when the video runs past 45 seconds. Both are rules of thumb. Fix them unless the extra words are labels a viewer only glances at.
@@ -88,6 +88,6 @@ Checked by you:
 ## Deliver
 
 - Send the mp4, with the contact sheet when it helps the reader skim.
-- Write the message that carries it, ready to paste, in the audience's language ([writing.md](../../references/writing.md)).
+- Write the message that carries it, ready to paste, in the audience's language (`${CLAUDE_PLUGIN_ROOT}/references/writing.md`).
 - For a link, publish `name.player.html` as an Artifact when the session can. It plays and scrubs in the browser, and follows the reader's color mode.
 - Keep the source. The next walkthrough starts from it.

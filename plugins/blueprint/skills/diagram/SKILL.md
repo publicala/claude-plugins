@@ -10,7 +10,7 @@ disable-model-invocation: false
 
 You write a figure as a small HTML source, and the renderer turns it into a PNG. The style lives in one stylesheet, so every figure stays consistent and a style change reaches every figure on its next render.
 
-Before the first figure, read [blueprint.md](../../references/blueprint.md) for the look and the vocabulary, [truth.md](../../references/truth.md) for what a figure may claim and name, and [writing.md](../../references/writing.md) for its text (paths relative to this skill's directory).
+Before the first figure, read `${CLAUDE_PLUGIN_ROOT}/references/blueprint.md` for the look and the vocabulary, `${CLAUDE_PLUGIN_ROOT}/references/truth.md` for what a figure may claim and name, and `${CLAUDE_PLUGIN_ROOT}/references/writing.md` for its text.
 
 ## Blueprint or Mermaid
 
