@@ -19,7 +19,7 @@ Not everything called "referenced" is deferred. Classify each file by its load c
 
 ## Never cut
 
-Check every line against this list before anything else. A match is a KEEP and skips the rest of the audit, with one exception: a rule a committed check holds may still fall in step 3, because the tool guarantees it. A safety prohibition stays whatever enforces it.
+Check every line against this list before anything else. A match is a KEEP and skips the rest of the audit, with two exceptions. Step 1's claim check still runs on it, since a protected line can name a deleted path or a stale value: a wrong claim is fixed in place and the line stays. And a rule a committed check holds may still fall in step 3, because the tool guarantees it. A safety prohibition stays whatever enforces it.
 
 - Safety prohibitions, as `${CLAUDE_PLUGIN_ROOT}/references/load-model.md` defines them ("never force-push", "never run the seeder against a shared database")
 - Gotchas that contradict appearances (the call that silently no-ops, the flag that looks optional but is not). Greps come back clean precisely because the line works, so step 4 would misread these as derivable.
