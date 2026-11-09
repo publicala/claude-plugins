@@ -8,7 +8,7 @@ A session meets a checked rule when the check fails, and the failure message is 
 - **Covering the rule's paths**: its file globs or analysed paths reach every path the rule governs. A rule about `app/` and `routes/` held by a check that reads only `app/` is unenforced in `routes/`.
 - **Run before code lands**: a formatter, a hook, or a step of the lint or test command CI runs, so the failure reaches the session that wrote the code, locally or on its pull request.
 - **Passing on the whole tree**: no baseline entry and no blanket ignore for the rule. A suppression of one site names the check and carries its reason next to it.
-- **Naming the fix**: its message says what is wrong at the flagged site and what to write instead, in the project's words, as [rule-writing.md](rule-writing.md) prescribes. "Rule X violated" leaves the session guessing.
+- **Naming the fix**: its message says what is wrong at the flagged site and what to write instead, in the project's words, as `rule-writing.md`, in this directory, prescribes. "Rule X violated" leaves the session guessing.
 
 A formatter that rewrites the violation needs no message: the violation never survives the next format.
 

@@ -6,23 +6,23 @@ The page exists so the user decides what needs their judgment, and nothing else.
 
 Pick the delivery after the checks, by the size of the round:
 
-- **`--headless` in the arguments**: follow [headless.md](headless.md). Ask nothing.
+- **`--headless` in the arguments**: follow `headless.md`, in this directory. Ask nothing.
 - **A guard run**: always the page, at any size. A candidate's quotes, code and cost table do not fit an option label.
 - **No calls**: no page. One AskUserQuestion: "Apply N ready changes?", with the groups and their diffs in the preview of the recommended "Apply" option, plus "Show me the page" and "Stop".
 - **1 to 3 calls**: AskUserQuestion, one question per call with Apply, Skip and Later. The Apply option's preview carries the diff, the why and "If you skip". When ready groups exist, add one question: "Apply all N ready changes" (recommended) or "Let me pick", which opens the page.
-- **More than 3 calls**, or the user asks for it: the page. Plain text instead when the stored `delivery` preference says so ([decision-memory.md](decision-memory.md)).
+- **More than 3 calls**, or the user asks for it: the page. Plain text instead when the stored `delivery` preference says so (`decision-memory.md`, in this directory).
 
 The ship choice comes from the stored settings. Ask it once, with the first round that needs it, and store the answer. A guard run has no ship choice: every candidate it builds is its own PR.
 
 ## Build the page
 
-Write data and let the renderer build the page: [../renderer/README.md](../renderer/README.md) documents the data file, and `example/data.json` there is a complete run. Draft the data in the scratchpad, run `bun ../renderer/build.ts data.json -o page.html` (the path is relative to this file), and publish the result. When `bun` is missing, deliver the round in plain text and tell the user the page needs [Bun](https://bun.sh). Never write or hand-edit the page's HTML. The build quotes every removed line from disk, so the page always shows the file as it is, and it refuses data that would render a misleading page.
+Write data and let the renderer build the page: `../renderer/README.md` documents the data file, and `example/data.json` there is a complete run. Draft the data in the scratchpad, run `bun ../renderer/build.ts data.json -o page.html` (both paths are relative to this file), and publish the result. When `bun` is missing, deliver the round in plain text and tell the user the page needs [Bun](https://bun.sh). Never write or hand-edit the page's HTML. The build quotes every removed line from disk, so the page always shows the file as it is, and it refuses data that would render a misleading page.
 
 ## Route every change to a lane
 
 - **Call**: the change alters what a rule says (a fix of a false claim, a rewrite whose meaning the second check flagged), moves content to another file, adds a rule, rests on a close vote or a compliance count between 70% and 90%, or needs intent the agent cannot verify. Calls start undecided. The user answers Apply, Skip or Later.
-- **Ready**: objective, with direct evidence, and no change in meaning: a line a committed check holds ([enforcement.md](enforcement.md)) or a file states, a rewrite the second check found the same. Ready changes are on by default, with an opt-out per change.
-- **Auto**: a change class that earned auto-apply in [decision-memory.md](decision-memory.md). Shown collapsed as "Applied automatically", with an undo per change.
+- **Ready**: objective, with direct evidence, and no change in meaning: a line a committed check holds (`enforcement.md`, in this directory) or a file states, a rewrite the second check found the same. Ready changes are on by default, with an opt-out per change.
+- **Auto**: a change class that earned auto-apply in `decision-memory.md`. Shown collapsed as "Applied automatically", with an undo per change.
 - **Kept**: lines the run checked and keeps, in one collapsed list with nothing to decide.
 
 A guard candidate is always a call, since nothing is built before the user approves it.
@@ -31,7 +31,7 @@ Group ready and auto changes by cause, one group per cause, and name the cause a
 
 ## Keep a round small
 
-A round holds at most 5 calls (questions included) and 3 ready groups, and the build enforces both limits. [rounds.md](rounds.md) says how to rank the changes, where the rest wait, and how the next run continues. Count the waiting changes in `run.waiting` and their est. token saving in `run.waitingTokens`. Say in the outcome sentence what this round achieves, and what later rounds save when that is the larger cut.
+A round holds at most 5 calls (questions included) and 3 ready groups, and the build enforces both limits. `rounds.md`, in this directory, says how to rank the changes, where the rest wait, and how the next run continues. Count the waiting changes in `run.waiting` and their est. token saving in `run.waitingTokens`. Say in the outcome sentence what this round achieves, and what later rounds save when that is the larger cut.
 
 ## Write for the reader
 

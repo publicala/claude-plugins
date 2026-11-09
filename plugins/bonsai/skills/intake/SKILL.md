@@ -15,7 +15,7 @@ Throughout, "record" means writing an entry file. Proposing rules is feed's job.
 
 Entries live under `~/.claude/bonsai/intake/<repository key>/pr<number>.md`, outside every repository. Review threads quote customer names, internal service names, and unreleased design, so the ledger never leaves the machine. With `--export`, the candidate sections alone (rule text, target, symbols, ratio, evidence links) are also written to `.claude/bonsai/candidates/pr<number>.md` inside the target repository, uncommitted, so the team's recurrence count is shared. Before exporting, check that no candidate's `Mistake` or `Rule` names a customer, a person, or a system that the target repository does not itself name.
 
-The repository key, the file layout, and what a rerun may change are defined once in [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory). Read it before writing anything.
+The repository key, the file layout, and what a rerun may change are defined once in `${CLAUDE_PLUGIN_ROOT}/references/intake-entry.md`. Read it before writing anything.
 
 `<repository key>` is the repository the candidate targets, which is not always the repository under review: a review on a client library can surface a rule for its host application. Write each candidate under its target, so feed run there finds it.
 
@@ -100,7 +100,7 @@ The slug names the mistake a session makes, such as `bridge-import-outside-facad
 
 ### 8. Write the rule text now
 
-Write each candidate's rule text or check shape in final form, following [../../references/rule-writing.md](../../references/rule-writing.md) (relative to this skill's directory). Feed copies this text into its proposal, so it must already be a CLAUDE.md line. Never record the reviewer's wording as the rule: the correction is evidence.
+Write each candidate's rule text or check shape in final form, following `${CLAUDE_PLUGIN_ROOT}/references/rule-writing.md`. Feed copies this text into its proposal, so it must already be a CLAUDE.md line. Never record the reviewer's wording as the rule: the correction is evidence.
 
 ### 9. Report
 

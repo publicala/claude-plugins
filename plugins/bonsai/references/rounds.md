@@ -17,7 +17,7 @@ The same limit holds in plain text: one round per message, with its own approval
 
 ## Run file
 
-Write the full verdict list, every round included, to `~/.claude/bonsai/runs/<key>/<skill>-<date>.json` before you present the first round. `<key>` is the repository key from [intake-entry.md](intake-entry.md). Keep one entry per change:
+Write the full verdict list, every round included, to `~/.claude/bonsai/runs/<key>/<skill>-<date>.json` before you present the first round. `<key>` is the repository key from `intake-entry.md`, in this directory. Keep one entry per change:
 
 ```json
 {
@@ -39,7 +39,7 @@ When the skill starts, read the newest run file for this key and skill. If chang
 - A change whose lines changed goes back through the skill's checks, for those lines only.
 - Present the next round from the waiting changes, ranked again. Do not repeat the verification for the rest.
 
-A skipped change never comes back in a later round of the same run, nor in a later run while its evidence holds ([decision-memory.md](decision-memory.md)). A run ends when nothing waits. The file stays as the record.
+A skipped change never comes back in a later round of the same run, nor in a later run while its evidence holds (`decision-memory.md`, in this directory). A run ends when nothing waits. The file stays as the record.
 
 ## Apply
 
@@ -49,4 +49,4 @@ The decisions message is the approval for everything it names, including the shi
 - One commit per applied call.
 - Local files outside a repository (user-level memory, `CLAUDE.local.md`): edit directly after a backup, no commits.
 
-After the apply, update every entry's `status` in the run file, append the decisions to the log in [decision-memory.md](decision-memory.md), then reply on the page and republish it as the record (see [decision-artifact.md](decision-artifact.md)).
+After the apply, update every entry's `status` in the run file, append the decisions to the log in `decision-memory.md`, then reply on the page and republish it as the record (see `decision-artifact.md`, in this directory).

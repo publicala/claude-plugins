@@ -5,7 +5,7 @@ Bonsai remembers what the user decided, so the same question does not come back 
 ## Files
 
 - `~/.claude/bonsai/settings.json`: preferences that hold in every repository. Today `delivery`: `"page"` or `"text"`. A page's way back (send or paste) is not stored: it follows from where the session runs, every time (decision-artifact.md, "Publish").
-- `~/.claude/bonsai/decisions/<key>/settings.json`: preferences for one repository. Today `ship`: `"pr"` or `"local"`. `<key>` is the repository key from [intake-entry.md](intake-entry.md).
+- `~/.claude/bonsai/decisions/<key>/settings.json`: preferences for one repository. Today `ship`: `"pr"` or `"local"`. `<key>` is the repository key from `intake-entry.md`, in this directory.
 - `~/.claude/bonsai/decisions/<key>/log.jsonl`: one line per decided change, appended at apply time.
 
 ```json

@@ -9,7 +9,7 @@ disable-model-invocation: true
 
 Judge every CLAUDE.md rule against one question: **which tool could enforce this before code lands?** A rule a committed check enforces is context spent on nothing, because the violation never reaches review. The check's failure message is where a session meets the rule, so the message carries what the prose carried: what is wrong and what to write instead. The goal is a file where every remaining line needs judgment no tool can express.
 
-Read [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory) before the pass. It defines when a check holds a rule, and why no line stays next to one.
+Read `${CLAUDE_PLUGIN_ROOT}/references/enforcement.md` before the pass. It defines when a check holds a rule, and why no line stays next to one.
 
 Throughout, "automate" means recording a proposal in the report. No config edits and no CLAUDE.md edits before approval, no exceptions.
 
@@ -19,7 +19,7 @@ Every CLAUDE.md file in the project and every enforcement surface it already has
 
 ## Never
 
-- Remove a rule's prose before its check holds the rule as `references/enforcement.md` defines it, on the current tree.
+- Remove a rule's prose before its check holds the rule as `${CLAUDE_PLUGIN_ROOT}/references/enforcement.md` defines it, on the current tree.
 - Add a CLAUDE.md line for a check you add, or a pointer to it. A session that breaks the rule reads the message, and a line would cost every other session tokens to say the same.
 - Make a check pass with a baseline or a blanket ignore the user did not approve.
 - Add a new entrypoint. New checks run through the existing test and lint commands.
@@ -50,11 +50,11 @@ Sort every rule into one of four.
 
 ### 3. Read the intake candidates
 
-`/bonsai:intake` records check-shaped candidates (`Class: bake`) under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the key and the format. Read every `bake` candidate with `Status: open` or `watch` under this project's key, and report "no intake entries under `<path>`" when the directory is missing. Treat a candidate as a rule to automate when its slug appears in two or more source PRs, or when the user names it: a check costs CI time, false positives, and tolerance for the tool, so it earns its place the way prose does. The `Check` line names the tool and shape intake verified. When a CLAUDE.md line already states the candidate's rule (its `Existing coverage` may name it), the candidate and the line are one change, which removes the line. Otherwise the change adds the check alone.
+`/bonsai:intake` records check-shaped candidates (`Class: bake`) under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read `${CLAUDE_PLUGIN_ROOT}/references/intake-entry.md` for the key and the format. Read every `bake` candidate with `Status: open` or `watch` under this project's key, and report "no intake entries under `<path>`" when the directory is missing. Treat a candidate as a rule to automate when its slug appears in two or more source PRs, or when the user names it: a check costs CI time, false positives, and tolerance for the tool, so it earns its place the way prose does. The `Check` line names the tool and shape intake verified. When a CLAUDE.md line already states the candidate's rule (its `Existing coverage` may name it), the candidate and the line are one change, which removes the line. Otherwise the change adds the check alone.
 
 ### 4. Prove each check
 
-Before the report, run the planted-violation check in [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) for every proposed check. It must fail on the planted violation, and its message must name the fix: read it as a session that never saw the rule would. A formatter needs no message: it must rewrite the planted violation.
+Before the report, run the planted-violation check in `${CLAUDE_PLUGIN_ROOT}/references/probe.md` for every proposed check. It must fail on the planted violation, and its message must name the fix: read it as a session that never saw the rule would. A formatter needs no message: it must rewrite the planted violation.
 
 Then run it over the untouched tree and sort every hit:
 
@@ -67,7 +67,7 @@ A custom rule ships with its own test, through the harness step 1 noted: the pla
 
 ### 5. Approval and apply
 
-Present the decisions in rounds as [../../references/rounds.md](../../references/rounds.md) (relative to this skill's directory) prescribes, at most 5 checks per round, ranked by how often the rule was broken. Every check is a call: it costs CI time and false positives, so the user decides each one. Present the round before touching anything: which rules will be automated and by which tool, which stay prose and why. Read [../../references/decision-memory.md](../../references/decision-memory.md) (relative to this skill's directory) before routing, then pick the delivery as [../../references/decision-artifact.md](../../references/decision-artifact.md) prescribes under "Delivery". For the page, build it with the renderer that reference names.
+Present the decisions in rounds as `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` prescribes, at most 5 checks per round, ranked by how often the rule was broken. Every check is a call: it costs CI time and false positives, so the user decides each one. Present the round before touching anything: which rules will be automated and by which tool, which stay prose and why. Read `${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md` before routing, then pick the delivery as `${CLAUDE_PLUGIN_ROOT}/references/decision-artifact.md` prescribes under "Delivery". For the page, build it with the renderer that reference names.
 
 - Each rule to automate, or gap to close, is one `automate` change, with the tool named in the title. Its edits hold the check, its test, the fix of every violation it found, and the removal of the rule's prose when it has any.
 - When the fixes run past about 20 sites, the change holds a baseline in their place and keeps the prose: the check guards new code at once and holds the rule with a gap until a later run clears the baseline. Its card names the count, and the command that fixes them when a tool can (an autofix, a Rector rule). A note on the change asking to fix them all turns it back into a change with every fix.

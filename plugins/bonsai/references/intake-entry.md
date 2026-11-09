@@ -84,7 +84,7 @@ verified_on: 3f2a9c1
 - `Symbols`: every identifier the rule or check names, each marked `exists` on the default branch or the PR it waits for.
 - `Current code`: numerator, denominator, and verdict (`complies`, `contradicts`, `no instances`).
 - `Existing coverage`: instruction lines and enforcement surfaces already governing the behavior, or `none`.
-- `Rule` (prose) or `Check` (bake): final text on the indented line below the label, ready to copy, written to [rule-writing.md](rule-writing.md).
+- `Rule` (prose) or `Check` (bake): final text on the indented line below the label, ready to copy, written to `rule-writing.md`, in this directory.
 - `Target`: repo-relative path the rule or check lands in.
 - `Evidence`: direct thread links.
 - `History`: one dated line per write, by intake, feed, or bake.

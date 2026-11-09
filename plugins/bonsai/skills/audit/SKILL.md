@@ -15,13 +15,13 @@ Throughout the audit, "cut" means recording a cut verdict in the report. No file
 
 Default scope is the current project: its root CLAUDE.md, nested CLAUDE.md files, and the rule files they point to. User-level and ancestor-directory files load in every project, so include them only when the user asks, and evaluate them against a session in an arbitrary project (codebase greps and CI checks do not apply to them). Exclude vendored code, build output, and worktree copies everywhere: from the inventory and from every grep.
 
-Not everything called "referenced" is deferred. Classify each file by its load class before judging it: read [../../references/load-model.md](../../references/load-model.md) (relative to this skill's directory). Judge a scope-triggered line against a fresh session working in its scope, and count no saving for a move behind an `@path` import.
+Not everything called "referenced" is deferred. Classify each file by its load class before judging it: read `${CLAUDE_PLUGIN_ROOT}/references/load-model.md`. Judge a scope-triggered line against a fresh session working in its scope, and count no saving for a move behind an `@path` import.
 
 ## Never cut
 
 Check every line against this list before anything else. A match is a KEEP and skips the rest of the audit, with one exception: a rule a committed check holds may still fall in step 3, because the tool guarantees it. A safety prohibition stays whatever enforces it.
 
-- Safety prohibitions, as `references/load-model.md` defines them ("never force-push", "never run the seeder against a shared database")
+- Safety prohibitions, as `${CLAUDE_PLUGIN_ROOT}/references/load-model.md` defines them ("never force-push", "never run the seeder against a shared database")
 - Gotchas that contradict appearances (the call that silently no-ops, the flag that looks optional but is not). Greps come back clean precisely because the line works, so step 4 would misread these as derivable.
 - Conventions that differ from the framework or tool default, including conventions phrased with "never"
 - Precedence and routing clauses
@@ -29,7 +29,7 @@ Check every line against this list before anything else. A match is a KEEP and s
 
 ## The audit, in order
 
-A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 8 line by line, and present the result as one round when it fits the budget in `references/rounds.md`. Probes and the panel still decide what the steps route to them. A small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `references/probe.md`.
+A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 8 line by line, and present the result as one round when it fits the budget in `${CLAUDE_PLUGIN_ROOT}/references/rounds.md`. Probes and the panel still decide what the steps route to them. A small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `${CLAUDE_PLUGIN_ROOT}/references/probe.md`.
 
 ### 1. Inventory
 
@@ -48,13 +48,13 @@ Cut what a fresh session reconstructs with a few tool calls:
 
 Test: delete the line and name the mistake a session in the file's scope now makes. No mistake, no line. A line that fails the test but matters in one identifiable situation moves instead of dying (see "Extract to a referenced file").
 
-The six classes above cut on sight. A cut for any other derivability claim needs a derivability probe first, run as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: one fresh low-effort agent gets a task the line governs, in the file's scope, without the line, and whether it derives the fact or makes the mistake is the verdict. The loaded auditor has read the line and cannot un-read it, so its own guess is not evidence. A line in an always-resident file never probes clean: record that and send the candidate to the capability-floor panel instead.
+The six classes above cut on sight. A cut for any other derivability claim needs a derivability probe first, run as `${CLAUDE_PLUGIN_ROOT}/references/probe.md` prescribes: one fresh low-effort agent gets a task the line governs, in the file's scope, without the line, and whether it derives the fact or makes the mistake is the verdict. The loaded auditor has read the line and cannot un-read it, so its own guess is not evidence. A line in an always-resident file never probes clean: record that and send the candidate to the capability-floor panel instead.
 
 Evidence must hold everywhere the file is read. A pointer that fails only where the audit runs (a tool the auditor's settings deny, a skill the auditor lacks, a URL the auditor cannot open) may work for every other consumer of the file: record it as an open question for the user.
 
 ### 3. Enforcement verification
 
-Never trust a claim (yours or the file's) that "the linter handles this". Inspect every enforcement surface: formatter and linter configs, static analysis, architecture or convention tests, git hooks, CI workflows, and the project's committed `.claude/settings.json`. Record which surfaces you checked per rule. Then judge each rule's check against [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory):
+Never trust a claim (yours or the file's) that "the linter handles this". Inspect every enforcement surface: formatter and linter configs, static analysis, architecture or convention tests, git hooks, CI workflows, and the project's committed `.claude/settings.json`. Record which surfaces you checked per rule. Then judge each rule's check against `${CLAUDE_PLUGIN_ROOT}/references/enforcement.md`:
 
 - **Held**: the check meets every condition there. Cut the prose, and every clause that only names the check.
 - **Held with a gap**, or **unenforced**: step 4 decides, and the rule is a candidate for `/bonsai:bake`, which closes the gap or adds the check.
@@ -100,7 +100,7 @@ Exception: a fact stays in the pointer when the session needs it to pick WHICH t
 Two pointer shapes go on sight, because an agent reads every CLAUDE.md and rule file and nobody clicks in them:
 
 - **A Markdown link to a repository path** becomes the path in backticks, resolved against the file the link sits in and written from the repository root (`../README.md` in `docs/CLAUDE.md` becomes `README.md`). The link spells the path twice, and one whose text and target differ names two files. A link to a heading in the same file becomes the heading's name, and one to a heading in another file names both ("the Modals section of `resources/CLAUDE.md`"). An `@path` import is a load directive and stays bare. Record it as a rewrite.
-- **A pointer to a file the harness already loads** for the work it routes is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is whenever that work reads, writes or edits a file in its scope, creating the first file included: the scoped file arrives right after that call ([../../references/load-model.md](../../references/load-model.md), relative to this skill's directory). A pointer stays for work that starts with a command or acts outside the files (running a migration, a deploy, a `git` operation). A root pointer also stays when the repository serves an agent that reads only the root file (`references/load-model.md`, "Other agents"). A pointer that stays is a path in backticks.
+- **A pointer to a file the harness already loads** for the work it routes is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is whenever that work reads, writes or edits a file in its scope, creating the first file included: the scoped file arrives right after that call (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`). A pointer stays for work that starts with a command or acts outside the files (running a migration, a deploy, a `git` operation). A root pointer also stays when the repository serves an agent that reads only the root file (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, "Other agents"). A pointer that stays is a path in backticks.
 
 ```markdown
 <!-- Cut: the link and the discovery command. The nested file loads on the first file touch in that directory -->
@@ -120,11 +120,11 @@ State each fact once, at the smallest scope that covers its readers. When a rule
 
 ### 8. Second check
 
-The auditor wrote every rewrite and judges it with the same blind spots. Before the report, run a meaning check ([../../references/probe.md](../../references/probe.md), relative to this skill's directory) over every rewrite, move and extract: a fresh agent gets the current text, the proposed text and the stated reason, verifies against the repository, and answers "same" or "drift" per change. On a drift, revise the change once to address the finding and check it again. A change that still drifts goes to the user as a call, with the finding on its card.
+The auditor wrote every rewrite and judges it with the same blind spots. Before the report, run a meaning check (`${CLAUDE_PLUGIN_ROOT}/references/probe.md`) over every rewrite, move and extract: a fresh agent gets the current text, the proposed text and the stated reason, verifies against the repository, and answers "same" or "drift" per change. On a drift, revise the change once to address the finding and check it again. A change that still drifts goes to the user as a call, with the finding on its card.
 
 ## Precise but generic
 
-Phrasing gets judged only after a line earns its keep, against the standard in [../../references/rule-writing.md](../../references/rule-writing.md) (relative to this skill's directory). Every specific detail in a kept line (a class inventory, an enumerated list, a count) is either load-bearing, meaning generalizing it would change what a session does, or a liability that drifts as the code moves. When a kept line carries non-load-bearing specifics, record a **rewrite**: drop those specifics, keep the load-bearing identifiers verbatim, and change nothing else. A rewrite never widens scope, weakens the boundary, or adds advice, and every identifier it keeps gets verified against the codebase like any example symbol.
+Phrasing gets judged only after a line earns its keep, against the standard in `${CLAUDE_PLUGIN_ROOT}/references/rule-writing.md`. Every specific detail in a kept line (a class inventory, an enumerated list, a count) is either load-bearing, meaning generalizing it would change what a session does, or a liability that drifts as the code moves. When a kept line carries non-load-bearing specifics, record a **rewrite**: drop those specifics, keep the load-bearing identifiers verbatim, and change nothing else. A rewrite never widens scope, weakens the boundary, or adds advice, and every identifier it keeps gets verified against the codebase like any example symbol.
 
 Two senses of "generic" live in this skill. Step 2 cuts generic best practices because they pin no boundary. Generic here means phrased at the pattern level while still pinning one. When dropping the driftable specifics would leave nothing a session cannot derive, the line was inventory all along: cut it. Precision earns the keep, genericity makes it last.
 
@@ -140,11 +140,11 @@ Never write a new validator for a rule one in app/Validators already covers.
 
 Content needed only in a specific situation moves verbatim to a referenced file, leaving a one-line read-trigger behind ("read X before doing Y"). A move must beat the pointer it leaves behind: content no longer than its read-trigger stays resident. Reuse the project's existing referenced-doc location (detect it from current pointers) instead of inventing a new one. Deletion is only for content that fails step 2 outright.
 
-Environment-conditional content is its own extract class: sentences that bind only in some execution environments (a cloud sandbox, CI, containerized local dev). No load mechanism triggers on environment, so path scoping cannot help. The pattern is one resident discriminator line per environment naming the trigger and the doc ("cloud session? read X before running anything"), with everything conditional moved to that doc verbatim. Classifying each sentence by the environments it governs is judgement the loaded auditor shortcuts: run a classification probe (`references/probe.md`) with the single question "which execution environments does each sentence govern", and treat every section with mixed answers as an extract candidate.
+Environment-conditional content is its own extract class: sentences that bind only in some execution environments (a cloud sandbox, CI, containerized local dev). No load mechanism triggers on environment, so path scoping cannot help. The pattern is one resident discriminator line per environment naming the trigger and the doc ("cloud session? read X before running anything"), with everything conditional moved to that doc verbatim. Classifying each sentence by the environments it governs is judgement the loaded auditor shortcuts: run a classification probe (`${CLAUDE_PLUGIN_ROOT}/references/probe.md`) with the single question "which execution environments does each sentence govern", and treat every section with mixed answers as an extract candidate.
 
 ## Report delivery
 
-Read [../../references/decision-memory.md](../../references/decision-memory.md) (relative to this skill's directory) before routing, then pick the delivery as [../../references/decision-artifact.md](../../references/decision-artifact.md) prescribes under "Delivery". For the page, build it with the renderer that reference names. Each cut, rewrite, move or extract verdict is one change. Route it:
+Read `${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md` before routing, then pick the delivery as `${CLAUDE_PLUGIN_ROOT}/references/decision-artifact.md` prescribes under "Delivery". For the page, build it with the renderer that reference names. Each cut, rewrite, move or extract verdict is one change. Route it:
 
 - Cut on sight (step 2, or a pointer the harness already follows in step 6), a path link rewritten to a path in backticks (step 6), cut because a committed check holds the rule (step 3), or cut at 90% compliance or above (step 4): **ready**, grouped by cause.
 - Rewrite (step 6 or "Precise but generic") the second check found the same: **ready**, grouped by cause.
@@ -154,10 +154,10 @@ Read [../../references/decision-memory.md](../../references/decision-memory.md) 
 
 ## Rounds
 
-Keep the audit a single pass: verification is the expensive part, and findings interact (a false-claim fix changes the same lines a later trim rewrites). Present the decisions in rounds as [../../references/rounds.md](../../references/rounds.md) (relative to this skill's directory) prescribes. A correctness fix edits only the affected lines, leaving structure and wording untouched, so no diff mixes a factual fix with a taste rewrite. An open question rides in the round whose changes it gates.
+Keep the audit a single pass: verification is the expensive part, and findings interact (a false-claim fix changes the same lines a later trim rewrites). Present the decisions in rounds as `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` prescribes. A correctness fix edits only the affected lines, leaving structure and wording untouched, so no diff mixes a factual fix with a taste rewrite. An open question rides in the round whose changes it gates.
 
 ## Approval and apply
 
-Present each round in full before editing anything. Per change: the verdict, the exact text affected, and the evidence (surfaces checked, grep ratio, panel vote, second check). Approval arrives as the decisions message when the round is a page, and from AskUserQuestion in plain text, where the ship choice joins the first round's questions. Only edit after approval, and apply as `references/rounds.md` prescribes: one commit per cause on a branch, with a PR, when the user ships as a PR.
+Present each round in full before editing anything. Per change: the verdict, the exact text affected, and the evidence (surfaces checked, grep ratio, panel vote, second check). Approval arrives as the decisions message when the round is a page, and from AskUserQuestion in plain text, where the ship choice joins the first round's questions. Only edit after approval, and apply as `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` prescribes: one commit per cause on a branch, with a PR, when the user ships as a PR.
 
 After applying, re-resolve every pointer you touched. Close the report with before and after est. token totals per file, listing deferred (moved) tokens separately from deleted ones.

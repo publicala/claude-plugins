@@ -22,7 +22,7 @@ Check each candidate against this list before anything else:
 - A rule an existing CLAUDE.md line already states, or near-states. Drop it.
 - A style preference a linter or formatter in the repo already enforces. Drop it.
 - A one-off correction that looks situational. Drop it.
-- Anything a fresh session derives with a few tool calls (setup commands, stack inventories, directory layouts), or a convention the codebase demonstrates nearly everywhere. These two are claims about what a fresh session does, and the loaded model making them has already read everything it claims that session would derive. Before skipping for either, run a derivability probe as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: the task that surfaced the pattern, without the rule. The probe decides the skip. A wrongly written rule gets pruned by a later audit, a wrongly skipped one is gone for good, so the probe guards the skip side.
+- Anything a fresh session derives with a few tool calls (setup commands, stack inventories, directory layouts), or a convention the codebase demonstrates nearly everywhere. These two are claims about what a fresh session does, and the loaded model making them has already read everything it claims that session would derive. Before skipping for either, run a derivability probe as `${CLAUDE_PLUGIN_ROOT}/references/probe.md` prescribes: the task that surfaced the pattern, without the rule. The probe decides the skip. A wrongly written rule gets pruned by a later audit, a wrongly skipped one is gone for good, so the probe guards the skip side.
 
 ## The pass, in order
 
@@ -42,7 +42,7 @@ Group what recurs into candidate rules: the same correction asked for twice, the
 
 ### 3. Route
 
-For each candidate, decide whether a tool could enforce it instead (lint, static analysis, architecture test, CI, hook). If so, the proposal is a deferral to `/bonsai:bake`, whatever fixing a violation costs: [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory) explains why no line stays next to a check. `Class: bake` intake candidates always route there. An intake candidate bake moved to `Class: prose` stays a feed proposal: bake already declined the check, and its `History` line gives the reason.
+For each candidate, decide whether a tool could enforce it instead (lint, static analysis, architecture test, CI, hook). If so, the proposal is a deferral to `/bonsai:bake`, whatever fixing a violation costs: `${CLAUDE_PLUGIN_ROOT}/references/enforcement.md` explains why no line stays next to a check. `Class: bake` intake candidates always route there. An intake candidate bake moved to `Class: prose` stays a feed proposal: bake already declined the check, and its `History` line gives the reason.
 
 ### 4. Place
 
@@ -57,11 +57,11 @@ Default to the smallest scope that still captures the rule, and promote to root 
 
 ### 5. Write the rule text
 
-Write each proposal in final form, following [../../references/rule-writing.md](../../references/rule-writing.md) (relative to this skill's directory). For an intake candidate, copy its `Rule` text and re-verify every symbol it names against the current tree: `verified_on` may be stale.
+Write each proposal in final form, following `${CLAUDE_PLUGIN_ROOT}/references/rule-writing.md`. For an intake candidate, copy its `Rule` text and re-verify every symbol it names against the current tree: `verified_on` may be stale.
 
 ## Intake entries
 
-`/bonsai:intake` records verified evidence from PR reviews under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read [../../references/intake-entry.md](../../references/intake-entry.md) (relative to this skill's directory) for the key, the format, and how recurrence is counted. Then:
+`/bonsai:intake` records verified evidence from PR reviews under `~/.claude/bonsai/intake/<key>/` and, when exported, under the project's `.claude/bonsai/candidates/`. Read `${CLAUDE_PLUGIN_ROOT}/references/intake-entry.md` for the key, the format, and how recurrence is counted. Then:
 
 - Read every candidate with `Status: open` or `Status: watch` under this project's key. Report "no intake entries under `<path>`" when the directory is missing.
 - Propose a candidate when its slug appears in two or more source PRs, or when the user names it. One PR is an incident, two are a pattern. A `watch` candidate goes through the derivability probe (see "Never propose") before it is proposed or skipped.
@@ -69,6 +69,6 @@ Write each proposal in final form, following [../../references/rule-writing.md](
 
 ## Approval and apply
 
-Rank the candidates by recurrence (source PRs and corrections that carry the slug) and propose at most 5 per round. The rest wait for the next round, as [../../references/rounds.md](../../references/rounds.md) (relative to this skill's directory) prescribes. Read [../../references/decision-memory.md](../../references/decision-memory.md) (relative to this skill's directory) before routing, then pick the delivery as [../../references/decision-artifact.md](../../references/decision-artifact.md) prescribes under "Delivery". For the page, build it with the renderer that reference names. In AskUserQuestion, each rule shows its exact text, the suggested target path (the user may pick another), and, where step 3 applies, the defer-to-bake option. Each candidate is one `add` change in lane call: its exact rule text is the edit, its target path the file (marked `new` when feed creates it), and the recurrences that justify it are the evidence.
+Rank the candidates by recurrence (source PRs and corrections that carry the slug) and propose at most 5 per round. The rest wait for the next round, as `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` prescribes. Read `${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md` before routing, then pick the delivery as `${CLAUDE_PLUGIN_ROOT}/references/decision-artifact.md` prescribes under "Delivery". For the page, build it with the renderer that reference names. In AskUserQuestion, each rule shows its exact text, the suggested target path (the user may pick another), and, where step 3 applies, the defer-to-bake option. Each candidate is one `add` change in lane call: its exact rule text is the edit, its target path the file (marked `new` when feed creates it), and the recurrences that justify it are the evidence.
 
-Only write after approval, and apply as `references/rounds.md` prescribes: one commit per rule. Create the target file if it does not exist, and append under a heading that matches its existing structure. Then update the intake entries the run encoded.
+Only write after approval, and apply as `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` prescribes: one commit per rule. Create the target file if it does not exist, and append under a heading that matches its existing structure. Then update the intake entries the run encoded.

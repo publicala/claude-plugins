@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 
 // Fails when a relative Markdown link points at a missing file, when a
-// SKILL.md names a bundled file that does not exist or breaks a
-// frontmatter rule, when a plugin's manifests disagree with the tree, or
-// when a plugin file reads a path above the plugin's root.
+// SKILL.md links to a bundled file, names one without its variable or
+// one that does not exist, or breaks a frontmatter rule, when a plugin's
+// manifests disagree with the tree, or when a plugin file reads a path
+// above the plugin's root.
 import { existsSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, posix, relative, resolve } from "node:path";
 
 import {
   errorAnnotation,
@@ -158,6 +159,9 @@ export function validateLinks(file: string, text: string): Finding[] {
 const SKILL_PATH =
   /\$\{(CLAUDE_SKILL_DIR|CLAUDE_PLUGIN_ROOT)\}((?:\/[\w.@~+-]*)*)([<*{[$]?)/g;
 
+// A path that starts at one of those variables.
+const SKILL_VARIABLE = /^\$\{(?:CLAUDE_SKILL_DIR|CLAUDE_PLUGIN_ROOT)\}/;
+
 /**
  * Resolves each `${CLAUDE_SKILL_DIR}` and `${CLAUDE_PLUGIN_ROOT}` path in
  * a SKILL.md, code spans and fenced blocks included, as Claude Code does
@@ -174,7 +178,24 @@ export function validateSkillPaths(
   const unquoted = unquoteSkillVariables(text);
 
   return [...unquoted.matchAll(SKILL_PATH)].flatMap(
-    ({ 1: variable, 2: suffix = "", 3: placeholder, index }) => {
+    ({ 0: match, 1: variable, 2: suffix = "", 3: placeholder, index }) => {
+      const next = index + match.length - 1;
+      const inner =
+        placeholder === "$"
+          ? /^\$\{(?:CLAUDE_SKILL_DIR|CLAUDE_PLUGIN_ROOT)\}[\w.@~+/-]*/.exec(
+              unquoted.slice(next),
+            )?.[0]
+          : undefined;
+
+      if (inner !== undefined) {
+        return [
+          {
+            line: lineAt(unquoted, index),
+            message: `${unquoted.slice(index, next)}${inner} starts at two variables, and Claude Code substitutes both. Keep one: write ${inner}.`,
+          },
+        ];
+      }
+
       const checked = placeholder
         ? suffix.slice(0, suffix.lastIndexOf("/"))
         : suffix.replace(/\.+$/, "");
@@ -195,6 +216,177 @@ export function validateSkillPaths(
       ];
     },
   );
+}
+
+/**
+ * Flags a relative link in a SKILL.md. An agent reads the skill and never
+ * follows a link, and Claude Code substitutes `${CLAUDE_SKILL_DIR}` and
+ * `${CLAUDE_PLUGIN_ROOT}` when it loads the skill, so a bundled file is
+ * named by that path in backticks. The SKILL.md path is relative to the
+ * root.
+ */
+export function validateSkillLinks(path: string, text: string): Finding[] {
+  const skillDirectory = posix.dirname(path);
+  const pluginRoot = posix.dirname(posix.dirname(skillDirectory));
+
+  const reported = new Set<number | string>();
+
+  return locatedLinkTargets(text).flatMap(({ target, index }) => {
+    if (
+      /^[a-z][a-z0-9+.-]*:/i.test(target) ||
+      target.startsWith("#") ||
+      target.startsWith("/") ||
+      reported.has(index ?? target)
+    ) {
+      return [];
+    }
+
+    // Every use of a reference link reads its one definition, so the uses
+    // share an index and the definition gets one finding.
+    reported.add(index ?? target);
+
+    const destination = target.split("#")[0] ?? "";
+    const resolved = posix.join(skillDirectory, destination);
+    const fromSkill = posix.relative(skillDirectory, resolved);
+    const written = SKILL_VARIABLE.test(destination)
+      ? destination
+      : fromSkill.startsWith("..")
+        ? `\${CLAUDE_PLUGIN_ROOT}/${posix.relative(pluginRoot, resolved)}`
+        : `\${CLAUDE_SKILL_DIR}/${fromSkill}`;
+
+    const label =
+      index === undefined
+        ? undefined
+        : /^ {0,3}\[([^\]]+)\]:\s*<?$/.exec(
+            text.slice(text.lastIndexOf("\n", index - 1) + 1, index),
+          )?.[1];
+    const repair =
+      label === undefined
+        ? `write \`${written}\` in backticks`
+        : `replace every use of [${label}] with \`${written}\` in backticks, and delete this definition`;
+
+    return [
+      {
+        line: index === undefined ? undefined : lineAt(text, index),
+        message: `${label === undefined ? "links" : `defines [${label}] as a link`} to ${target}. An agent reads the skill and never follows a link: ${repair}. Claude Code resolves the path when it loads the skill.`,
+      },
+    ];
+  });
+}
+
+// A run of backticks, the text it opens and a closing run of the same
+// length: a code span, or a copy of one inside a fenced block.
+const CODE_SPAN_CANDIDATE = /(?<!`)(`+)(?!`)([^`\n]+?)(?<!`)\1(?!`)/g;
+
+/**
+ * Each inline code span with the index where its text starts. A parser
+ * decides what is a span, so a fence inside a quote or a list item, or a
+ * triple-backtick span at the start of a line, reads as Markdown does.
+ * The parser reports no positions, so every candidate gets a numbered tag
+ * and the tags that come back name the real spans.
+ */
+export function locatedCodeSpans(
+  text: string,
+): { content: string; index: number }[] {
+  const candidates = [...text.matchAll(CODE_SPAN_CANDIDATE)].map(
+    ({ 1: fence = "", 2: content = "", index }) => ({
+      content,
+      index: index + fence.length,
+    }),
+  );
+  const tagged = candidates.reduceRight(
+    (source, { content, index }, tag) =>
+      `${source.slice(0, index + content.length)}\uE000${tag}\uE001${source.slice(index + content.length)}`,
+    text,
+  );
+  const spans = new Set<number>();
+
+  Bun.markdown.render(tagged, {
+    codespan: (children) => {
+      const tag = /\uE000(\d+)\uE001$/.exec(children)?.[1];
+
+      if (tag !== undefined) {
+        spans.add(Number(tag));
+      }
+
+      return children;
+    },
+  });
+
+  return candidates.filter((_, tag) => spans.has(tag));
+}
+
+// One relative path: dot segments first, then names.
+const RELATIVE_PATH = /^(?:\.{1,2}\/)*[\w@+-][\w.@+-]*(?:\/[\w.@+-]+)*\/?$/;
+
+/**
+ * The variable path for a file bundled with the plugin, written as a
+ * skill would name it: `../` and `./` from the skill's directory, a bare
+ * path from the skill's directory or the plugin root. A bare name names
+ * only a file or directory next to the SKILL.md, since a skill that
+ * writes `README.md` means the project's.
+ */
+function bundledPath(
+  root: string,
+  path: string,
+  written: string,
+): string | undefined {
+  const skillDirectory = posix.dirname(path);
+  const pluginRoot = posix.dirname(posix.dirname(skillDirectory));
+  const bases = written.startsWith(".")
+    ? [skillDirectory]
+    : written.includes("/")
+      ? [skillDirectory, pluginRoot]
+      : [skillDirectory];
+
+  const resolved = bases
+    .map((base) => posix.join(base, written))
+    .find(
+      (candidate) =>
+        candidate !== path &&
+        !posix.relative(pluginRoot, candidate).startsWith("..") &&
+        existsSync(join(root, candidate)),
+    );
+
+  if (resolved === undefined) {
+    return undefined;
+  }
+
+  const fromSkill = posix.relative(skillDirectory, resolved);
+
+  return fromSkill.startsWith("..")
+    ? `\${CLAUDE_PLUGIN_ROOT}/${posix.relative(pluginRoot, resolved)}`
+    : `\${CLAUDE_SKILL_DIR}/${fromSkill}`;
+}
+
+/**
+ * Flags a code span in a SKILL.md that names a bundled file without its
+ * variable. An agent resolves `references/rounds.md` against the project
+ * it works in, so the span names `${CLAUDE_PLUGIN_ROOT}/references/rounds.md`.
+ * The SKILL.md path is relative to the root.
+ */
+export function validateBareSkillPaths(
+  root: string,
+  path: string,
+  text: string,
+): Finding[] {
+  return locatedCodeSpans(text).flatMap(({ content, index }) => {
+    const written = content.trim();
+    const variablePath = RELATIVE_PATH.test(written)
+      ? bundledPath(root, path, written)
+      : undefined;
+
+    if (variablePath === undefined) {
+      return [];
+    }
+
+    return [
+      {
+        line: lineAt(text, index),
+        message: `names ${written}, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write \`${variablePath}\`.`,
+      },
+    ];
+  });
 }
 
 function isMapping(value: unknown): value is Record<string, unknown> {
@@ -347,15 +539,15 @@ export async function validatePlugins(root: string): Promise<{
     markdown.map(async (path) => {
       const file = join(root, path);
       const text = await Bun.file(file).text();
-      const findings = [
-        ...validateLinks(file, text),
-        ...(/\/skills\/[^/]+\/SKILL\.md$/.test(file)
-          ? [
-              ...validateSkillPaths(root, path, text),
-              ...validateFrontmatter(file, text),
-            ]
-          : []),
-      ];
+      // A SKILL.md takes no relative link, so its own check names each one.
+      const findings = /\/skills\/[^/]+\/SKILL\.md$/.test(file)
+        ? [
+            ...validateSkillPaths(root, path, text),
+            ...validateSkillLinks(path, text),
+            ...validateBareSkillPaths(root, path, text),
+            ...validateFrontmatter(file, text),
+          ]
+        : validateLinks(file, text);
 
       return findings.map((finding) =>
         Object.assign(finding, { file: relative(root, file) }),

@@ -5,10 +5,13 @@ import { join } from "node:path";
 import type { Annotation } from "./workflow-command";
 import {
   linkTargets,
+  locatedCodeSpans,
   main,
   validateFrontmatter,
   validateLinks,
+  validateBareSkillPaths,
   validatePlugins,
+  validateSkillLinks,
   validateSkillPaths,
 } from "./validate-plugins";
 import { tempRepo } from "./temp-repo";
@@ -136,6 +139,47 @@ describe("validateSkillPaths", () => {
     expect(validateSkillPaths(ROOT, DIAGRAM, text)).toEqual([]);
   });
 
+  test("checks a backticked reference path that replaces a link", () => {
+    const AUDIT = "plugins/bonsai/skills/audit/SKILL.md";
+
+    expect(
+      validateSkillPaths(
+        ROOT,
+        AUDIT,
+        "Read `${CLAUDE_PLUGIN_ROOT}/references/load-model.md`.",
+      ),
+    ).toEqual([]);
+    expect(
+      validateSkillPaths(
+        ROOT,
+        AUDIT,
+        "Read `${CLAUDE_PLUGIN_ROOT}/references/gone.md`.",
+      ),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "${CLAUDE_PLUGIN_ROOT}/references/gone.md resolves to plugins/bonsai/references/gone.md, which does not exist. Fix the path or restore the file.",
+      },
+    ]);
+  });
+
+  test("rejects a path that starts at two variables", () => {
+    expect(
+      validateSkillPaths(
+        ROOT,
+        "plugins/bonsai/skills/audit/SKILL.md",
+        "Read `${CLAUDE_SKILL_DIR}/${CLAUDE_PLUGIN_ROOT}/references/rounds.md`.",
+      ),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "${CLAUDE_SKILL_DIR}/${CLAUDE_PLUGIN_ROOT}/references/rounds.md starts at two variables, and Claude Code substitutes both. Keep one: write ${CLAUDE_PLUGIN_ROOT}/references/rounds.md.",
+      },
+    ]);
+  });
+
   test("names the variable, the resolved path and the fix", () => {
     const text = [
       "Intro.",
@@ -176,6 +220,200 @@ describe("validateSkillPaths", () => {
           "${CLAUDE_SKILL_DIR}/gone resolves to plugins/blueprint/skills/diagram/gone, which does not exist. Fix the path or restore the file.",
       },
     ]);
+  });
+});
+
+describe("validateSkillLinks", () => {
+  const AUDIT = "plugins/bonsai/skills/audit/SKILL.md";
+
+  test("names the backticked path that replaces a link to a bundled file", () => {
+    const text = [
+      "Read [../../references/load-model.md](../../references/load-model.md) (relative to this skill's directory).",
+      "",
+      "Start from [the example](examples/flow.md#top) and [the diagram skill](../diagram/SKILL.md).",
+    ].join("\n");
+
+    expect(validateSkillLinks(AUDIT, text)).toEqual([
+      {
+        line: 1,
+        message:
+          "links to ../../references/load-model.md. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/references/load-model.md` in backticks. Claude Code resolves the path when it loads the skill.",
+      },
+      {
+        line: 3,
+        message:
+          "links to examples/flow.md#top. An agent reads the skill and never follows a link: write `${CLAUDE_SKILL_DIR}/examples/flow.md` in backticks. Claude Code resolves the path when it loads the skill.",
+      },
+      {
+        line: 3,
+        message:
+          "links to ../diagram/SKILL.md. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/skills/diagram/SKILL.md` in backticks. Claude Code resolves the path when it loads the skill.",
+      },
+    ]);
+  });
+
+  test("names one repair on the definition of a reference link, however many uses it has", () => {
+    const text = [
+      "Read [the guide][docs] first, and [it][docs] again.",
+      "",
+      "Then [rounds][].",
+      "",
+      "[docs]: ../../references/guide.md",
+      "[rounds]: <../../references/rounds.md> 'Rounds'",
+    ].join("\n");
+
+    expect(validateSkillLinks(AUDIT, text)).toEqual([
+      {
+        line: 5,
+        message:
+          "defines [docs] as a link to ../../references/guide.md. An agent reads the skill and never follows a link: replace every use of [docs] with `${CLAUDE_PLUGIN_ROOT}/references/guide.md` in backticks, and delete this definition. Claude Code resolves the path when it loads the skill.",
+      },
+      {
+        line: 6,
+        message:
+          "defines [rounds] as a link to ../../references/rounds.md. An agent reads the skill and never follows a link: replace every use of [rounds] with `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` in backticks, and delete this definition. Claude Code resolves the path when it loads the skill.",
+      },
+    ]);
+  });
+
+  test("keeps the variable a link already starts with", () => {
+    expect(
+      validateSkillLinks(
+        AUDIT,
+        "Read [rounds](${CLAUDE_PLUGIN_ROOT}/references/rounds.md#apply).",
+      ),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "links to ${CLAUDE_PLUGIN_ROOT}/references/rounds.md#apply. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` in backticks. Claude Code resolves the path when it loads the skill.",
+      },
+    ]);
+  });
+
+  test("leaves urls, anchors and links in code alone", () => {
+    const text = [
+      "See [the docs](https://code.claude.com/docs/en/skills) and [Step 2](#step-2).",
+      "",
+      "```markdown",
+      "Utilities live under [`app/`](app/CLAUDE.md).",
+      "```",
+      "",
+      "Write `![Overview](./img/overview.png)` in the doc.",
+    ].join("\n");
+
+    expect(validateSkillLinks(AUDIT, text)).toEqual([]);
+  });
+});
+
+describe("validateBareSkillPaths", () => {
+  const ROOT = join(import.meta.dir, "..");
+  const SPLIT = "plugins/bonsai/skills/split/SKILL.md";
+  const DIAGRAM = "plugins/blueprint/skills/diagram/SKILL.md";
+
+  test("names the variable a bundled path in a code span leaves out", () => {
+    const text = [
+      "Apply as `references/rounds.md` prescribes.",
+      "",
+      "Start from `examples/flow.diagram.html`.",
+    ].join("\n");
+
+    expect(validateBareSkillPaths(ROOT, SPLIT, text)).toEqual([
+      {
+        line: 1,
+        message:
+          "names references/rounds.md, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write `${CLAUDE_PLUGIN_ROOT}/references/rounds.md`.",
+      },
+    ]);
+    expect(validateBareSkillPaths(ROOT, DIAGRAM, text)).toEqual([
+      {
+        line: 3,
+        message:
+          "names examples/flow.diagram.html, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write `${CLAUDE_SKILL_DIR}/examples/flow.diagram.html`.",
+      },
+    ]);
+  });
+
+  test("reads code the way Markdown does, in quotes, list items and triple-backtick spans", () => {
+    const text = [
+      "> ```",
+      "> `references/rounds.md`",
+      "> ```",
+      "",
+      "- Item:",
+      "",
+      "  ```",
+      "  `references/rounds.md`",
+      "  ```",
+      "",
+      "```references/probe.md``` and `references/rounds.md`.",
+    ].join("\n");
+
+    expect(locatedCodeSpans(text).map(({ content }) => content)).toEqual([
+      "references/probe.md",
+      "references/rounds.md",
+    ]);
+    expect(
+      validateBareSkillPaths(ROOT, SPLIT, text).map(({ line }) => line),
+    ).toEqual([11, 11]);
+  });
+
+  test("resolves dot paths from the skill's directory", () => {
+    expect(
+      validateBareSkillPaths(
+        ROOT,
+        SPLIT,
+        "Read `../../references/rounds.md`, not `../README.md` or `../../../README.md`.",
+      ),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "names ../../references/rounds.md, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write `${CLAUDE_PLUGIN_ROOT}/references/rounds.md`.",
+      },
+    ]);
+    expect(
+      validateBareSkillPaths(
+        ROOT,
+        DIAGRAM,
+        "Start from `./examples/flow.diagram.html`.",
+      ),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "names ./examples/flow.diagram.html, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write `${CLAUDE_SKILL_DIR}/examples/flow.diagram.html`.",
+      },
+    ]);
+  });
+
+  test("names a bare file only next to the SKILL.md", () => {
+    expect(
+      validateBareSkillPaths(
+        ROOT,
+        DIAGRAM,
+        "Edit `README.md` and `SKILL.md`, then open `examples`.",
+      ),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "names examples, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write `${CLAUDE_SKILL_DIR}/examples`.",
+      },
+    ]);
+  });
+
+  test("leaves variable paths, project paths and fenced blocks alone", () => {
+    const text = [
+      "Read `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` and `.claude/rules/`.",
+      "Edit `app/Console/Commands/Acme/` and `references/gone.md`.",
+      "",
+      "```bash",
+      "cat references/rounds.md `references/rounds.md`",
+      "```",
+    ].join("\n");
+
+    expect(validateBareSkillPaths(ROOT, SPLIT, text)).toEqual([]);
   });
 });
 
@@ -423,7 +661,7 @@ const COMPLIANT_SKILL = [
   "disable-model-invocation: false",
   "---",
   "",
-  "Read [the README](../../README.md).",
+  "Read `${CLAUDE_PLUGIN_ROOT}/README.md`.",
   "",
 ].join("\n");
 
@@ -541,6 +779,39 @@ describe("validatePlugins", () => {
         line: 11,
         message:
           "${CLAUDE_PLUGIN_ROOT}/scripts/prune.ts resolves to plugins/demo/scripts/prune.ts, which does not exist. Fix the path or restore the file.",
+      },
+    ]);
+  });
+
+  test("flags a link to a bundled file in a SKILL.md, and only there", async () => {
+    expect(
+      await problemsIn({
+        "plugins/demo/references/rounds.md":
+          "# Rounds\n\nSee [a](rounds.md).\n",
+        "plugins/demo/skills/audit/SKILL.md": `${COMPLIANT_SKILL}\nRead [rounds.md](../../references/rounds.md).\n`,
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/skills/audit/SKILL.md",
+        line: 10,
+        message:
+          "links to ../../references/rounds.md. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` in backticks. Claude Code resolves the path when it loads the skill.",
+      },
+    ]);
+  });
+
+  test("flags a bare name of a file next to the SKILL.md", async () => {
+    expect(
+      await problemsIn({
+        "plugins/demo/skills/audit/template.md": "# Template\n",
+        "plugins/demo/skills/audit/SKILL.md": `${COMPLIANT_SKILL}\nCopy \`template.md\`.\n`,
+      }),
+    ).toEqual([
+      {
+        file: "plugins/demo/skills/audit/SKILL.md",
+        line: 10,
+        message:
+          "names template.md, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write `${CLAUDE_SKILL_DIR}/template.md`.",
       },
     ]);
   });
