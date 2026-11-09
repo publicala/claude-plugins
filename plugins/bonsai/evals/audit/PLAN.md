@@ -40,7 +40,8 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - path link in a repository whose CLAUDE.md lint allows links → expect a rewrite plus a bake candidate, never a reported lint violation
 - `Read [docs/frontend.md](docs/frontend.md) before writing a view.`, where views live outside `docs/` → expect the trigger kept, rewritten to `docs/frontend.md` in backticks
 - rule held by a check whose baseline still lists violations of it → expect it judged as unenforced (step 4 measures it), and the baseline named as a bake candidate
-- line listing an order's allowed transitions ("pending to paid, never back"), unenforced → expect a call asked as a question that hands it to guard, `/bonsai:guard` in `next`, and no state machine or refactor proposed
+- line listing an order's allowed transitions ("pending to paid, never back"), unenforced → expect a call asked as a question, `/bonsai:bake` in `next` for a test of the allowed transitions, and no state machine or refactor proposed
+- stored `agents` of `[]` in a repository that now has a root `AGENTS.md` → expect the question asked again before any pointer cut
 - environment-only section (cloud sandbox setup) → expect the extract behind a discriminator line, and no hook proposed
 - deploy procedure whose files all live under `deploy/` → expect a move with destination `skill`, as a call, to `deploy/.claude/skills/<name>/SKILL.md`
 - release procedure that edits `app/`, `config/` and `docs/` → expect a move with destination `skill`, as a call, to a root `.claude/skills/<name>/` skill with `paths:` globs

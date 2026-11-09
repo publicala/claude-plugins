@@ -52,7 +52,7 @@ A check that runs only in CI reaches the session after it pushed, so a fast one 
 
 A rule about allowed transitions ("an order goes from pending to paid, and never back") is held best by a state machine or a transition guard (R1). That redesigns domain code, so only guard proposes it, from a review finding, and its cost gate weighs it against an R2 check such as a test of the allowed transitions. Expect the test for a single slip, and the state machine when the same kind of finding recurs or the transitions have many writers.
 
-Audit never proposes the refactor. A line that lists transitions becomes a call: "a transition guard or a check would hold this, hand it to guard".
+A candidate from anything other than a review finding (an audited line, a conversation correction, a commit diff) never reaches guard, which reads only PR review threads. It goes to bake for the test. Audit never proposes the refactor: a line that lists transitions becomes a call, "a transition guard or a check would hold this", handed to bake.
 
 ## Agents other than Claude Code
 

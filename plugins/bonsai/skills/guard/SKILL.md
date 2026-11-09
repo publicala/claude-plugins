@@ -125,7 +125,7 @@ A candidate passes when three things hold:
 - **Fit**: a tool the repository runs expresses it, with few exceptions.
 - **Size**: its fixes fit one PR. An auto-fix fits at any count. More than about 20 fixes by hand, or fixes that need a refactor, go to a prep PR first, and the guardrail PR stacks on it: make the change easy, then make the easy change.
 
-A state machine against a test of the allowed transitions: recommend the test for a single slip, and the state machine when the same kind of finding recurs across reviews or the transitions have many writers: a test checks the writers it knows, and a state machine refuses every write that goes around it. Show the other as the `alternative`.
+A state machine against a test of the allowed transitions: recommend the test for a single slip, and the state machine when the same kind of finding recurs across reviews or the transitions have many writers: a test checks the writers it knows, and a state machine refuses every write that goes around it. Show the other as the `alternative`. A state machine holds only the writes that go through it: list every writer of the field (bulk updates, raw queries, other services), and name on the card each one that bypasses it, with a bypass attempt in the proof.
 
 Cover only the code forms in use today. A check that guards forms nobody writes yet is upkeep with nothing to catch. A candidate that fails the gate is **not now**, with the reason. A close call goes to the user as one. The artifact is one cost line per candidate, with its why and its tradeoff.
 

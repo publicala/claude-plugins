@@ -62,7 +62,7 @@ Never trust a claim (yours or the file's) that "the linter handles this". Inspec
 
 - **Held**: the check meets every condition there. Cut the prose, and every clause that only names the check.
 - **Held with a gap**, or **unenforced**: step 4 decides, and the rule is a candidate for `/bonsai:bake`, which closes the gap or adds the check.
-- **A list of allowed transitions** ("an order goes from pending to paid, never back"): a call, asked as a question, "a transition guard or a check would hold this, hand it to guard", with `/bonsai:guard` in `next`. The redesign belongs to guard (`${CLAUDE_PLUGIN_ROOT}/references/delivery.md`, "Domain redesigns"), so audit proposes no refactor.
+- **A list of allowed transitions** ("an order goes from pending to paid, never back"): a call, asked as a question, "a transition guard or a check would hold this". Hand it to `/bonsai:bake` in `next`, for a test of the allowed transitions. Only `/bonsai:guard` proposes the state machine, from a review finding (`${CLAUDE_PLUGIN_ROOT}/references/delivery.md`, "Domain redesigns"), so audit proposes no refactor.
 
 Expect surprises in both directions: rules believed enforced that are not, and rules believed prose-only that a formatter already fixes.
 
@@ -167,7 +167,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md` before routing, then 
 - Cut on sight (step 2, or a pointer the harness already follows in step 6), a path link rewritten to a path in backticks (step 6), cut because a committed check holds the rule (step 3), or cut at 90% compliance or above (step 4): **ready**, grouped by cause.
 - Rewrite (step 6 or "Precise but generic") the second check found the same: **ready**, grouped by cause.
 - False or stale claim, rewrite that still drifts, cut by a split panel vote or at a borderline compliance count, move, extract: **call**.
-- A transition list handed to guard, a hook that meets the R6 bar, an orphan or a pair of scoped files that point at each other: **call**, asked as a question. A transition list puts `/bonsai:guard` in `next`, and a placement smell `/bonsai:split`.
+- A transition list, a hook that meets the R6 bar, an orphan or a pair of scoped files that point at each other: **call**, asked as a question. A transition list puts `/bonsai:bake` in `next`, and a placement smell `/bonsai:split`.
 - Evidence that holds only in the auditor's environment, a foreign-format migration proposal: **question**.
 - Keep: `kept`, with nothing to decide.
 
