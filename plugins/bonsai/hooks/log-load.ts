@@ -214,10 +214,13 @@ export function logPath(home: string, key: string): string {
 export function recordLoad(input: LoadInput, home: string, time: Date): string {
   const cwd = input.cwd ?? process.cwd();
   const repository = findRepository(cwd);
+  // --no-filters keeps a configured clean filter, which runs any command,
+  // from starting. The hash is of the bytes the session read.
   const blob =
     input.file_path === undefined
       ? null
-      : (git(cwd, "hash-object", "--", input.file_path) ?? null);
+      : (git(cwd, "hash-object", "--no-filters", "--", input.file_path) ??
+        null);
   const path = logPath(home, repository.key);
 
   mkdirSync(dirname(path), { recursive: true });

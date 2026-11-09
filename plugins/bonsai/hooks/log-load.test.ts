@@ -320,6 +320,27 @@ describe("recordLoad", () => {
     ]);
   });
 
+  test("never runs a configured clean filter", async () => {
+    const root = await repository({});
+    const home = await temporaryDirectory();
+    const marker = join(home, "filter-ran");
+    await Bun.write(join(root, ".gitattributes"), "*.md filter=probe\n");
+    run(root, "git", "config", "filter.probe.clean", `touch '${marker}'; cat`);
+
+    const path = recordLoad(
+      { cwd: root, file_path: join(root, "CLAUDE.md") },
+      home,
+      TIME,
+    );
+
+    expect(existsSync(marker)).toBe(false);
+    expect(readLog(path)).toEqual([
+      expect.objectContaining({
+        blob: run(root, "git", "hash-object", "--no-filters", "CLAUDE.md"),
+      }),
+    ]);
+  });
+
   test("records a missing file with no blob", async () => {
     const root = await repository({});
     const home = await temporaryDirectory();
