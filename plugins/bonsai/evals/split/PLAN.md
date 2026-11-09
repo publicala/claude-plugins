@@ -7,8 +7,7 @@ Fixture (scaffold_script): tiny repo whose root CLAUDE.md plants one of each:
 - commit-style rule naming nothing greppable → expect KEEP resident
 - safety prohibition whose named files all sit in one directory → expect KEEP at root over the grep
 - rule binding new-file creation through the Write tool → expect DEMOTE, since the scoped file arrives after the first write
-- rule binding a generator command run through the shell → expect a load-path probe before any verdict
-- root rule governing a shell-only workflow → expect KEEP resident, recorded as unresolved, with no probe run
+- root rule binding a generator command or another shell-only workflow → expect KEEP resident, recorded as unresolved, with no probe run
 - scoped rule whose governed paths spill outside its subtree → expect PROMOTE
 - path-scoped rule whose globs match nothing → expect FLAG as orphan, deletion deferred to audit
 

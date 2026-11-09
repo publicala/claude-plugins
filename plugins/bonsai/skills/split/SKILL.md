@@ -87,7 +87,7 @@ After applying, verify that each scoped file the edits created or re-globbed act
 
 A moved rule keeps its exact text. The only permitted edit is deleting a scope qualifier the destination now expresses: "In tests/, never use RefreshDatabase" becomes "Never use RefreshDatabase" inside `tests/CLAUDE.md`. Phrasing improvements belong to `/bonsai:audit`.
 
-A demotion leaves nothing behind. The scoped file loads automatically, so a pointer at root would rebuild the cost the move removed. Create the destination file if it is missing, and append under a heading that matches its existing structure.
+A demotion leaves nothing behind. The scoped file loads automatically, so a pointer at root would rebuild the cost the move removed. The one exception is a repository that serves an agent reading only the root file: there the demotion leaves the one-line root pointer step 3 names. Create the destination file if it is missing, and append under a heading that matches its existing structure.
 
 ## Skill candidates
 
