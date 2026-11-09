@@ -2,11 +2,13 @@
 
 What a session pays for a CLAUDE.md line depends only on how the file reaches the context. Classify every in-scope file before judging or placing its lines.
 
+The harness canaries check when nested files, path rules and skills load, in a session and in a subagent, and which AGENTS.md files Codex reads, against the Claude Code and Codex installed on your machine: run `bun evals/harness/run.ts` from the plugin root after an update ([../evals/README.md](../evals/README.md)). Every other fact here rests on manual probes.
+
 ## Four classes
 
 - **Always resident**: the root CLAUDE.md, user-level and ancestor-directory files, and anything they pull in with `@path` imports. Full price in every session. An `@path` import costs the same as inline text, so moving content behind one saves nothing.
 - **Nested CLAUDE.md** (`<subdir>/CLAUDE.md`): loads when the session reads, writes or edits a file under that directory, then stays for the session. Scopes by subtree.
-- **Path-scoped rule** (`.claude/rules/<topic>.md` with `paths` globs in the frontmatter): loads when the session reads, writes or edits a file matching a glob. The only class that scopes by file pattern across directories.
+- **Path-scoped rule** (`.claude/rules/<topic>.md` with `paths` globs in the frontmatter): loads when the session reads, writes or edits a file matching a glob. The only class that scopes by file pattern across directories. Globs match like gitignore patterns: an unanchored `dir/**` matches a directory of that name at any depth, and a leading `/` anchors it to the root.
 - **Deferred**: a plain markdown pointer loads nothing until an agent chooses to read the target. The only class where content is close to free.
 
 Nested files and path-scoped rules are the two scope-triggered classes. Judge their lines against a fresh session working in their scope, since only those sessions load them.
@@ -17,7 +19,7 @@ When `~/.claude/bonsai/loads/<key>.jsonl` exists for the repository, count loads
 
 A scoped file loads when the session touches a file in its scope, and the harness attaches it right after that tool call's result. Two kinds of touch fire it:
 
-- **A Read, Write or Edit tool call** on any in-scope file. A Write that creates the first file in a directory counts, at any depth below the scoped directory, and so does an Edit whose only prior read was a shell read that loaded nothing. That first write lands without the scoped file, and the session sees the file before its next step, so it can still correct what it wrote.
+- **A Read, Write or Edit tool call** on any in-scope file. A Write that creates the first file in a directory counts, at any depth below the scoped directory. That first write lands without the scoped file, and the session sees the file before its next step, so it can still correct what it wrote. An Edit whose only prior read was a shell read that loaded nothing also lands without the scoped file, and the load after it varies between runs: the scoped file usually arrives right after that Edit, and sometimes only at the next file-tool call. Claude Code can also refuse that Edit.
 - **A plain shell read**: a command whose every part reads a named in-scope file (`cat`, `head`, `tail`, `sed -n`, `grep` on a file), joined by `;` or `&&` with nothing but `echo`. The harness misses the read when the file comes through a pipe (`cat f | head`), a variable (`cat "$f"`), a directory listing or recursive search (`ls`, `grep -r`), or a compound command that mixes one of those in. A `cd <dir> &&` or `cd <dir>;` prefix the session writes is such a part: `sed -n 1,3p src/trust.ts` loads the scoped file, and the same read after a `cd` does not.
 
 Any other shell command loads nothing: running a script, a migration or a generator, `git`, or editing through `sed -i`. Work that starts with a command, or acts outside the files (a deploy, a query against a shared database), gets no scoped file until its first in-scope file-tool call or plain shell read, if one ever comes. Every demotion verdict hangs on these facts.
@@ -28,10 +30,10 @@ Compaction adds an asymmetry: the root file is re-injected after a compaction au
 
 ## Skills
 
-A skill's description sits in the context from the session's start, and its body loads when the skill runs. `disable-model-invocation: true` in the frontmatter takes the description out as well.
+A skill's description sits in the context from the session's start unless the list below delays it, and its body loads when the skill runs. `disable-model-invocation: true` in the frontmatter takes the description out as well.
 
 - **Nested skill** (`<dir>/.claude/skills/<name>/SKILL.md`): hidden until the first Read, Write or Edit of a file under `<dir>`, in the main session and in subagents. Then only its description arrives. Scopes a procedure by subtree, like a nested CLAUDE.md.
-- **`paths:` globs** in a skill's frontmatter limit when Claude loads it by itself to work on matching files. The description stays resident. Scopes a procedure that spans directories.
+- **`paths:` globs** in a skill's frontmatter keep it out of the listing until the session first touches a matching file. Then only its description arrives. Scopes a procedure that spans directories.
 - **Gitignored or uncommitted**: the harness never scans a gitignored directory for skills, and a skill linked from outside the repository (an untracked or machine-local symlink) reaches only the machines that create the link. Neither reaches a clone or a cloud session. A committed symlink whose target is committed in the repository works like a committed skill.
 
 ## Other agents

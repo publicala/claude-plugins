@@ -18,6 +18,30 @@ claude plugin eval . --case 'guard-*' --scaffold --allow-tools Bash Write Edit -
 
 Each case runs three times with the plugin and three times without it, so a full run is 18 sessions on your login: about 5 minutes and $5 at list price with `-j 3`. The command exits 1 when a case scores below the default threshold of 1.0, and a change to the skill merges when every case scores 1.00. One case once, while you change a grader: `--case guard-design-choice-is-none --runs 1 --ablation none`. Results land in `results/`, which git ignores. Add `--keep-temp` to keep each run's workspace and transcript.
 
+## Run the harness canaries
+
+`references/load-model.md` states when Claude Code loads a nested CLAUDE.md, a path-scoped rule or a skill, and the skills judge every demotion by it. `harness/` checks each of those facts against the Claude Code installed here. One canary per fact builds a fresh git repository with unique markers, has a `claude -p` session on Haiku make exact tool calls in it, and reads the session's transcript for where each marker first reached the context. The `nested_memory`, `skill_listing` and `dynamic_skill` attachments there are the evidence, so no canary asks the model what it saw.
+
+Run it from `plugins/bonsai` after a Claude Code update, on your own login, never in CI:
+
+```bash
+bun evals/harness/run.ts
+```
+
+- **`--only <id>,<id>`**: runs some canaries, named as the table names them.
+- **`--jobs <n>`**: sessions at a time, a positive whole number, 4 by default.
+- **`--keep`**: keeps each fixture and transcript, and prints their paths.
+
+A full run is 13 canaries in about 30 seconds: $0.02 of Claude at list price, plus about 90,000 Codex tokens for the Codex canary, which skips when `codex` is not on PATH. The sessions skip your user settings, plugins and MCP servers (`--setting-sources project --strict-mcp-config`), and each may use only the tools its steps name. Their transcripts land under `~/.claude/projects/` and `~/.codex/sessions/`, and the run deletes them.
+
+Each row ends in one result, and the exit status follows the worst:
+
+- **PASS**: the fact holds.
+- **FAIL**: Claude Code changed. The row says where the marker arrived and names the load-model.md statement to update. Exit 1.
+- **INVALID**: twice, the session strayed from its steps, or a step returned an error the canary does not allow, so nothing was judged. Exit 2, like **ERROR**, which means `claude` or `codex` failed or exited non-zero.
+
+`harness/*.test.ts` cover the transcript reading and every verdict without calling `claude`, so `bun run check` runs them. A new fact in load-model.md gets its canary in `harness/canaries.ts`.
+
 ## The fixture
 
 The sandbox has no network, so `guard/fixture/` stands in for GitHub:
