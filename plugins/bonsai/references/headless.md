@@ -21,5 +21,5 @@ A review comment can sit only on a line the PR's diff shows, which is why every 
 ## What headless never does
 
 - Ask a question, publish a page, or merge.
-- Apply a change outside the round, or exceed the round budget in [rounds.md](rounds.md). The waiting changes stay in the run file for the next run.
-- Write to the decision log. Only the user's own decisions train auto-apply ([decision-memory.md](decision-memory.md)).
+- Apply a change outside the round, or exceed the round budget in `rounds.md`, in this directory. The waiting changes stay in the run file for the next run.
+- Write to the decision log. Only the user's own decisions train auto-apply (`decision-memory.md`, in this directory).

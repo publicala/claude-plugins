@@ -13,7 +13,7 @@ The page's markup and style are in `template.html`, and its script is TypeScript
 
 ## The data file
 
-`example/data.json` is a complete run against the fixture in `example/repo/`. Start from it. A guard run has its own shape: see [Guard runs](#guard-runs) and `example/guard-data.json`. A trimmed audit run:
+`example/data.json` is a complete run against the fixture in `example/repo/`. Start from it. A guard run has its own shape: see the Guard runs section and `example/guard-data.json`. A trimmed audit run:
 
 ```json
 {
@@ -79,7 +79,7 @@ Every file a change edits. A guard run lists only the files its CLAUDE.md lines 
 | Field | Meaning |
 | --- | --- |
 | `id` | Unique, short, readable: letters, digits, `-` and `_`. It appears in the apply message. |
-| `lane` | `call`, `ready` or `auto`. See the [decision-page reference](../references/decision-artifact.md) for routing. |
+| `lane` | `call`, `ready` or `auto`. See the decision-page reference, `../references/decision-artifact.md`, for routing. |
 | `group` | Required for `ready` and `auto`: the id of a group in the same lane. |
 | `verb` | `fix`, `delete`, `shorten`, `rewrite`, `move`, `add` or `automate`. |
 | `title` | What changes, in the reader's words. |
