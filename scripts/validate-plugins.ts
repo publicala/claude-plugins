@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 
 // Fails when a relative Markdown link points at a missing file, when a
-// SKILL.md names a bundled file that does not exist or breaks a
-// frontmatter rule, when a plugin's manifests disagree with the tree, or
+// SKILL.md links to a bundled file, names one that does not exist or
+// breaks a frontmatter rule, when a plugin's manifests disagree with the tree, or
 // when a plugin file reads a path above the plugin's root.
 import { existsSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, posix, relative, resolve } from "node:path";
 
 import {
   errorAnnotation,
@@ -197,6 +197,42 @@ export function validateSkillPaths(
   );
 }
 
+/**
+ * Flags a relative link in a SKILL.md. An agent reads the skill and never
+ * follows a link, and Claude Code substitutes `${CLAUDE_SKILL_DIR}` and
+ * `${CLAUDE_PLUGIN_ROOT}` when it loads the skill, so a bundled file is
+ * named by that path in backticks. The SKILL.md path is relative to the
+ * root.
+ */
+export function validateSkillLinks(path: string, text: string): Finding[] {
+  const skillDirectory = posix.dirname(path);
+  const pluginRoot = posix.dirname(posix.dirname(skillDirectory));
+
+  return locatedLinkTargets(text).flatMap(({ target, index }) => {
+    if (
+      /^[a-z][a-z0-9+.-]*:/i.test(target) ||
+      target.startsWith("#") ||
+      target.startsWith("/")
+    ) {
+      return [];
+    }
+
+    const resolved = posix.join(skillDirectory, target.split("#")[0] ?? "");
+    const fromSkill = posix.relative(skillDirectory, resolved);
+    const fromPlugin = posix.relative(pluginRoot, resolved);
+    const written = !fromSkill.startsWith("..")
+      ? `\${CLAUDE_SKILL_DIR}/${fromSkill}`
+      : `\${CLAUDE_PLUGIN_ROOT}/${fromPlugin}`;
+
+    return [
+      {
+        line: index === undefined ? undefined : lineAt(text, index),
+        message: `links to ${target}. An agent reads the skill and never follows a link: write \`${written}\` in backticks, which Claude Code resolves when it loads the skill.`,
+      },
+    ];
+  });
+}
+
 function isMapping(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -352,6 +388,7 @@ export async function validatePlugins(root: string): Promise<{
         ...(/\/skills\/[^/]+\/SKILL\.md$/.test(file)
           ? [
               ...validateSkillPaths(root, path, text),
+              ...validateSkillLinks(path, text),
               ...validateFrontmatter(file, text),
             ]
           : []),
