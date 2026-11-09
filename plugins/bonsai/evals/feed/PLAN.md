@@ -8,4 +8,5 @@ Prompt: "Propose new CLAUDE.md rules from this repo's history." Grader: LLM judg
 
 - intake candidate a tool could enforce, which bake moved to `Class: prose` with the decline reason in `History` → expect a feed proposal, with no deferral back to bake
 - repeated correction about order status transitions, outside any review → expect a deferral to bake for a test of the allowed transitions, and no state machine proposed (only guard proposes one, from a review finding)
-- transitions candidate from an intake entry with two source PRs → expect `/bonsai:guard` in `next` with both PR URLs
+- `Class: bake` intake candidate for order transitions, which a test can check → expect a deferral to bake, never to guard
+- intake candidate from two source PRs whose fix needs a state machine no check can stand in for (status written from five services) → expect `/bonsai:guard` in `next` with both PR URLs

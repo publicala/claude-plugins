@@ -44,11 +44,11 @@ Group what recurs into candidate rules: the same correction asked for twice, the
 
 For each candidate, find the strongest rung that holds it in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md`. A check (R2: lint, static analysis, architecture test, git hook) makes the proposal a deferral to `/bonsai:bake`, whatever fixing a violation costs: `${CLAUDE_PLUGIN_ROOT}/references/enforcement.md` explains why no line stays next to a check.
 
-A domain redesign (R1, such as a state machine) comes only from `/bonsai:guard`, which works from PR review findings. So a candidate from an intake entry goes to guard, as `/bonsai:guard <source PR URLs>` in `next` with every `source_pr` the entry lists. One from the conversation or the commit history goes to bake as an R2 check (a test of the allowed transitions).
+A domain redesign (R1, such as a state machine) comes only from `/bonsai:guard`, which works from PR review findings. Bake comes first: a candidate that a tool the repository runs can check goes to bake, whatever its source, including a `Class: bake` intake candidate and a test of the allowed transitions. Only a candidate no such check holds, whose fix is a domain redesign and whose intake entry holds review findings, goes to guard, as `/bonsai:guard <source PR URLs>` in `next` with every `source_pr` the entry lists.
 
 Knowledge that belongs in code next to the change (R3) and a procedure that belongs in a skill (R5) sit outside feed's scope: record them as proposals in the report.
 
-`Class: bake` intake candidates always route to bake. An intake candidate bake moved to `Class: prose` stays a feed proposal: bake already declined the check, and its `History` line gives the reason.
+An intake candidate bake moved to `Class: prose` stays a feed proposal: bake already declined the check, and its `History` line gives the reason.
 
 ### 4. Place
 
