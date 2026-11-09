@@ -36,7 +36,9 @@ A skill's description sits in the context from the session's start, and its body
 
 ## Other agents
 
-Codex reads `AGENTS.md` files once, at start, from the repository root down to the directory it starts in. A file it reads or writes later loads nothing, so a nested `AGENTS.md` reaches a Codex session started at the root only when it reads that file on purpose. A rule moved into a Claude-only mechanism (a nested CLAUDE.md, a path-scoped rule, a skill, a hook) reaches Codex only through a pointer in the root file.
+Codex reads `AGENTS.md` files once, at start, from the repository root down to the directory it starts in. A file it reads or writes later loads nothing, so a nested `AGENTS.md` reaches a Codex session started at the root only when it reads that file on purpose. A rule moved into a Claude-only mechanism (a nested CLAUDE.md, a path-scoped rule, a skill, a hook) reaches Codex only through a one-line pointer in a root file Codex reads. When the root `AGENTS.md` is a symlink to `CLAUDE.md`, the pointer in `CLAUDE.md` serves both. Otherwise it goes in the root `AGENTS.md`, and a repository with no root `AGENTS.md` makes the pointer a call, since creating one changes what Codex reads.
+
+Whether a repository serves such an agent is the `agents` setting in `decision-memory.md`, in this directory: read it there, and leave the pointer only when it names one.
 
 ## Safety prohibition
 

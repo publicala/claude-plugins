@@ -37,6 +37,80 @@ const VERBS = [
   "add",
   "automate",
 ] as const;
+const MOVE_VERB = "move";
+/** Where a move lands, one per rung of the delivery ladder that holds text. */
+const DESTINATIONS = [
+  "html-comment",
+  "code",
+  "scoped-file",
+  "skill",
+  "root",
+  "deferred-doc",
+] as const;
+const DESTINATION_FILES: Record<
+  (typeof DESTINATIONS)[number],
+  { matches: (file: string) => boolean; names: string }
+> = {
+  "html-comment": {
+    matches: (file) => isClaudeFile(file),
+    names: "a CLAUDE.md",
+  },
+  code: {
+    matches: (file) => !file.endsWith(".md"),
+    names: "a file other than Markdown",
+  },
+  "scoped-file": {
+    matches: (file) =>
+      (isClaudeFile(file) && file.includes("/") && !hasClaudeDirectory(file)) ||
+      isRuleFile(file),
+    names: "a nested CLAUDE.md or a `.claude/rules/` file",
+  },
+  skill: {
+    matches: (file) => /(^|\/)\.claude\/skills\/[^/]+\/SKILL\.md$/.test(file),
+    names: "a `.claude/skills/<name>/SKILL.md`",
+  },
+  root: {
+    matches: (file) => file === "CLAUDE.md" || file === ".claude/CLAUDE.md",
+    names: "the root CLAUDE.md",
+  },
+  "deferred-doc": {
+    matches: (file) =>
+      file.endsWith(".md") && !isClaudeFile(file) && !hasClaudeDirectory(file),
+    names: "a Markdown doc outside the CLAUDE.md files and `.claude/`",
+  },
+};
+
+function isClaudeFile(file: string): boolean {
+  return file === "CLAUDE.md" || file.endsWith("/CLAUDE.md");
+}
+
+function isRuleFile(file: string): boolean {
+  return /^\.claude\/rules\/.+\.md$/.test(file);
+}
+
+/** A `.claude/` directory at any depth: skills, settings and hooks live there. */
+function hasClaudeDirectory(file: string): boolean {
+  return /(^|\/)\.claude\//.test(file);
+}
+
+/**
+ * Code, a skill, settings or a hook: an edit only a call may make. A ready
+ * move writes Markdown that sessions read the same way it did before.
+ */
+function isCallOnlyFile(file: string): boolean {
+  if (!file.endsWith(".md")) {
+    return true;
+  }
+
+  return (
+    hasClaudeDirectory(file) &&
+    !isRuleFile(file) &&
+    file !== ".claude/CLAUDE.md"
+  );
+}
+
+/** Only these can be ready: every other destination edits code or settings, or hides the text from sessions. */
+const READY_DESTINATIONS = ["scoped-file", "root", "deferred-doc"] as const;
 const EDITORS = ["zed", "vscode", "cursor", "phpstorm"] as const;
 const VERDICTS = ["same", "drift"] as const;
 const DECISION_KEYS = [
@@ -631,6 +705,60 @@ function ensureSecondCheck(owner: string, check: unknown, lane: Lane): void {
   );
 }
 
+function ensureDestination(
+  owner: string,
+  change: JsonObject,
+  lane: Lane,
+): void {
+  const { destination } = change;
+
+  if (change.verb !== MOVE_VERB) {
+    ensure(
+      destination === undefined,
+      `${owner} has "destination", which only a move carries. Remove it, or set verb to "${MOVE_VERB}".`,
+    );
+
+    return;
+  }
+
+  ensure(
+    isOneOf(DESTINATIONS, destination),
+    `${owner} is a move, so it needs "destination": one of ${listChoices(DESTINATIONS)}.`,
+  );
+  ensure(
+    lane === "call" || isOneOf(READY_DESTINATIONS, destination),
+    `${owner} moves text into ${quote(destination)}. Only a move into ${listChoices(READY_DESTINATIONS)} can be ready, so set lane to call.`,
+  );
+  const edits = listOfObjects(change.edits, "edits", owner);
+
+  if (lane !== "call") {
+    const callOnly = edits.find(
+      (edit) => typeof edit.file === "string" && isCallOnlyFile(edit.file),
+    );
+    ensure(
+      callOnly === undefined,
+      `${owner} is in lane ${lane}, but it edits ${quote(callOnly?.file)}, which is code, a skill, settings or a hook. Set lane to call, or drop that edit.`,
+    );
+  }
+
+  const target = DESTINATION_FILES[destination];
+  const writes = edits.filter(
+    (edit) =>
+      typeof edit.file === "string" &&
+      Array.isArray(edit.write) &&
+      edit.write.length > 0 &&
+      target.matches(edit.file) &&
+      (destination !== "html-comment" ||
+        edit.write.some(
+          (line) => typeof line === "string" && line.includes("<!--"),
+        )),
+  );
+  ensure(
+    writes.length > 0,
+    `${owner} moves text to ${quote(destination)}, but no edit writes ${target.names}${destination === "html-comment" ? " with an HTML comment" : ""}. Point "destination" at the rung its edits write to.`,
+  );
+}
+
 function resolveChange(change: JsonObject, context: ChangeContext): PageChange {
   const changeId = change.id;
   ensure(
@@ -680,6 +808,7 @@ function resolveChange(change: JsonObject, context: ChangeContext): PageChange {
   }
 
   ensureSecondCheck(owner, change.check, lane);
+  ensureDestination(owner, change, lane);
 
   return {
     ...change,
@@ -948,6 +1077,10 @@ function resolveCandidate(
   ensure(
     isOneOf(RECOMMENDATIONS, candidate.recommendation),
     `${owner} has recommendation ${quote(candidate.recommendation)}. Use ${listChoices(RECOMMENDATIONS)}.`,
+  );
+  ensure(
+    candidate.destination === undefined,
+    `${owner} carries "destination", which only a move in another run carries. A CLAUDE.md line names its file in "edits".`,
   );
   ensure(
     candidate.skip === undefined,

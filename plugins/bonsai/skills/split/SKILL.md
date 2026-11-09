@@ -15,7 +15,7 @@ This skill decides where rules live. Whether they live is `/bonsai:audit`'s call
 
 ## Scope
 
-Default scope is the current project tree. Writes only ever land in the project's CLAUDE.md files and `.claude/rules/` files. User-level and ancestor-directory files are out of scope in both directions: they load in every project, so no in-project placement can host their content.
+Default scope is the current project tree. Writes only ever land in the project's CLAUDE.md files and `.claude/rules/` files, plus the one-line pointer for another agent in the root `AGENTS.md` (step 3). User-level and ancestor-directory files are out of scope in both directions: they load in every project, so no in-project placement can host their content.
 
 ## Audit first
 
@@ -33,7 +33,7 @@ A `--headless` run asks nothing: it continues and opens the PR body with the rec
 
 ## Load model
 
-Placement chooses among the load classes in `${CLAUDE_PLUGIN_ROOT}/references/load-model.md`: always resident, nested CLAUDE.md, or path-scoped rule. Read it before the pass. Every demotion verdict hangs on the triggers it describes: a scoped file loads on a file-tool touch or a plain shell read, and on nothing else.
+Placement chooses among the load classes in `${CLAUDE_PLUGIN_ROOT}/references/load-model.md`: always resident, nested CLAUDE.md, or path-scoped rule. Read it before the pass, with the ladder in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md`, where these classes are R4 and R7. Read the repository's `agents` setting (`${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md`) too, and when it is missing ask once, as `/bonsai:audit` does, and store the answer. Every demotion verdict hangs on the triggers it describes: a scoped file loads on a file-tool touch or a plain shell read, and on nothing else.
 
 ## Never demote
 
@@ -62,7 +62,7 @@ The grep is the verdict on shape. The author's sense of where a rule "belongs" i
 
 A demotion only works if the scoped file is loaded by the time the rule matters. Name the mistake the rule prevents, then classify the action that commits it:
 
-- Reading, editing or creating an in-scope file through the file tools: demote. The scoped file arrives right after the first Read, Write or Edit in its scope (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`), so a session that writes the first file without the rule sees it before its next step and corrects that file. When the repository serves an agent that reads only the root file (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`), the demotion leaves a one-line pointer in the root for that agent. A rule that also governs files a generator or a shell command writes takes the next check for that workflow.
+- Reading, editing or creating an in-scope file through the file tools: demote. The scoped file arrives right after the first Read, Write or Edit in its scope (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`), so a session that writes the first file without the rule sees it before its next step and corrects that file. When the `agents` setting names an agent that reads only the root file (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, "Other agents"), the demotion leaves a one-line pointer where that agent reads it: in `CLAUDE.md` when the root `AGENTS.md` is a symlink to it, else in the root `AGENTS.md`. With no root `AGENTS.md`, the pointer is a call. A rule that also governs files a generator or a shell command writes takes the next check for that workflow.
 - Acting on in-scope paths only through shell or git (a generator, `sed -i`, `git mv`, running a command): nothing loads. For these rules no verdict exists until a load-path probe runs, as `${CLAUDE_PLUGIN_ROOT}/references/probe.md` prescribes: one fresh low-effort agent gets the task that would commit the mistake, in the real repo, without mention of the rule. The scoped file loads before the mistake: demote. It acts first, or reads only in shapes that load nothing: the rule stays resident. Run the probe in the harness mode the team works in: a mode that reads through the shell loads a scoped file only on plain reads, and a demotion probed in another mode is untested for it. The author guessing whether sessions read first is the same simulation the probe replaces. A rule in an always-resident file never probes clean, since every subagent inherits it (`${CLAUDE_PLUGIN_ROOT}/references/probe.md`): it stays resident, recorded as unresolved.
 
 ### 4. The other direction
@@ -73,7 +73,7 @@ Flag orphans while there: a nested CLAUDE.md whose directory no longer holds fir
 
 ### 5. Approval and apply
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md` before routing, then pick the delivery as `${CLAUDE_PLUGIN_ROOT}/references/decision-artifact.md` prescribes under "Delivery". For the page, build it with the renderer that reference names. Each demotion or promotion is one `move` change: an edit that removes the rule from its source and an edit that inserts it in the destination, with the governed paths and the load-path result as evidence. Route it:
+Read `${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md` before routing, then pick the delivery as `${CLAUDE_PLUGIN_ROOT}/references/decision-artifact.md` prescribes under "Delivery". For the page, build it with the renderer that reference names. Each demotion or promotion is one `move` change, with `destination` `scoped-file` or `root`: an edit that removes the rule from its source and an edit that inserts it in the destination, with the governed paths and the load-path result as evidence. Route it:
 
 - A demotion the edit rule or a load-path probe settled, and every promotion: **ready**, one group per destination file.
 - A move that drops a scope qualifier the destination expresses gets a meaning check (`${CLAUDE_PLUGIN_ROOT}/references/probe.md`) on that edit. A drift makes it a **call**.
@@ -87,8 +87,8 @@ After applying, verify that each scoped file the edits created or re-globbed act
 
 A moved rule keeps its exact text. The only permitted edit is deleting a scope qualifier the destination now expresses: "In tests/, never use RefreshDatabase" becomes "Never use RefreshDatabase" inside `tests/CLAUDE.md`. Phrasing improvements belong to `/bonsai:audit`.
 
-A demotion leaves nothing behind. The scoped file loads automatically, so a pointer at root would rebuild the cost the move removed. The one exception is a repository that serves an agent reading only the root file: there the demotion leaves the one-line root pointer step 3 names. Create the destination file if it is missing, and append under a heading that matches its existing structure.
+A demotion leaves nothing behind. The scoped file loads automatically, so a pointer at root would rebuild the cost the move removed. The one exception is a repository whose `agents` setting names an agent that reads only the root file: there the demotion leaves the one-line pointer step 3 places. A promotion retargets or removes the pointer that named the rule's old home, and keeps any pointer other rules still need. Create the destination file if it is missing, and append under a heading that matches its existing structure.
 
 ## Skill candidates
 
-Content shaped as a procedure (a numbered workflow, a deploy guide, a checklist walked start to finish) belongs in a skill body. Flag it with a proposed skill name and stop there. Writing skills is a different job with its own standards.
+Content shaped as a procedure (a numbered workflow, a deploy guide, a checklist walked start to finish) belongs in a skill body. Flag it with a proposed skill name and the placement the skill rung of `${CLAUDE_PLUGIN_ROOT}/references/delivery.md` gives it from the files the procedure touches, and stop there. Writing skills is a different job with its own standards.

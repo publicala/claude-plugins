@@ -5,7 +5,7 @@ Bonsai remembers what the user decided, so the same question does not come back 
 ## Files
 
 - `~/.claude/bonsai/settings.json`: preferences that hold in every repository. Today `delivery`: `"page"` or `"text"`. A page's way back (send or paste) is not stored: it follows from where the session runs, every time (decision-artifact.md, "Publish").
-- `~/.claude/bonsai/decisions/<key>/settings.json`: preferences for one repository. Today `ship`: `"pr"` or `"local"`. `<key>` is the repository key from `intake-entry.md`, in this directory.
+- `~/.claude/bonsai/decisions/<key>/settings.json`: preferences for one repository. `ship`: `"pr"` or `"local"`. `agents`: the agents the repository serves besides Claude Code, as a list of names (`[]` for none, `["codex"]`), which decides whether a move into a Claude-only mechanism leaves a root pointer (`delivery.md`, in this directory). `<key>` is the repository key from `intake-entry.md`, in this directory.
 - `~/.claude/bonsai/decisions/<key>/log.jsonl`: one line per decided change, appended at apply time.
 
 ```json
@@ -26,7 +26,7 @@ Before the first round, read both settings files and every log for this skill ac
 - **A skipped change stays skipped**: Do not propose a change whose class and removed text match a `skip` in this key's log. It comes back only when its evidence changed: the removed text changed, or a new fact contradicts the reason the user gave in the note.
 - **Earned autonomy**: A class moves to lane `auto` when the logs hold at least 20 decisions for it, at least 95% of them `apply`, and no `skip` among its last 10. Auto changes still show on the page, collapsed under "Applied automatically" with an undo per change, until the user says otherwise. A skip or an undo counts against the class at once, so a class that stops earning trust drops back to `ready` on the next run.
 
-Calls never become auto. A fix, a drift, a move, a close vote or a new rule needs a person every time.
+Calls never become auto. A fix, a drift, an audit move, a close vote or a new rule needs a person every time. A split demotion or promotion the load rule or a load-path probe proved is ready, so its class can earn auto like any ready class.
 
 ## Write it at apply time
 

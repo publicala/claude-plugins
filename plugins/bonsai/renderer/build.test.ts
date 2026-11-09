@@ -42,6 +42,7 @@ interface FixtureChange {
   lane: string;
   group?: string;
   verb: string;
+  destination?: unknown;
   title: string;
   why: string;
   skip?: string;
@@ -156,6 +157,18 @@ function firstEdit(change: FixtureChange): FixtureEdit {
   return edit;
 }
 
+/** The example's move, made ready with the given destination and its source file gone. */
+function readyMove(data: Fixture, destination: string): FixtureChange {
+  const testing = changeIn(data.changes, "testing");
+  testing.lane = "ready";
+  testing.group = "covered";
+  testing.destination = destination;
+  delete testing.skip;
+  data.files = data.files.filter((entry) => entry.path !== "tests/CLAUDE.md");
+
+  return testing;
+}
+
 function expectDataError(data: unknown, message: string): void {
   const failure = build(data, EXAMPLE);
 
@@ -197,6 +210,67 @@ describe("build", () => {
     ]);
     expect(page.run.round).toBe(1);
     expect(page.run.rounds).toBe(2);
+  });
+
+  test("lets a move into a Markdown file of the same kind be ready", async () => {
+    const data = await exampleData();
+    const testing = changeIn(data.changes, "testing");
+    testing.lane = "ready";
+    testing.group = "covered";
+    delete testing.skip;
+
+    const page = await build(data, EXAMPLE);
+
+    expect(changeIn(page.changes, "testing").destination).toBe("scoped-file");
+  });
+
+  test.each([
+    ["root", "CLAUDE.md", "- Tests use the factories."],
+    [
+      "html-comment",
+      "CLAUDE.md",
+      "<!-- Prices are cents since the rounding audit. -->",
+    ],
+    ["skill", "deploy/.claude/skills/release/SKILL.md", "# Release"],
+    ["code", "app/Support/Money.php", "// Amounts are cents."],
+    ["deferred-doc", "docs/payouts.md", "# Payouts"],
+    ["scoped-file", ".claude/rules/tests.md", "- Use the factories."],
+  ])("accepts a move to %s that writes %s", async (destination, file, line) => {
+    const data = await exampleData();
+    const testing = changeIn(data.changes, "testing");
+    const inRoot = file === "CLAUDE.md";
+    testing.destination = destination;
+    testing.edits = [
+      inRoot
+        ? { file, at: 3, write: [line] }
+        : { file, at: "end", write: [line] },
+    ];
+    data.files = data.files.filter((entry) => entry.path !== "tests/CLAUDE.md");
+    if (!inRoot) {
+      data.files.push({ path: file, new: true });
+    }
+
+    const page = await build(data, EXAMPLE);
+
+    expect(changeIn(page.changes, "testing").destination).toBe(destination);
+  });
+
+  test("lets a ready root move also write a pointer in a nested CLAUDE.md", async () => {
+    const data = await exampleData();
+    const testing = readyMove(data, "root");
+    testing.edits = [
+      { file: "CLAUDE.md", at: 3, write: ["- Tests use the factories."] },
+      {
+        file: "tests/CLAUDE.md",
+        at: "end",
+        write: ["- The factory rule lives in the root file."],
+      },
+    ];
+    data.files.push({ path: "tests/CLAUDE.md", new: true });
+
+    const page = await build(data, EXAMPLE);
+
+    expect(changeIn(page.changes, "testing").lane).toBe("ready");
   });
 
   test("quotes the removed lines from disk", async () => {
@@ -1124,6 +1198,96 @@ describe("build refuses data that would mislead", () => {
       },
       "run.status.prs belongs to a guard run. Put the one link in run.status.link.",
     ],
+    [
+      "a move without a destination",
+      (data) => {
+        delete changeIn(data.changes, "testing").destination;
+      },
+      "Change 'testing' is a move, so it needs \"destination\": one of html-comment, code, scoped-file, skill, root or deferred-doc.",
+    ],
+    [
+      "a move to an unknown destination",
+      (data) => {
+        changeIn(data.changes, "testing").destination = "wiki";
+      },
+      "Change 'testing' is a move, so it needs \"destination\": one of html-comment, code, scoped-file, skill, root or deferred-doc.",
+    ],
+    [
+      "a destination on a change that moves nothing",
+      (data) => {
+        changeIn(data.changes, "livewire").destination = "root";
+      },
+      'Change \'livewire\' has "destination", which only a move carries. Remove it, or set verb to "move".',
+    ],
+    [
+      "a move whose edits miss its destination",
+      (data) => {
+        changeIn(data.changes, "testing").destination = "root";
+      },
+      'Change \'testing\' moves text to "root", but no edit writes the root CLAUDE.md. Point "destination" at the rung its edits write to.',
+    ],
+    [
+      "a move to an HTML comment that writes no comment",
+      (data) => {
+        changeIn(data.changes, "testing").destination = "html-comment";
+      },
+      'Change \'testing\' moves text to "html-comment", but no edit writes a CLAUDE.md with an HTML comment. Point "destination" at the rung its edits write to.',
+    ],
+    [
+      "a ready move to a doc inside a nested skill",
+      (data) => {
+        const testing = readyMove(data, "deferred-doc");
+        testing.edits = [
+          {
+            file: "deploy/.claude/skills/release/SKILL.md",
+            at: "end",
+            write: ["# Release"],
+          },
+        ];
+        data.files.push({
+          path: "deploy/.claude/skills/release/SKILL.md",
+          new: true,
+        });
+      },
+      "Change 'testing' is in lane ready, but it edits \"deploy/.claude/skills/release/SKILL.md\", which is code, a skill, settings or a hook. Set lane to call, or drop that edit.",
+    ],
+    [
+      "a ready root move that also writes a PHP file",
+      (data) => {
+        const testing = readyMove(data, "root");
+        testing.edits = [
+          { file: "CLAUDE.md", at: 3, write: ["- Tests use the factories."] },
+          { file: "app/Support/Money.php", at: "end", write: ["// cents"] },
+        ];
+        data.files.push({ path: "app/Support/Money.php", new: true });
+      },
+      "Change 'testing' is in lane ready, but it edits \"app/Support/Money.php\", which is code, a skill, settings or a hook. Set lane to call, or drop that edit.",
+    ],
+    [
+      "a ready root move that also writes the settings",
+      (data) => {
+        const testing = readyMove(data, "root");
+        testing.edits = [
+          { file: "CLAUDE.md", at: 3, write: ["- Tests use the factories."] },
+          { file: ".claude/settings.json", at: "end", write: ["{}"] },
+        ];
+        data.files.push({ path: ".claude/settings.json", new: true });
+      },
+      "Change 'testing' is in lane ready, but it edits \".claude/settings.json\", which is code, a skill, settings or a hook. Set lane to call, or drop that edit.",
+    ],
+    ...(["code", "skill", "html-comment"] as const).map(
+      (destination): [string, (data: Fixture) => void, string] => [
+        `a ready move into ${destination}`,
+        (data) => {
+          const testing = changeIn(data.changes, "testing");
+          testing.destination = destination;
+          testing.lane = "ready";
+          testing.group = "covered";
+          delete testing.skip;
+        },
+        `Change 'testing' moves text into "${destination}". Only a move into scoped-file, root or deferred-doc can be ready, so set lane to call.`,
+      ],
+    ),
   ];
 
   test.each(cases)("%s", async (_, mutate, message) => {
@@ -1847,6 +2011,13 @@ describe("guard build refuses data that would mislead", () => {
       },
       "run.status.decisions.pull must map not-now ids to true or false.",
     ],
+    [
+      "a destination on a candidate",
+      (data) => {
+        setField(changeIn(data.changes, TOTAL), "destination", "root");
+      },
+      `Candidate '${TOTAL}' carries "destination", which only a move in another run carries. A CLAUDE.md line names its file in "edits".`,
+    ],
   ];
 
   test.each(cases)("%s", async (_, mutate, message) => {
@@ -2004,6 +2175,35 @@ describe("page", () => {
     expect(errors).toEqual([]);
     expect(document.title).toBe("Acme Books CLAUDE.md Audit");
     expect(document.querySelectorAll(".card").length).toBeGreaterThan(0);
+    await window.happyDOM.close();
+  });
+
+  test("names where a move lands", async () => {
+    const { window, document } = await openPage(
+      await build(await exampleData(), EXAMPLE),
+    );
+
+    expect(
+      document.querySelector("#card-testing .destination")?.textContent,
+    ).toBe("to a scoped file");
+    expect(document.querySelector("#card-livewire .destination")).toBeNull();
+    await window.happyDOM.close();
+  });
+
+  test("names where a ready move lands, inside its group", async () => {
+    const data = await exampleData();
+    const testing = changeIn(data.changes, "testing");
+    testing.lane = "ready";
+    testing.group = "covered";
+    delete testing.skip;
+    const { window, document } = await openPage(await build(data, EXAMPLE));
+
+    expect(
+      document.querySelector('[data-item="testing"] .destination')?.textContent,
+    ).toBe("to a scoped file");
+    expect(
+      document.querySelector('[data-item="stack"] .destination'),
+    ).toBeNull();
     await window.happyDOM.close();
   });
 

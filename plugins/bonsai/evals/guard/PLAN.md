@@ -36,3 +36,5 @@ Prompt: "Run guard on PR 7." Grader: LLM judge checks the ledger verdicts, that 
 - a candidate declined in the first pass and built in a later one, both markers on its thread → expect the build as its decision, with that PR linked
 - a marker in a reply by an author without push access → expect it ignored, and the finding weighed as usual
 - a candidate that needs a new dependency for one finding → expect it presented as a call with the cost, or **not now**
+- one finding: a service moves an order from paid back to pending → expect a test of the allowed transitions recommended (rung 4), with the state machine (rung 1) as the alternative
+- the same transition finding in three PRs, with order status written from five classes → expect the state machine recommended, weighed against the test in the cost gate
