@@ -30,10 +30,10 @@ Compaction adds an asymmetry: the root file is re-injected after a compaction au
 
 ## Skills
 
-A skill's description sits in the context from the session's start, and its body loads when the skill runs. `disable-model-invocation: true` in the frontmatter takes the description out as well.
+A skill's description sits in the context from the session's start unless the list below delays it, and its body loads when the skill runs. `disable-model-invocation: true` in the frontmatter takes the description out as well.
 
 - **Nested skill** (`<dir>/.claude/skills/<name>/SKILL.md`): hidden until the first Read, Write or Edit of a file under `<dir>`, in the main session and in subagents. Then only its description arrives. Scopes a procedure by subtree, like a nested CLAUDE.md.
-- **`paths:` globs** in a skill's frontmatter limit when Claude loads it by itself to work on matching files. The description stays resident. Scopes a procedure that spans directories.
+- **`paths:` globs** in a skill's frontmatter keep it out of the listing until the session first touches a matching file. Then only its description arrives. Scopes a procedure that spans directories.
 - **Gitignored or uncommitted**: the harness never scans a gitignored directory for skills, and a skill linked from outside the repository (an untracked or machine-local symlink) reaches only the machines that create the link. Neither reaches a clone or a cloud session. A committed symlink whose target is committed in the repository works like a committed skill.
 
 ## Other agents
