@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   exitCode,
   resultTable,
+  streamCost,
   summaryLine,
   type Row,
   type RowResult,
@@ -75,5 +76,26 @@ describe("summaryLine", () => {
     expect(summaryLine([row("SKIP")], 0, 87_408, 1)).toBe(
       "1 SKIP. Claude cost $0.000, Codex 87408 tokens, 1s wall-clock.",
     );
+  });
+});
+
+describe("streamCost", () => {
+  test("takes the highest cost among the result events", () => {
+    const stream = [
+      '{"type":"system","subtype":"init"}',
+      '{"type":"result","total_cost_usd":0.004}',
+      '{"type":"result","total_cost_usd":0.011}',
+    ].join("\n");
+
+    expect(streamCost(stream)).toBe(0.011);
+  });
+
+  test("counts a result line a timeout cut short as no cost", () => {
+    const stream = [
+      '{"type":"result","total_cost_usd":0.004}',
+      '{"type":"result","total_cost_us',
+    ].join("\n");
+
+    expect(streamCost(stream)).toBe(0.004);
   });
 });

@@ -315,7 +315,7 @@ function stepAt(steps: Step[], number: number): Step {
 export function judgeClaude(
   plan: ClaudePlan,
   main: Transcript,
-  subagent: Transcript | null,
+  subagents: Transcript[],
 ): Outcome {
   const mainOutcome = judgeSession(main, plan.main);
 
@@ -323,10 +323,21 @@ export function judgeClaude(
     return mainOutcome;
   }
 
-  if (subagent === null) {
+  const [subagent, ...others] = subagents;
+
+  if (subagent === undefined) {
     return {
       result: "INVALID",
       detail: "The Agent step left no subagent transcript.",
+    };
+  }
+
+  // The subagent may start an agent of its own, so a second transcript
+  // leaves no way to tell which one ran the steps.
+  if (others.length > 0) {
+    return {
+      result: "INVALID",
+      detail: `The session left ${subagents.length} subagent transcripts, and the canary starts one.`,
     };
   }
 

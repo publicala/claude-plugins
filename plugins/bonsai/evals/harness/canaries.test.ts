@@ -43,14 +43,16 @@ function judgeFollowing(
   const main = parseTranscript(
     followingSession(ROOT, plan.main, arrivals).jsonl(),
   );
-  const subagent =
+  const subagents =
     plan.subagent === undefined
-      ? null
-      : parseTranscript(
-          followingSession(ROOT, plan.subagent, arrivals).jsonl(),
-        );
+      ? []
+      : [
+          parseTranscript(
+            followingSession(ROOT, plan.subagent, arrivals).jsonl(),
+          ),
+        ];
 
-  return judgeClaude(plan, main, subagent);
+  return judgeClaude(plan, main, subagents);
 }
 
 function judgedExpectations(plan: ClaudePlan) {
@@ -383,9 +385,21 @@ describe("judging the subagent canary", () => {
   const main = parseTranscript(followingSession(ROOT, plan.main).jsonl());
 
   test("is invalid without a subagent transcript", () => {
-    expect(judgeClaude(plan, main, null)).toEqual({
+    expect(judgeClaude(plan, main, [])).toEqual({
       result: "INVALID",
       detail: "The Agent step left no subagent transcript.",
+    });
+  });
+
+  test("is invalid when the subagent started an agent of its own", () => {
+    const subagent = parseTranscript(
+      followingSession(ROOT, plan.subagent ?? plan.main).jsonl(),
+    );
+
+    expect(judgeClaude(plan, main, [subagent, subagent])).toEqual({
+      result: "INVALID",
+      detail:
+        "The session left 2 subagent transcripts, and the canary starts one.",
     });
   });
 
@@ -396,7 +410,7 @@ describe("judging the subagent canary", () => {
         .jsonl(),
     );
 
-    expect(judgeClaude(plan, strayed, null).result).toBe("INVALID");
+    expect(judgeClaude(plan, strayed, []).result).toBe("INVALID");
   });
 
   test("prefixes the subagent's detail", () => {

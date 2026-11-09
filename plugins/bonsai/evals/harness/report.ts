@@ -69,3 +69,26 @@ export function summaryLine(
 
   return `${counts}. Claude cost $${costUsd.toFixed(3)}${codex}, ${Math.round(seconds)}s wall-clock.`;
 }
+
+/**
+ * The highest `total_cost_usd` among a session's stream-json result events.
+ * A line a timeout cut short carries no cost to read, so it counts as none.
+ */
+export function streamCost(stream: string): number {
+  return stream
+    .split("\n")
+    .filter((line) => line.includes('"type":"result"'))
+    .map((line): unknown => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .map((event) =>
+      typeof event === "object" && event !== null && "total_cost_usd" in event
+        ? Number(event.total_cost_usd)
+        : 0,
+    )
+    .reduce((highest, cost) => Math.max(highest, cost), 0);
+}

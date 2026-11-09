@@ -3,6 +3,7 @@
 // Runs the harness canaries on this machine's Claude Code login (and Codex
 // login, when `codex` is on PATH), and prints one row per canary. See
 // ../README.md for how to run it and what it costs.
+import { existsSync } from "node:fs";
 import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -24,7 +25,13 @@ import {
   codexThreadId,
   codexTokens,
 } from "./codex-events";
-import { exitCode, resultTable, summaryLine, type Row } from "./report";
+import {
+  exitCode,
+  resultTable,
+  streamCost,
+  summaryLine,
+  type Row,
+} from "./report";
 import { parseTranscript } from "./transcript";
 
 const { values: options } = parseArgs({
@@ -104,6 +111,18 @@ async function buildFixture(files: Record<string, string>): Promise<string> {
   return root;
 }
 
+/** Every file under `base` that matches, or none when `base` is missing. */
+async function allMatches(base: string, pattern: string): Promise<string[]> {
+  if (!existsSync(base)) {
+    return [];
+  }
+
+  return Array.fromAsync(
+    new Bun.Glob(pattern).scan({ cwd: base, onlyFiles: true }),
+    (path) => join(base, path),
+  );
+}
+
 async function firstMatch(
   base: string,
   pattern: string,
@@ -116,20 +135,6 @@ async function firstMatch(
   }
 
   return null;
-}
-
-/** The highest `total_cost_usd` among the session's result events. */
-function streamCost(stream: string): number {
-  return stream
-    .split("\n")
-    .filter((line) => line.includes('"type":"result"'))
-    .map((line): unknown => JSON.parse(line))
-    .map((event) =>
-      typeof event === "object" && event !== null && "total_cost_usd" in event
-        ? Number(event.total_cost_usd)
-        : 0,
-    )
-    .reduce((highest, cost) => Math.max(highest, cost), 0);
 }
 
 /**
@@ -158,47 +163,49 @@ async function runClaude(plan: ClaudePlan): Promise<Attempt> {
   const root = await buildFixture(plan.files);
   const sessionId = crypto.randomUUID();
   const tools = plan.tools.join(",");
-  const session = Bun.spawn(
-    [
-      "claude",
-      "-p",
-      mainPrompt(plan, root),
-      "--model",
-      options.model,
-      "--output-format",
-      "stream-json",
-      "--verbose",
-      "--session-id",
-      sessionId,
-      "--setting-sources",
-      "project",
-      "--strict-mcp-config",
-      "--tools",
-      tools,
-      "--allowed-tools",
-      tools,
-      "--permission-mode",
-      "dontAsk",
-    ],
-    {
-      cwd: root,
-      env: environment,
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: SESSION_TIMEOUT_MS,
-    },
-  );
-  const stream = await new Response(session.stdout).text();
-  const stderr = await new Response(session.stderr).text();
-  await session.exited;
-  const costUsd = streamCost(stream);
-  const transcriptPath = await firstMatch(
-    join(claudeHome, "projects"),
-    `*/${sessionId}.jsonl`,
-  );
+  let transcriptPath: string | null = null;
 
   try {
+    const session = Bun.spawn(
+      [
+        "claude",
+        "-p",
+        mainPrompt(plan, root),
+        "--model",
+        options.model,
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--session-id",
+        sessionId,
+        "--setting-sources",
+        "project",
+        "--strict-mcp-config",
+        "--tools",
+        tools,
+        "--allowed-tools",
+        tools,
+        "--permission-mode",
+        "dontAsk",
+      ],
+      {
+        cwd: root,
+        env: environment,
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "pipe",
+        timeout: SESSION_TIMEOUT_MS,
+      },
+    );
+    const stream = await new Response(session.stdout).text();
+    const stderr = await new Response(session.stderr).text();
+    await session.exited;
+    const costUsd = streamCost(stream);
+    transcriptPath = await firstMatch(
+      join(claudeHome, "projects"),
+      `*/${sessionId}.jsonl`,
+    );
+
     if (session.exitCode !== 0 || transcriptPath === null) {
       return {
         outcome: {
@@ -216,17 +223,14 @@ async function runClaude(plan: ClaudePlan): Promise<Attempt> {
       sessionId,
       "subagents",
     );
-    const subagentPath = await firstMatch(
-      subagentDirectory,
-      "agent-*.jsonl",
-    ).catch(() => null);
-    const subagent =
-      subagentPath === null
-        ? null
-        : parseTranscript(await Bun.file(subagentPath).text());
+    const subagents = await Promise.all(
+      (await allMatches(subagentDirectory, "agent-*.jsonl")).map(async (path) =>
+        parseTranscript(await Bun.file(path).text()),
+      ),
+    );
 
     return {
-      outcome: judgeClaude(plan, main, subagent),
+      outcome: judgeClaude(plan, main, subagents),
       costUsd,
       codexTokens: 0,
     };
@@ -458,14 +462,23 @@ if (!Number.isInteger(jobs) || jobs < 1) {
   process.exit(2);
 }
 
-const started = performance.now();
-const claudeVersion = Bun.spawnSync(["claude", "--version"])
-  .stdout.toString()
-  .trim();
-const rows = await runAll(
-  CANARIES.filter((canary) => selected?.includes(canary.id) ?? true),
-  jobs,
+const canaries = CANARIES.filter(
+  (canary) => selected?.includes(canary.id) ?? true,
 );
+const runsClaude = canaries.some((canary) => canary.agent === "claude");
+
+if (runsClaude && Bun.which("claude") === null) {
+  console.error(
+    "claude is not on PATH, and the Claude Code canaries need it. Install Claude Code, or run only the Codex canary with --only codex-agents-md.",
+  );
+  process.exit(2);
+}
+
+const started = performance.now();
+const claudeVersion = runsClaude
+  ? Bun.spawnSync(["claude", "--version"]).stdout.toString().trim()
+  : "no Claude Code canary";
+const rows = await runAll(canaries, jobs);
 
 console.log(`Harness canaries, ${claudeVersion}, model ${options.model}\n`);
 console.log(resultTable(rows));
