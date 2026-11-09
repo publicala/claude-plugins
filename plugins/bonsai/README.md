@@ -36,13 +36,13 @@ Placement decisions rest on which instruction files real sessions load. An optio
 
 Remove the line, or set any other value, to turn it off. Off, the hook exits before starting anything.
 
-Each load of a CLAUDE.md, an import or a `.claude/rules` file appends one JSON line to `~/.claude/bonsai/loads/<owner>/<repo>.jsonl`, keyed by the `upstream` remote, else `origin`, else the directory name. The hook makes no network call, so a fork clone without an `upstream` remote logs under the fork's name. A line holds the time, the session and subagent ids, the working directory and worktree root, the loaded file's path from the root (absolute outside it), its scope (`memory_type`), the load cause (`session_start`, `nested_traversal`, `path_glob_match`, `include`, `compact`), the `paths` globs, the file that triggered the load or the file that imported it, and the file's git blob hash at load time:
+Each load of a CLAUDE.md, an import or a `.claude/rules` file appends one JSON line to `~/.claude/bonsai/loads/<owner>/<repo>.jsonl`, keyed by the `upstream` remote, else `origin`, else the directory name. The hook makes no network call, so a fork clone without an `upstream` remote logs under the fork's name. A reader that resolves the canonical key should also read the log under the fork's key. A line holds the time, the session and subagent ids, the working directory and worktree root, the loaded file's path from the root (absolute outside it), its scope (`memory_type`), the load cause (`session_start`, `nested_traversal`, `path_glob_match`, `include`, `compact`), the `paths` globs, the file that triggered the load or the file that imported it, and the file's git blob hash at load time:
 
 ```json
 {"time":"2026-11-09T12:00:00.000Z","session_id":"9f1c…","cwd":"/work/catalog","root":"/work/catalog","file":"api/CLAUDE.md","memory_type":"Project","load_reason":"nested_traversal","trigger_file":"api/routes.ts","blob":"5b2a…"}
 ```
 
-It never records file contents, prompts or tool output. A headless session (`claude -p`) loads its session-start files before plugin hooks start, so its log holds only the lazy loads. The hook runs in the background, needs [Bun](https://bun.sh), and writes nothing when Bun is missing or anything fails. The log stays on your machine. Delete the directory to clear it.
+It never records file contents, prompts or tool output. A headless session (`claude -p`) loads its session-start files before plugin hooks start, so its log holds only the lazy loads. The hook runs in the background, needs [Bun](https://bun.sh) and a POSIX `sh` (native Windows without Git Bash writes no log), and writes nothing when Bun is missing or anything fails. The log stays on your machine. Delete the directory to clear it.
 
 ## Install
 
