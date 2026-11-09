@@ -90,11 +90,21 @@ const REPOSITORY_VARIABLES = new Set([
   "GIT_COMMON_DIR",
 ]);
 
-/** `owner/repo` from a remote URL in any form git accepts. */
+/**
+ * `owner/repo` from a remote URL in any form git accepts. A `.` or `..`
+ * component gives no key, so the log path never climbs out of loads/.
+ */
 export function keyFromRemoteUrl(url: string): string | undefined {
-  const match = /([^/:]+)\/([^/:]+?)(?:\.git)?\/*$/.exec(url.trim());
+  const [, owner, repository] =
+    /([^/:]+)\/([^/:]+?)(?:\.git)?\/*$/.exec(url.trim()) ?? [];
 
-  return match === null ? undefined : `${match[1]}/${match[2]}`;
+  if (owner === undefined || repository === undefined) {
+    return undefined;
+  }
+
+  return [owner, repository].some((part) => part === "." || part === "..")
+    ? undefined
+    : `${owner}/${repository}`;
 }
 
 /**

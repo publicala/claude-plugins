@@ -107,6 +107,19 @@ describe("keyFromRemoteUrl", () => {
   test("reads no key from a URL without an owner", () => {
     expect(keyFromRemoteUrl("catalog")).toBeUndefined();
   });
+
+  test.each(["../catalog.git", "./catalog", "/srv/../..", "acme/..", "../.."])(
+    "reads no key from %s, whose components climb",
+    (url) => {
+      expect(keyFromRemoteUrl(url)).toBeUndefined();
+    },
+  );
+
+  test("reads a local path with spaces", () => {
+    expect(keyFromRemoteUrl("/Volumes/Work Drive/acme/catalog.git")).toBe(
+      "acme/catalog",
+    );
+  });
 });
 
 describe("repositoryKey", () => {
@@ -129,6 +142,16 @@ describe("repositoryKey", () => {
         "/work/catalog",
       ),
     ).toBe("acme-books/catalog");
+  });
+
+  test("keeps a relative remote's log inside loads/", () => {
+    const home = "/home/me";
+    const path = logPath(
+      home,
+      repositoryKey({ origin: "../catalog.git" }, "/work/catalog"),
+    );
+
+    expect(path).toBe("/home/me/.claude/bonsai/loads/catalog.jsonl");
   });
 
   test("falls back to the directory name", () => {
