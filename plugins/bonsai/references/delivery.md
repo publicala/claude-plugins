@@ -6,7 +6,9 @@ A rule bonsai keeps reaches the agent through one mechanism, and a check runs at
 
 Take the strongest rung that can hold the rule. A strong rung meets the session at the moment of the mistake, or removes the mistake, and costs nothing in the sessions it does not govern. Strongest first:
 
-- **R0 Human only**: an HTML comment (`<!-- -->`) in a CLAUDE.md, the commit, the PR. For a "why" a reviewer needs and a session does not (`rule-writing.md`, in this directory). The harness strips HTML comments from a CLAUDE.md before it injects the file, so a session pays nothing for them, and a plain file read still shows them. Skills and `.claude/rules/` files carry no such promise: there, R0 is the commit or the PR.
+- **R0 Human only**: an HTML comment (`<!-- -->`) in a CLAUDE.md, the commit, the PR. For a "why" a reviewer needs and a session does not (`rule-writing.md`, in this directory).
+  - The harness strips HTML comments from a CLAUDE.md before it injects the file, so a session pays nothing for them, and a plain file read still shows them.
+  - Skills and `.claude/rules/` files carry no such promise: there, R0 is the commit or the PR.
 - **R1 Make the mistake impossible**: a type, an API shape, a generator stub, a state machine. The next instance fails to compile or has no way to be written. A redesign of domain code comes only from guard (see "Domain redesigns").
 - **R2 A check whose message names the fix**: held as `enforcement.md`, in this directory, defines it. Its kinds, strongest first, are auto-fix, static analysis, arch or guard test, ast-grep, git hook and runtime guard. A tool hook that denies a call and names the fix in its reason is a check of this rung, and "The moment" below says when it fits. A custom script comes last, when no tool the repository runs can express the check.
 - **R3 Knowledge in the code next to the change**: a docblock, a command's description or `--help`, a check's message. The session reads it when it opens the file or runs the command, and so does every other agent and person.
