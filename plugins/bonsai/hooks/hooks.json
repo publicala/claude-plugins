@@ -1,0 +1,17 @@
+{
+  "description": "Records which instruction files sessions load, when BONSAI_LOAD_LOG=1.",
+  "hooks": {
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/log-load.sh\"",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

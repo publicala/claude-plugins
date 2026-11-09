@@ -11,6 +11,8 @@ What a session pays for a CLAUDE.md line depends only on how the file reaches th
 
 Nested files and path-scoped rules are the two scope-triggered classes. Judge their lines against a fresh session working in their scope, since only those sessions load them.
 
+When `~/.claude/bonsai/loads/<key>.jsonl` exists for the repository, count loads from it in place of estimating them: one JSON line per load with the file, its `load_reason` and the blob hash it had (format in the plugin README, "Load log"). Count only lines whose `blob` matches the file as it stands, since older lines describe an earlier file.
+
 ## What triggers a load
 
 A scoped file loads when the session touches a file in its scope, and the harness attaches it right after that tool call's result. Two kinds of touch fire it:
