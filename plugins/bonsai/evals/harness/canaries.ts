@@ -661,6 +661,38 @@ export const CANARIES: Canary[] = [
     },
   },
   {
+    id: "rule-glob-multi-segment",
+    agent: "claude",
+    fact: "A rule glob with a slash before its trailing `/**` is anchored: `src/lib/**` skips `pkg/src/lib/` and matches the root `src/lib/`, as `/src/lib/**` does.",
+    update:
+      "load-model.md, Four classes: only a glob with no slash before its trailing `/**` matches at any depth.",
+    plan: (context) => {
+      const multiSegment = marker(context, "MULTI-SEGMENT");
+      const anchored = marker(context, "ANCHORED");
+
+      return {
+        files: {
+          ...BASE_FILES,
+          ".claude/rules/multi-segment.md": rule(["src/lib/**"], multiSegment),
+          ".claude/rules/anchored.md": rule(["/src/lib/**"], anchored),
+          "pkg/src/lib/x.ts": "export const x = 1;\n",
+          "src/lib/y.ts": "export const y = 2;\n",
+        },
+        tools: ["Read"],
+        main: {
+          steps: [
+            { tool: "Read", path: "pkg/src/lib/x.ts" },
+            { tool: "Read", path: "src/lib/y.ts" },
+          ],
+          expectations: [
+            { what: "rule `src/lib/**`", marker: multiSegment, afterStep: 2 },
+            { what: "rule `/src/lib/**`", marker: anchored, afterStep: 2 },
+          ],
+        },
+      };
+    },
+  },
+  {
     id: "nested-skill",
     agent: "claude",
     fact: "A nested skill is unlisted at start, its description arrives after the first Read under its directory, and its body only when it runs.",
