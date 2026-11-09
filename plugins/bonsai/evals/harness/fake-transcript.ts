@@ -137,8 +137,10 @@ export function followingSession(
 ): FakeTranscript {
   const arrivalOf = (
     marker: string,
-    expected: number | "never",
-  ): number | "never" => arrivals[marker] ?? expected;
+    expected: number | number[] | "never",
+  ): number | "never" =>
+    arrivals[marker] ??
+    (Array.isArray(expected) ? (expected[0] ?? "never") : expected);
   const loadsAt = (position: number): string[] =>
     session.expectations
       .filter(

@@ -179,6 +179,44 @@ describe("judging a Claude canary", () => {
     });
   });
 
+  describe("an expectation that accepts several steps", () => {
+    const session = {
+      steps: [
+        { tool: "Bash" as const, command: "cat pkg/a.txt | head -n 5" },
+        { tool: "Edit" as const, path: "pkg/a.txt", find: "a", replace: "b" },
+        { tool: "Read" as const, path: "pkg/a.txt" },
+      ],
+      expectations: [
+        { what: "pkg/CLAUDE.md", marker: "ACME-NESTED", afterStep: [2, 3] },
+      ],
+    };
+
+    test.each([2, 3])(
+      "passes a marker that arrives right after step %i",
+      (step) => {
+        const transcript = followingSession(ROOT, session, {
+          "ACME-NESTED": step,
+        });
+
+        expect(
+          judgeSession(parseTranscript(transcript.jsonl()), session).result,
+        ).toBe("PASS");
+      },
+    );
+
+    test("fails a marker that arrives at another step, naming every accepted one", () => {
+      const transcript = followingSession(ROOT, session, { "ACME-NESTED": 1 });
+
+      expect(
+        judgeSession(parseTranscript(transcript.jsonl()), session),
+      ).toEqual({
+        result: "FAIL",
+        detail:
+          "pkg/CLAUDE.md: right after step 1 (Bash `cat pkg/a.txt | head -n 5`), expected right after step 2 (Edit pkg/a.txt) or right after step 3 (Read pkg/a.txt).",
+      });
+    });
+  });
+
   test("fails a marker that arrives only after the model's next turn", () => {
     const session = {
       steps: [{ tool: "Read" as const, path: "pkg/a.txt" }],

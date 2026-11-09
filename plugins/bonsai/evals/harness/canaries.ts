@@ -23,12 +23,14 @@ export interface Outcome {
 
 /**
  * Where a marker must first reach the context: right after the result of a
- * step (1-based), before the model's next turn, or never.
+ * step (1-based), before the model's next turn, or never. A list accepts
+ * any of its steps, for a load Claude Code does not make at the same step
+ * every run.
  */
 export interface Expectation {
   what: string;
   marker: string;
-  afterStep: number | "never";
+  afterStep: number | number[] | "never";
 }
 
 export interface Session {
@@ -249,20 +251,25 @@ export function judgeSession(
   const findings = expectations.map((expectation) => {
     const arrival = markerArrival(transcript, expectation.marker);
     const where = position(transcript, steps, arrival);
-    const expected =
+    const accepted =
       expectation.afterStep === "never"
-        ? "never"
-        : `right after step ${expectation.afterStep} (${describeStep(stepAt(steps, expectation.afterStep))})`;
+        ? ["never"]
+        : [expectation.afterStep]
+            .flat()
+            .map(
+              (number) =>
+                `right after step ${number} (${describeStep(stepAt(steps, number))})`,
+            );
 
     return {
-      holds: where === expected,
+      holds: accepted.includes(where),
       text: `${expectation.what}: ${where}`,
-      expected,
+      expected: accepted.join(" or "),
     };
   });
-  const failed = findings.find((finding) => !finding.holds);
+  const failures = findings.filter((finding) => !finding.holds);
 
-  if (failed !== undefined) {
+  if (failures.length > 0) {
     const errors = calls
       .slice(0, steps.length)
       .flatMap((call, index) =>
@@ -274,7 +281,7 @@ export function judgeSession(
 
     return {
       result: "FAIL",
-      detail: `${failed.text}, expected ${failed.expected}.${errors}`,
+      detail: `${failures.map((failure) => `${failure.text}, expected ${failure.expected}.`).join(" ")}${errors}`,
     };
   }
 
@@ -437,9 +444,9 @@ export const CANARIES: Canary[] = [
   {
     id: "nested-on-edit-after-piped-read",
     agent: "claude",
-    fact: "A piped shell read loads nothing, and the Edit that follows it loads the nested CLAUDE.md.",
+    fact: "A piped shell read loads nothing, and the nested CLAUDE.md arrives right after the Edit that follows it or, when that Edit loads nothing, right after the next Read.",
     update:
-      "load-model.md, What triggers a load: an Edit whose only prior read was a shell read that loaded nothing counts, and a piped read is missed.",
+      "load-model.md, What triggers a load: an Edit whose only prior read was a shell read that loaded nothing lands without the scoped file, which arrives after that Edit or at a later file-tool call, and a piped read is missed.",
     plan: (context) => {
       const nested = marker(context, "NESTED");
 
@@ -449,7 +456,7 @@ export const CANARIES: Canary[] = [
           [NESTED_CLAUDE_MD]: nestedMemory(nested),
           "pkg/a.txt": "stock\n",
         },
-        tools: ["Bash", "Edit"],
+        tools: ["Bash", "Edit", "Read"],
         main: {
           steps: [
             { tool: "Bash", command: "cat pkg/a.txt | head -n 5" },
@@ -459,9 +466,10 @@ export const CANARIES: Canary[] = [
               find: "stock",
               replace: "stock ok",
             },
+            { tool: "Read", path: "pkg/a.txt" },
           ],
           expectations: [
-            { what: NESTED_CLAUDE_MD, marker: nested, afterStep: 2 },
+            { what: NESTED_CLAUDE_MD, marker: nested, afterStep: [2, 3] },
           ],
         },
       };
