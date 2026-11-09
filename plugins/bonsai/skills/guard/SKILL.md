@@ -81,14 +81,14 @@ The artifact is the triage table: one row per finding, with its candidate or its
 
 ### 4. Pick the rung
 
-Take the highest rung that can express the rule at a comparable cost. When a lower rung covers the same paths for a fraction of the code (a two-line arch test against a custom rule with its test and fixtures), offer both and recommend the cheaper one.
+The rungs are the delivery ladder in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md`, read for one finding: rung 1 is R1, rungs 2 to 7 are R2's kinds in the same order, and rung 8 is R4, or R7 for a rule that cuts across the project. Take the highest rung that can express the rule at a comparable cost. When a lower rung covers the same paths for a fraction of the code (a two-line arch test against a custom rule with its test and fixtures), offer both and recommend the cheaper one.
 
-1. **Unwritable**: the type or the schema refuses the next instance. An enum for a closed set of strings, a required parameter, `NOT NULL`, one helper every writer must go through. A fix that covers the one instance at hand (an attribute on one method) leaves the next one writable: the guard is then the rung that requires it everywhere.
+1. **Unwritable**: the type or the schema refuses the next instance. An enum for a closed set of strings, a required parameter, `NOT NULL`, one helper every writer must go through, a state machine that owns a model's transitions. A fix that covers the one instance at hand (an attribute on one method) leaves the next one writable: the guard is then the rung that requires it everywhere.
 2. **Auto-fix**: a formatter or Rector rule rewrites the wrong form on commit. The violation never survives the next format, so no message is needed.
 3. **Static analysis**: a stock or custom rule (PHPStan, a type checker, a linter rule).
 4. **Arch or guard test**: Pest `arch()`, a test that parses source tokens or a syntax tree, a sweep over routes or config.
 5. **ast-grep**: a syntax shape that a stock linter cannot express.
-6. **Git hook**: a pre-commit guard, scoped to agent commits when people may still do the thing on purpose, with an escape variable it names.
+6. **Git hook**: a pre-commit or pre-push guard, through lefthook or the hook manager the repository runs, scoped to agent commits when people may still do the thing on purpose, with an escape variable it names. Its measured run time picks the moment (`${CLAUDE_PLUGIN_ROOT}/references/delivery.md`, "The moment a check runs").
 7. **Runtime guard**: the step that cannot be undone refuses and reports (a delete, a send, a charge).
 8. **CLAUDE.md line**: the nearest scoped file, through the prose gate.
 
@@ -100,6 +100,7 @@ Contrast pairs for the boundary between rungs:
 - A model that imports a queued job: an arch test (rung 4).
 - A test that asserts a spy's call count before filtering by arguments, where static analysis covers only app code: a test that parses the test files (rung 4), or the same static-analysis rule run over the tests through a second config. The rung must reach the paths the rule governs.
 - An agent that edits a frozen directory through the shell, where no scoped CLAUDE.md loads: an agent-only pre-commit hook (rung 6).
+- An order moved from paid back to pending: a test of the allowed transitions (rung 4), or a state machine that refuses the move (rung 1). Only guard proposes the state machine, since it redesigns domain code, and the cost gate weighs the two.
 
 The artifact is the rung and the check's shape per candidate, with the message it prints.
 
@@ -123,6 +124,8 @@ A candidate passes when three things hold:
 - **Value**: a fresh session would plausibly write the wrong form again. It is the framework's default, the review saw it more than once, or the surrounding code shows it. A form one caller wrote once is upkeep for little: rank it low value. Record the verdict as the **why** the card opens with, in two or three sentences: what goes wrong when the mistake ships, which of the four holds and the evidence for it, and what tipped a close call or a low value.
 - **Fit**: a tool the repository runs expresses it, with few exceptions.
 - **Size**: its fixes fit one PR. An auto-fix fits at any count. More than about 20 fixes by hand, or fixes that need a refactor, go to a prep PR first, and the guardrail PR stacks on it: make the change easy, then make the easy change.
+
+A state machine against a test of the allowed transitions: recommend the test for a single slip, and the state machine when the same kind of finding recurs across reviews or the transitions have many writers: a test checks the writers it knows, and a state machine refuses every write that goes around it. Show the other as the `alternative`.
 
 Cover only the code forms in use today. A check that guards forms nobody writes yet is upkeep with nothing to catch. A candidate that fails the gate is **not now**, with the reason. A close call goes to the user as one. The artifact is one cost line per candidate, with its why and its tradeoff.
 
