@@ -29,15 +29,15 @@ Every CLAUDE.md file in the project and every enforcement surface it already has
 
 ### 1. Inventory the tooling
 
-List the enforcement surfaces present, with the paths each one covers. For a tool that takes custom rules, note how the project tests them (a PHPStan `RuleTestCase`, ESLint's `RuleTester`, `ast-grep test`). Everything later is expressed through these surfaces, in this order of preference:
+List the enforcement surfaces present, with the paths each one covers. For a tool that takes custom rules, note how the project tests them (a PHPStan `RuleTestCase`, ESLint's `RuleTester`, `ast-grep test`). Everything later is expressed through these surfaces, in the order of rung R2's kinds in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md`:
 
-1. Linter and formatter rules (ESLint, Biome, Prettier, Pint, Ruff, gofmt)
-2. Static analysis, including custom rules (TypeScript strict, PHPStan levels and custom rules, mypy, Rector)
+1. Auto-fix: formatters and fixable rules (Prettier, Pint, Ruff, gofmt, Rector)
+2. Static analysis, including linter and custom rules (ESLint, Biome, TypeScript strict, PHPStan levels and custom rules, mypy)
 3. Architecture tests (Pest arch, ArchUnit, dependency-cruiser)
 4. Structural search and lint (ast-grep) for syntax-shaped rules a stock linter cannot express (a banned call pattern, a required argument shape)
-5. Git hooks (Lefthook, Husky, pre-commit) and CI pipeline steps
-6. Agent-harness hooks (Claude Code PreToolUse deny rules in the project's committed `.claude/settings.json`) for rules about how a command is invoked (a required flag, a banned subcommand), which no linter or code check can see
-7. A custom script, only when nothing above can express the check
+5. Git hooks (Lefthook, Husky, pre-commit)
+
+A rule about how a command is invoked (a required flag, a banned subcommand) that no git event sees takes a PreToolUse deny rule in the project's committed `.claude/settings.json`, under the tool-hook condition in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md`. A custom script comes last, only when nothing above can express the check. A redesign of domain code (a state machine) belongs to `/bonsai:guard`.
 
 ### 2. Classify each rule
 
@@ -45,7 +45,7 @@ Sort every rule into one of four.
 
 - **Held**: a committed check already holds it. Its prose goes with no new check, as a ready `delete` grouped by cause (class `bake:delete:tool-enforced`). So does every line or clause that only names the check holding a rule.
 - **Held with a gap**: a check exists but misses a condition (a path it does not read, a message that names no fix, a baseline). The change closes the gap, and then the prose goes. Record which condition and the edit that closes it.
-- **Automate**: no check holds it yet. Record the tool and the shape of the check, and the message it prints.
+- **Automate**: no check holds it yet. Record the tool and the shape of the check, the message it prints, and the moment it runs (step 5).
 - **Prose**: record why. It needs human judgment, or it depends on context no tool sees.
 
 ### 3. Read the intake candidates
@@ -65,7 +65,11 @@ Revise a check that misses the planted violation or flags compliant code once, a
 
 A custom rule ships with its own test, through the harness step 1 noted: the planted violation and a compliant twin. A tool upgrade, a renamed path or a config change can silence a check, and once the prose is gone nothing else would notice. A stock rule turned on in a config needs no test of its own.
 
-### 5. Approval and apply
+### 5. Schedule the moment
+
+Time every proposed check, and every existing check that holds a rule and runs only in CI, on the tree. Propose the earliest moment its time fits, as "The moment a check runs" in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md` sets it: a check that takes seconds runs at pre-commit through lefthook or the repository's hook manager, a slower suite at pre-push, and the rest stays in CI. A move to an earlier moment is its own `automate` change, with the measured time as evidence. Flag on the same pass any check whose failure message names no fix: it holds its rule with a gap (step 2).
+
+### 6. Approval and apply
 
 Present the decisions in rounds as `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` prescribes, at most 5 checks per round, ranked by how often the rule was broken. Every check is a call: it costs CI time and false positives, so the user decides each one. Present the round before touching anything: which rules will be automated and by which tool, which stay prose and why. Read `${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md` before routing, then pick the delivery as `${CLAUDE_PLUGIN_ROOT}/references/decision-artifact.md` prescribes under "Delivery". For the page, build it with the renderer that reference names.
 
