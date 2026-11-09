@@ -2,6 +2,8 @@
 
 What a session pays for a CLAUDE.md line depends only on how the file reaches the context. Classify every in-scope file before judging or placing its lines.
 
+The harness canaries check every fact here against the Claude Code and Codex installed on your machine: run `bun evals/harness/run.ts` from the plugin root after an update ([../evals/README.md](../evals/README.md)).
+
 ## Four classes
 
 - **Always resident**: the root CLAUDE.md, user-level and ancestor-directory files, and anything they pull in with `@path` imports. Full price in every session. An `@path` import costs the same as inline text, so moving content behind one saves nothing.
