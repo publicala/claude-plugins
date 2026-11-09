@@ -46,7 +46,9 @@ Measure the check's run time on the repository, then pick the earliest moment it
 - **Pre-push**: a suite too slow to wait on at every commit, up to a minute or two.
 - **CI**: what runs longer, or needs services a laptop lacks.
 
-A check that runs only in CI reaches the session after it pushed, so a fast one moves earlier. A tool hook (PreToolUse or PostToolUse) fits only when no git event sees the rule (a command's flags, a deploy, a query against a shared database) and its result differs from what a git hook would give. When the result is the same, take the git hook through lefthook: it runs for people and every agent, next to the repository's other hooks.
+A check that runs only in CI reaches the session after it pushed, so a fast one also runs earlier. CI keeps running it, since a local hook runs only where someone installed it.
+
+A tool hook (PreToolUse or PostToolUse) fits only when no git event sees the rule (a command's flags, a deploy, a query against a shared database) and its result differs from what a git hook would give. When the result is the same, take the git hook through lefthook: it runs for people and every agent, next to the repository's other hooks.
 
 ## Domain redesigns
 

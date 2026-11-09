@@ -37,7 +37,7 @@ List the enforcement surfaces present, with the paths each one covers. For a too
 4. Structural search and lint (ast-grep) for syntax-shaped rules a stock linter cannot express (a banned call pattern, a required argument shape)
 5. Git hooks (Lefthook, Husky, pre-commit)
 
-A rule about how a command is invoked (a required flag, a banned subcommand) that no git event sees takes a PreToolUse deny rule in the project's committed `.claude/settings.json`, under the tool-hook condition in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md`. A custom script comes last, only when nothing above can express the check. A redesign of domain code (a state machine) belongs to `/bonsai:guard`.
+A rule about how a command is invoked (a required flag, a banned subcommand) that no git event sees takes a PreToolUse deny rule in the project's committed `.claude/settings.json`, under the tool-hook condition in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md`. It holds the rule only for the invocations it sees: when a package script or another command can run the same tool without the flag, the rule is held with a gap and its prose stays. A custom script comes last, only when nothing above can express the check. A redesign of domain code (a state machine) belongs to `/bonsai:guard`.
 
 ### 2. Classify each rule
 
@@ -67,7 +67,7 @@ A custom rule ships with its own test, through the harness step 1 noted: the pla
 
 ### 5. Schedule the moment
 
-Time every proposed check that runs over the tree, and every existing one that holds a rule and runs only in CI. A PreToolUse deny rule for how a command is invoked keeps its tool-hook timing (step 1), since no git event sees it. Propose the earliest moment its time fits, as "The moment a check runs" in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md` sets it: a check that takes seconds runs at pre-commit through lefthook or the repository's hook manager, a slower suite at pre-push, and the rest stays in CI. A move to an earlier moment is its own `automate` change, with the measured time as evidence. Flag on the same pass any check whose failure message names no fix: it holds its rule with a gap (step 2).
+Time every proposed check that runs over the tree, and every existing one that holds a rule and runs only in CI. A PreToolUse deny rule for how a command is invoked keeps its tool-hook timing (step 1), since no git event sees it. Propose the earliest moment its time fits, as "The moment a check runs" in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md` sets it: a check that takes seconds also runs at pre-commit through lefthook or the repository's hook manager, a slower suite at pre-push, and CI keeps running every one of them. An earlier moment is its own `automate` change, with the measured time as evidence. Flag on the same pass any check whose failure message names no fix: it holds its rule with a gap (step 2).
 
 ### 6. Approval and apply
 
