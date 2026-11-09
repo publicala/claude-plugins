@@ -33,7 +33,7 @@ A `--headless` run asks nothing: it continues and opens the PR body with the rec
 
 ## Load model
 
-Placement chooses among the load classes in [../../references/load-model.md](../../references/load-model.md) (relative to this skill's directory): always resident, nested CLAUDE.md, or path-scoped rule. Read it before the pass. Every demotion verdict hangs on the read trigger it describes: a scoped file loads on a read, and only on a read.
+Placement chooses among the load classes in [../../references/load-model.md](../../references/load-model.md) (relative to this skill's directory): always resident, nested CLAUDE.md, or path-scoped rule. Read it before the pass. Every demotion verdict hangs on the triggers it describes: a scoped file loads on a file-tool touch or a plain shell read, and on nothing else.
 
 ## Never demote
 
@@ -62,8 +62,8 @@ The grep is the verdict on shape. The author's sense of where a rule "belongs" i
 
 A demotion only works if the scoped file is loaded by the time the rule matters. Name the mistake the rule prevents, then classify the action that commits it:
 
-- Editing an existing in-scope file, in a team that reads through the file tools: demote. The harness refuses an edit without a prior read in the session, and a file-tool read always loads the scoped file. A team that reads through the shell can satisfy that read with a command shape that loads nothing (`references/load-model.md`), so its edits take the probe below.
-- Creating a new in-scope file, or acting on in-scope paths through shell or git: the read trigger can miss. For these rules no verdict exists until a load-path probe runs, as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: one fresh low-effort agent gets the task that would commit the mistake, in the real repo, without mention of the rule. The scoped file loads before the mistake: demote. It acts first, or reads only in shapes that load nothing: the rule stays resident. Run the probe in the harness mode the team works in: a mode that reads through the shell loads a scoped file only on plain reads, and a demotion probed in another mode is untested for it. The author guessing whether sessions read first is the same simulation the probe replaces.
+- Reading, editing or creating an in-scope file through the file tools: demote. The scoped file arrives right after the first Read, Write or Edit in its scope (`references/load-model.md`), so a session that writes the first file without the rule sees it before its next step and corrects that file. When the repository serves an agent that reads only the root file (`references/load-model.md`), the demotion leaves a one-line pointer in the root for that agent. A rule that also governs files a generator or a shell command writes takes the next check for that workflow.
+- Acting on in-scope paths only through shell or git (a generator, `sed -i`, `git mv`, running a command): nothing loads. For these rules no verdict exists until a load-path probe runs, as [../../references/probe.md](../../references/probe.md) (relative to this skill's directory) prescribes: one fresh low-effort agent gets the task that would commit the mistake, in the real repo, without mention of the rule. The scoped file loads before the mistake: demote. It acts first, or reads only in shapes that load nothing: the rule stays resident. Run the probe in the harness mode the team works in: a mode that reads through the shell loads a scoped file only on plain reads, and a demotion probed in another mode is untested for it. The author guessing whether sessions read first is the same simulation the probe replaces. A rule in an always-resident file never probes clean, since every subagent inherits it (`references/probe.md`): it stays resident, recorded as unresolved.
 
 ### 4. The other direction
 
@@ -87,7 +87,7 @@ After applying, verify that each scoped file the edits created or re-globbed act
 
 A moved rule keeps its exact text. The only permitted edit is deleting a scope qualifier the destination now expresses: "In tests/, never use RefreshDatabase" becomes "Never use RefreshDatabase" inside `tests/CLAUDE.md`. Phrasing improvements belong to `/bonsai:audit`.
 
-A demotion leaves nothing behind. The scoped file loads automatically, so a pointer at root would rebuild the cost the move removed. Create the destination file if it is missing, and append under a heading that matches its existing structure.
+A demotion leaves nothing behind. The scoped file loads automatically, so a pointer at root would rebuild the cost the move removed. The one exception is a repository that serves an agent reading only the root file: there the demotion leaves the one-line root pointer step 3 names. Create the destination file if it is missing, and append under a heading that matches its existing structure.
 
 ## Skill candidates
 
