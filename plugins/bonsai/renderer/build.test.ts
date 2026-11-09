@@ -157,6 +157,18 @@ function firstEdit(change: FixtureChange): FixtureEdit {
   return edit;
 }
 
+/** The example's move, made ready with the given destination and its source file gone. */
+function readyMove(data: Fixture, destination: string): FixtureChange {
+  const testing = changeIn(data.changes, "testing");
+  testing.lane = "ready";
+  testing.group = "covered";
+  testing.destination = destination;
+  delete testing.skip;
+  data.files = data.files.filter((entry) => entry.path !== "tests/CLAUDE.md");
+
+  return testing;
+}
+
 function expectDataError(data: unknown, message: string): void {
   const failure = build(data, EXAMPLE);
 
@@ -241,6 +253,24 @@ describe("build", () => {
     const page = await build(data, EXAMPLE);
 
     expect(changeIn(page.changes, "testing").destination).toBe(destination);
+  });
+
+  test("lets a ready root move also write a pointer in a nested CLAUDE.md", async () => {
+    const data = await exampleData();
+    const testing = readyMove(data, "root");
+    testing.edits = [
+      { file: "CLAUDE.md", at: 3, write: ["- Tests use the factories."] },
+      {
+        file: "tests/CLAUDE.md",
+        at: "end",
+        write: ["- The factory rule lives in the root file."],
+      },
+    ];
+    data.files.push({ path: "tests/CLAUDE.md", new: true });
+
+    const page = await build(data, EXAMPLE);
+
+    expect(changeIn(page.changes, "testing").lane).toBe("ready");
   });
 
   test("quotes the removed lines from disk", async () => {
@@ -1202,6 +1232,48 @@ describe("build refuses data that would mislead", () => {
         changeIn(data.changes, "testing").destination = "html-comment";
       },
       'Change \'testing\' moves text to "html-comment", but no edit writes a CLAUDE.md with an HTML comment. Point "destination" at the rung its edits write to.',
+    ],
+    [
+      "a ready move to a doc inside a nested skill",
+      (data) => {
+        const testing = readyMove(data, "deferred-doc");
+        testing.edits = [
+          {
+            file: "deploy/.claude/skills/release/SKILL.md",
+            at: "end",
+            write: ["# Release"],
+          },
+        ];
+        data.files.push({
+          path: "deploy/.claude/skills/release/SKILL.md",
+          new: true,
+        });
+      },
+      "Change 'testing' is in lane ready, but it edits \"deploy/.claude/skills/release/SKILL.md\", which is code, a skill, settings or a hook. Set lane to call, or drop that edit.",
+    ],
+    [
+      "a ready root move that also writes a PHP file",
+      (data) => {
+        const testing = readyMove(data, "root");
+        testing.edits = [
+          { file: "CLAUDE.md", at: 3, write: ["- Tests use the factories."] },
+          { file: "app/Support/Money.php", at: "end", write: ["// cents"] },
+        ];
+        data.files.push({ path: "app/Support/Money.php", new: true });
+      },
+      "Change 'testing' is in lane ready, but it edits \"app/Support/Money.php\", which is code, a skill, settings or a hook. Set lane to call, or drop that edit.",
+    ],
+    [
+      "a ready root move that also writes the settings",
+      (data) => {
+        const testing = readyMove(data, "root");
+        testing.edits = [
+          { file: "CLAUDE.md", at: 3, write: ["- Tests use the factories."] },
+          { file: ".claude/settings.json", at: "end", write: ["{}"] },
+        ];
+        data.files.push({ path: ".claude/settings.json", new: true });
+      },
+      "Change 'testing' is in lane ready, but it edits \".claude/settings.json\", which is code, a skill, settings or a hook. Set lane to call, or drop that edit.",
     ],
     ...(["code", "skill", "html-comment"] as const).map(
       (destination): [string, (data: Fixture) => void, string] => [

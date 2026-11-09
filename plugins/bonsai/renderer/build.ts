@@ -61,10 +61,8 @@ const DESTINATION_FILES: Record<
   },
   "scoped-file": {
     matches: (file) =>
-      (isClaudeFile(file) &&
-        file.includes("/") &&
-        !file.startsWith(".claude/")) ||
-      /^\.claude\/rules\/.+\.md$/.test(file),
+      (isClaudeFile(file) && file.includes("/") && !hasClaudeDirectory(file)) ||
+      isRuleFile(file),
     names: "a nested CLAUDE.md or a `.claude/rules/` file",
   },
   skill: {
@@ -77,15 +75,38 @@ const DESTINATION_FILES: Record<
   },
   "deferred-doc": {
     matches: (file) =>
-      file.endsWith(".md") &&
-      !isClaudeFile(file) &&
-      !file.startsWith(".claude/"),
+      file.endsWith(".md") && !isClaudeFile(file) && !hasClaudeDirectory(file),
     names: "a Markdown doc outside the CLAUDE.md files and `.claude/`",
   },
 };
 
 function isClaudeFile(file: string): boolean {
   return file === "CLAUDE.md" || file.endsWith("/CLAUDE.md");
+}
+
+function isRuleFile(file: string): boolean {
+  return /^\.claude\/rules\/.+\.md$/.test(file);
+}
+
+/** A `.claude/` directory at any depth: skills, settings and hooks live there. */
+function hasClaudeDirectory(file: string): boolean {
+  return /(^|\/)\.claude\//.test(file);
+}
+
+/**
+ * Code, a skill, settings or a hook: an edit only a call may make. A ready
+ * move writes Markdown that sessions read the same way it did before.
+ */
+function isCallOnlyFile(file: string): boolean {
+  if (!file.endsWith(".md")) {
+    return true;
+  }
+
+  return (
+    hasClaudeDirectory(file) &&
+    !isRuleFile(file) &&
+    file !== ".claude/CLAUDE.md"
+  );
 }
 
 /** Only these can be ready: every other destination edits code or settings, or hides the text from sessions. */
@@ -708,8 +729,20 @@ function ensureDestination(
     lane === "call" || isOneOf(READY_DESTINATIONS, destination),
     `${owner} moves text into ${quote(destination)}. Only a move into ${listChoices(READY_DESTINATIONS)} can be ready, so set lane to call.`,
   );
+  const edits = listOfObjects(change.edits, "edits", owner);
+
+  if (lane !== "call") {
+    const callOnly = edits.find(
+      (edit) => typeof edit.file === "string" && isCallOnlyFile(edit.file),
+    );
+    ensure(
+      callOnly === undefined,
+      `${owner} is in lane ${lane}, but it edits ${quote(callOnly?.file)}, which is code, a skill, settings or a hook. Set lane to call, or drop that edit.`,
+    );
+  }
+
   const target = DESTINATION_FILES[destination];
-  const writes = listOfObjects(change.edits, "edits", owner).filter(
+  const writes = edits.filter(
     (edit) =>
       typeof edit.file === "string" &&
       Array.isArray(edit.write) &&
