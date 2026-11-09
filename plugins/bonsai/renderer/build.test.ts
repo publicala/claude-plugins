@@ -2066,6 +2066,23 @@ describe("page", () => {
     await window.happyDOM.close();
   });
 
+  test("names where a ready move lands, inside its group", async () => {
+    const data = await exampleData();
+    const testing = changeIn(data.changes, "testing");
+    testing.lane = "ready";
+    testing.group = "covered";
+    delete testing.skip;
+    const { window, document } = await openPage(await build(data, EXAMPLE));
+
+    expect(
+      document.querySelector('[data-item="testing"] .destination')?.textContent,
+    ).toBe("to a scoped file");
+    expect(
+      document.querySelector('[data-item="stack"] .destination'),
+    ).toBeNull();
+    await window.happyDOM.close();
+  });
+
   test("renders record mode without errors", async () => {
     const data = await exampleData();
     data.run.status = {

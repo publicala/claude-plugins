@@ -546,7 +546,7 @@ function groupCard(g: Group, p = "") {
       <li class="item ${S.d[c.id] === "apply" ? "" : "off"}" data-item="${c.id}">
         <input type="checkbox" id="${p}cb-${c.id}" data-cb="${c.id}" ${S.d[c.id] === "apply" ? "checked" : ""} ${disabled}>
         <div class="it">
-          <div class="it-top"><label class="it-title" for="${p}cb-${c.id}">${prose(c.title)}</label>${locHtml(c)}<span class="tok num muted" data-tok="${c.id}">${tokText(c)}</span></div>
+          <div class="it-top"><label class="it-title" for="${p}cb-${c.id}">${prose(c.title)}</label>${destinationHtml(c)}${locHtml(c)}<span class="tok num muted" data-tok="${c.id}">${tokText(c)}</span></div>
           <p class="it-why">${prose(whyText(c))}${c.evidence[0]?.href ? ` <a href="${esc(c.evidence[0].href)}" target="_blank" rel="noopener">open</a>` : ""}</p>
           <div data-diff="${c.id}">${diffHtml(c)}</div>
           ${checkHtml(c)}
