@@ -663,16 +663,18 @@ export const CANARIES: Canary[] = [
   {
     id: "rule-glob-multi-segment",
     agent: "claude",
-    fact: "A rule glob with a slash before its trailing `/**` is anchored: `src/lib/**` skips `pkg/src/lib/` and matches the root `src/lib/`, as `/src/lib/**` does.",
+    fact: "A rule glob with a slash before its trailing `/**` is anchored: `src/lib/**` skips `pkg/src/lib/` and matches the root `src/lib/`, as `/src/lib/**` does, while `**/src/lib/**` matches both.",
     update:
-      "load-model.md, Four classes: only a glob with no slash before its trailing `/**` matches at any depth.",
+      "load-model.md, Four classes: a glob with no slash, a leading `**/`, or only the slash of a trailing `/**` matches at any depth.",
     plan: (context) => {
       const multiSegment = marker(context, "MULTI-SEGMENT");
       const anchored = marker(context, "ANCHORED");
+      const anyDepth = marker(context, "ANY-DEPTH");
 
       return {
         files: {
           ...BASE_FILES,
+          ".claude/rules/any-depth.md": rule(["**/src/lib/**"], anyDepth),
           ".claude/rules/multi-segment.md": rule(["src/lib/**"], multiSegment),
           ".claude/rules/anchored.md": rule(["/src/lib/**"], anchored),
           "pkg/src/lib/x.ts": "export const x = 1;\n",
@@ -687,6 +689,7 @@ export const CANARIES: Canary[] = [
           expectations: [
             { what: "rule `src/lib/**`", marker: multiSegment, afterStep: 2 },
             { what: "rule `/src/lib/**`", marker: anchored, afterStep: 2 },
+            { what: "rule `**/src/lib/**`", marker: anyDepth, afterStep: 1 },
           ],
         },
       };
