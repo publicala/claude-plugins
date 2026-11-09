@@ -26,7 +26,7 @@ Before the first round, read both settings files and every log for this skill ac
 - **A skipped change stays skipped**: Do not propose a change whose class and removed text match a `skip` in this key's log. It comes back only when its evidence changed: the removed text changed, or a new fact contradicts the reason the user gave in the note.
 - **Earned autonomy**: A class moves to lane `auto` when the logs hold at least 20 decisions for it, at least 95% of them `apply`, and no `skip` among its last 10. Auto changes still show on the page, collapsed under "Applied automatically" with an undo per change, until the user says otherwise. A skip or an undo counts against the class at once, so a class that stops earning trust drops back to `ready` on the next run.
 
-Calls never become auto. A fix, a drift, a move, a close vote or a new rule needs a person every time.
+Calls never become auto. A fix, a drift, an audit move, a close vote or a new rule needs a person every time. A split demotion or promotion the load rule or a load-path probe proved is ready, so its class can earn auto like any ready class.
 
 ## Write it at apply time
 
