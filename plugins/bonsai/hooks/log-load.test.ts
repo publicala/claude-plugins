@@ -300,6 +300,15 @@ describe("findRepository", () => {
     });
   });
 
+  test("reads a remote URL that holds spaces", async () => {
+    const root = await repository({
+      origin: "git@github.com:someone/catalog.git",
+      upstream: "/Volumes/Work Drive/acme-books/catalog.git",
+    });
+
+    expect(findRepository(root).key).toBe("acme-books/catalog");
+  });
+
   test("takes the directory name outside a repository", async () => {
     const directory = await temporaryDirectory();
 

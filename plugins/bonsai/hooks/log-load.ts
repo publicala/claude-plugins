@@ -199,10 +199,13 @@ export function findRepository(cwd: string): Repository {
   const root = git(cwd, "rev-parse", "--show-toplevel");
   const remotes: Record<string, string> = {};
 
-  for (const line of (
-    git(cwd, "config", "--get-regexp", String.raw`^remote\..*\.url$`) ?? ""
-  ).split("\n")) {
-    const [, name, url] = /^remote\.(.+)\.url\s+(\S+)$/.exec(line) ?? [];
+  // -z ends each entry with NUL and puts a newline between key and value,
+  // so a value keeps its spaces.
+  for (const entry of (
+    git(cwd, "config", "-z", "--get-regexp", String.raw`^remote\..*\.url$`) ??
+    ""
+  ).split("\0")) {
+    const [, name, url] = /^remote\.(.+)\.url\n(.+)$/s.exec(entry) ?? [];
 
     if (name !== undefined && url !== undefined) {
       remotes[name] = url;
