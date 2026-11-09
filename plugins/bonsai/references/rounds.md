@@ -37,6 +37,7 @@ When the skill starts, read the newest run file for this key and skill. If chang
 
 - Re-read every file they edit. A change whose removed lines still match `before` keeps its verdict and evidence. Locate the lines again by their text, since earlier rounds shift line numbers.
 - A change whose lines changed goes back through the skill's checks, for those lines only.
+- A `move` saved without a `destination` gets the one its edits write (`../renderer/README.md`) before the page builds, and keeps its lane only when that destination allows it.
 - Present the next round from the waiting changes, ranked again. Do not repeat the verification for the rest.
 
 A skipped change never comes back in a later round of the same run, nor in a later run while its evidence holds (`decision-memory.md`, in this directory). A run ends when nothing waits. The file stays as the record.
