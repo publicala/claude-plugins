@@ -164,6 +164,22 @@ describe("validateSkillPaths", () => {
     ]);
   });
 
+  test("rejects a path that starts at two variables", () => {
+    expect(
+      validateSkillPaths(
+        ROOT,
+        "plugins/bonsai/skills/audit/SKILL.md",
+        "Read `${CLAUDE_SKILL_DIR}/${CLAUDE_PLUGIN_ROOT}/references/rounds.md`.",
+      ),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "${CLAUDE_SKILL_DIR}/${CLAUDE_PLUGIN_ROOT}/references/rounds.md starts at two variables, and Claude Code substitutes both. Keep one: write ${CLAUDE_PLUGIN_ROOT}/references/rounds.md.",
+      },
+    ]);
+  });
+
   test("names the variable, the resolved path and the fix", () => {
     const text = [
       "Intro.",
@@ -232,6 +248,21 @@ describe("validateSkillLinks", () => {
         line: 3,
         message:
           "links to ../diagram/SKILL.md. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/skills/diagram/SKILL.md` in backticks, which Claude Code resolves when it loads the skill.",
+      },
+    ]);
+  });
+
+  test("keeps the variable a link already starts with", () => {
+    expect(
+      validateSkillLinks(
+        AUDIT,
+        "Read [rounds](${CLAUDE_PLUGIN_ROOT}/references/rounds.md#apply).",
+      ),
+    ).toEqual([
+      {
+        line: 1,
+        message:
+          "links to ${CLAUDE_PLUGIN_ROOT}/references/rounds.md#apply. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` in backticks, which Claude Code resolves when it loads the skill.",
       },
     ]);
   });

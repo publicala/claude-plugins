@@ -159,6 +159,9 @@ export function validateLinks(file: string, text: string): Finding[] {
 const SKILL_PATH =
   /\$\{(CLAUDE_SKILL_DIR|CLAUDE_PLUGIN_ROOT)\}((?:\/[\w.@~+-]*)*)([<*{[$]?)/g;
 
+// A path that starts at one of those variables.
+const SKILL_VARIABLE = /^\$\{(?:CLAUDE_SKILL_DIR|CLAUDE_PLUGIN_ROOT)\}/;
+
 /**
  * Resolves each `${CLAUDE_SKILL_DIR}` and `${CLAUDE_PLUGIN_ROOT}` path in
  * a SKILL.md, code spans and fenced blocks included, as Claude Code does
@@ -175,7 +178,24 @@ export function validateSkillPaths(
   const unquoted = unquoteSkillVariables(text);
 
   return [...unquoted.matchAll(SKILL_PATH)].flatMap(
-    ({ 1: variable, 2: suffix = "", 3: placeholder, index }) => {
+    ({ 0: match, 1: variable, 2: suffix = "", 3: placeholder, index }) => {
+      const next = index + match.length - 1;
+      const inner =
+        placeholder === "$"
+          ? /^\$\{(?:CLAUDE_SKILL_DIR|CLAUDE_PLUGIN_ROOT)\}[\w.@~+/-]*/.exec(
+              unquoted.slice(next),
+            )?.[0]
+          : undefined;
+
+      if (inner !== undefined) {
+        return [
+          {
+            line: lineAt(unquoted, index),
+            message: `${unquoted.slice(index, next)}${inner} starts at two variables, and Claude Code substitutes both. Keep one: write ${inner}.`,
+          },
+        ];
+      }
+
       const checked = placeholder
         ? suffix.slice(0, suffix.lastIndexOf("/"))
         : suffix.replace(/\.+$/, "");
@@ -218,12 +238,14 @@ export function validateSkillLinks(path: string, text: string): Finding[] {
       return [];
     }
 
-    const resolved = posix.join(skillDirectory, target.split("#")[0] ?? "");
+    const destination = target.split("#")[0] ?? "";
+    const resolved = posix.join(skillDirectory, destination);
     const fromSkill = posix.relative(skillDirectory, resolved);
-    const fromPlugin = posix.relative(pluginRoot, resolved);
-    const written = !fromSkill.startsWith("..")
-      ? `\${CLAUDE_SKILL_DIR}/${fromSkill}`
-      : `\${CLAUDE_PLUGIN_ROOT}/${fromPlugin}`;
+    const written = SKILL_VARIABLE.test(destination)
+      ? destination
+      : fromSkill.startsWith("..")
+        ? `\${CLAUDE_PLUGIN_ROOT}/${posix.relative(pluginRoot, resolved)}`
+        : `\${CLAUDE_SKILL_DIR}/${fromSkill}`;
 
     return [
       {
@@ -499,17 +521,15 @@ export async function validatePlugins(root: string): Promise<{
     markdown.map(async (path) => {
       const file = join(root, path);
       const text = await Bun.file(file).text();
-      const findings = [
-        ...validateLinks(file, text),
-        ...(/\/skills\/[^/]+\/SKILL\.md$/.test(file)
-          ? [
-              ...validateSkillPaths(root, path, text),
-              ...validateSkillLinks(path, text),
-              ...validateBareSkillPaths(root, path, text),
-              ...validateFrontmatter(file, text),
-            ]
-          : []),
-      ];
+      // A SKILL.md takes no relative link, so its own check names each one.
+      const findings = /\/skills\/[^/]+\/SKILL\.md$/.test(file)
+        ? [
+            ...validateSkillPaths(root, path, text),
+            ...validateSkillLinks(path, text),
+            ...validateBareSkillPaths(root, path, text),
+            ...validateFrontmatter(file, text),
+          ]
+        : validateLinks(file, text);
 
       return findings.map((finding) =>
         Object.assign(finding, { file: relative(root, file) }),
