@@ -631,17 +631,20 @@ export const CANARIES: Canary[] = [
   {
     id: "rule-glob-unanchored",
     agent: "claude",
-    fact: "Rule globs match like gitignore: `lib/**` matches `src/lib/` at any depth, and `/lib/**` only the root `lib/`.",
+    fact: "Rule globs match like gitignore: `lib/**` matches `src/lib/` and `package.json` matches `src/package.json` at any depth, while `/lib/**` matches only the root `lib/`.",
     update:
       "load-model.md, Four classes: an unanchored `dir/**` glob matches that directory at any depth, and a leading `/` anchors it.",
     plan: (context) => {
       const unanchored = marker(context, "UNANCHORED");
       const anchored = marker(context, "ANCHORED");
+      const slashless = marker(context, "SLASHLESS");
 
       return {
         files: {
           ...BASE_FILES,
           ".claude/rules/unanchored.md": rule(["lib/**"], unanchored),
+          ".claude/rules/slashless.md": rule(["package.json"], slashless),
+          "src/package.json": "{}\n",
           ".claude/rules/anchored.md": rule(["/lib/**"], anchored),
           "src/lib/x.ts": "export const x = 1;\n",
           "lib/y.ts": "export const y = 2;\n",
@@ -651,10 +654,12 @@ export const CANARIES: Canary[] = [
           steps: [
             { tool: "Read", path: "src/lib/x.ts" },
             { tool: "Read", path: "lib/y.ts" },
+            { tool: "Read", path: "src/package.json" },
           ],
           expectations: [
             { what: "rule `lib/**`", marker: unanchored, afterStep: 1 },
             { what: "rule `/lib/**`", marker: anchored, afterStep: 2 },
+            { what: "rule `package.json`", marker: slashless, afterStep: 3 },
           ],
         },
       };
