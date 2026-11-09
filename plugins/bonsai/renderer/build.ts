@@ -37,6 +37,18 @@ const VERBS = [
   "add",
   "automate",
 ] as const;
+const MOVE_VERB = "move";
+/** Where a move lands, one per rung of the delivery ladder that holds text. */
+const DESTINATIONS = [
+  "html-comment",
+  "code",
+  "scoped-file",
+  "skill",
+  "root",
+  "deferred-doc",
+] as const;
+/** Only these can be ready: every other destination edits code or settings, or hides the text from sessions. */
+const READY_DESTINATIONS = ["scoped-file", "root", "deferred-doc"] as const;
 const EDITORS = ["zed", "vscode", "cursor", "phpstorm"] as const;
 const VERDICTS = ["same", "drift"] as const;
 const DECISION_KEYS = [
@@ -631,6 +643,32 @@ function ensureSecondCheck(owner: string, check: unknown, lane: Lane): void {
   );
 }
 
+function ensureDestination(
+  owner: string,
+  change: JsonObject,
+  lane: Lane,
+): void {
+  const { destination } = change;
+
+  if (change.verb !== MOVE_VERB) {
+    ensure(
+      destination === undefined,
+      `${owner} has "destination", which only a move carries. Remove it, or set verb to "${MOVE_VERB}".`,
+    );
+
+    return;
+  }
+
+  ensure(
+    isOneOf(DESTINATIONS, destination),
+    `${owner} is a move, so it needs "destination": one of ${listChoices(DESTINATIONS)}.`,
+  );
+  ensure(
+    lane === "call" || isOneOf(READY_DESTINATIONS, destination),
+    `${owner} moves text into ${quote(destination)}. Only a move into ${listChoices(READY_DESTINATIONS)} can be ready, so set lane to call.`,
+  );
+}
+
 function resolveChange(change: JsonObject, context: ChangeContext): PageChange {
   const changeId = change.id;
   ensure(
@@ -680,6 +718,7 @@ function resolveChange(change: JsonObject, context: ChangeContext): PageChange {
   }
 
   ensureSecondCheck(owner, change.check, lane);
+  ensureDestination(owner, change, lane);
 
   return {
     ...change,

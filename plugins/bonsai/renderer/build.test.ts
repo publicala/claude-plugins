@@ -42,6 +42,7 @@ interface FixtureChange {
   lane: string;
   group?: string;
   verb: string;
+  destination?: unknown;
   title: string;
   why: string;
   skip?: string;
@@ -197,6 +198,18 @@ describe("build", () => {
     ]);
     expect(page.run.round).toBe(1);
     expect(page.run.rounds).toBe(2);
+  });
+
+  test("lets a move into a Markdown file of the same kind be ready", async () => {
+    const data = await exampleData();
+    const testing = changeIn(data.changes, "testing");
+    testing.lane = "ready";
+    testing.group = "covered";
+    delete testing.skip;
+
+    const page = await build(data, EXAMPLE);
+
+    expect(changeIn(page.changes, "testing").destination).toBe("scoped-file");
   });
 
   test("quotes the removed lines from disk", async () => {
@@ -1124,6 +1137,40 @@ describe("build refuses data that would mislead", () => {
       },
       "run.status.prs belongs to a guard run. Put the one link in run.status.link.",
     ],
+    [
+      "a move without a destination",
+      (data) => {
+        delete changeIn(data.changes, "testing").destination;
+      },
+      "Change 'testing' is a move, so it needs \"destination\": one of html-comment, code, scoped-file, skill, root or deferred-doc.",
+    ],
+    [
+      "a move to an unknown destination",
+      (data) => {
+        changeIn(data.changes, "testing").destination = "wiki";
+      },
+      "Change 'testing' is a move, so it needs \"destination\": one of html-comment, code, scoped-file, skill, root or deferred-doc.",
+    ],
+    [
+      "a destination on a change that moves nothing",
+      (data) => {
+        changeIn(data.changes, "livewire").destination = "root";
+      },
+      'Change \'livewire\' has "destination", which only a move carries. Remove it, or set verb to "move".',
+    ],
+    ...(["code", "skill", "html-comment"] as const).map(
+      (destination): [string, (data: Fixture) => void, string] => [
+        `a ready move into ${destination}`,
+        (data) => {
+          const testing = changeIn(data.changes, "testing");
+          testing.destination = destination;
+          testing.lane = "ready";
+          testing.group = "covered";
+          delete testing.skip;
+        },
+        `Change 'testing' moves text into "${destination}". Only a move into scoped-file, root or deferred-doc can be ready, so set lane to call.`,
+      ],
+    ),
   ];
 
   test.each(cases)("%s", async (_, mutate, message) => {
@@ -2004,6 +2051,18 @@ describe("page", () => {
     expect(errors).toEqual([]);
     expect(document.title).toBe("Acme Books CLAUDE.md Audit");
     expect(document.querySelectorAll(".card").length).toBeGreaterThan(0);
+    await window.happyDOM.close();
+  });
+
+  test("names where a move lands", async () => {
+    const { window, document } = await openPage(
+      await build(await exampleData(), EXAMPLE),
+    );
+
+    expect(
+      document.querySelector("#card-testing .destination")?.textContent,
+    ).toBe("to a scoped file");
+    expect(document.querySelector("#card-livewire .destination")).toBeNull();
     await window.happyDOM.close();
   });
 

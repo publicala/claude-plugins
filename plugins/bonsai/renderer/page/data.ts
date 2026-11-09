@@ -152,6 +152,8 @@ export interface Change {
   lane: Lane;
   group?: string;
   verb?: string;
+  /** Where a move lands: a rung of the delivery ladder. */
+  destination?: string;
   title: string;
   /** Prose on a change. A guard candidate carries a `Why` instead. */
   why?: string | Why;

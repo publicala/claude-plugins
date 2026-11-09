@@ -99,6 +99,7 @@
       "id": "testing",
       "lane": "call",
       "verb": "move",
+      "destination": "scoped-file",
       "title": "Move the factory rule to tests/CLAUDE.md",
       "why": "Only sessions that edit tests need it, and every test lives under `tests/`. A session reads a test before it edits one, so the scoped file loads in time.",
       "skip": "Every session keeps loading a rule that only test edits need.",

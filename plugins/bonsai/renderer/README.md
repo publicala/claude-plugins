@@ -82,6 +82,7 @@ Every file a change edits. A guard run lists only the files its CLAUDE.md lines 
 | `lane` | `call`, `ready` or `auto`. See the decision-page reference, `../references/decision-artifact.md`, for routing. |
 | `group` | Required for `ready` and `auto`: the id of a group in the same lane. |
 | `verb` | `fix`, `delete`, `shorten`, `rewrite`, `move`, `add` or `automate`. |
+| `destination` | Required for a `move`, and only there: the rung of the delivery ladder (`../references/delivery.md`) the text lands on. `scoped-file` (a nested CLAUDE.md or a path-scoped rule), `root`, `deferred-doc` (a doc behind a read-trigger), `skill`, `code` (a docblock, a command description or `--help`, a check message) or `html-comment` (a reviewer-only why in a CLAUDE.md). The card names it next to the verb. A move to `skill`, `code` or `html-comment` edits code or settings, or hides the line from sessions, so it sits in lane `call`. |
 | `title` | What changes, in the reader's words. |
 | `why` | One or two sentences. |
 | `skip` | Required for calls: what goes wrong if the user skips the change. |
@@ -211,6 +212,7 @@ The build refuses, in a guard run:
 ## What the build refuses
 
 - A call without `skip`, or a `drift` check outside lane `call`
+- A `move` without a `destination` from the list, a `destination` on any other verb, or a move to `skill`, `code` or `html-comment` outside lane `call`
 - More than 5 calls (questions and guard candidates included) or more than 3 ready groups in one round
 - Edit or `kept` lines outside the file, overlapping edits (in one change or across changes), an insert inside a replaced range, or a file that does not match its `new` flag
 - A `run.round` or `run.rounds` that is not a whole number from 1, a `run.waiting` or `run.waitingTokens` that is not a whole number from 0, or a `run.waitingTokens` above 0 with no waiting change

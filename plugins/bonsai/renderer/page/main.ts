@@ -210,6 +210,18 @@ function checkHtml(c: Change) {
   const drift = c.check.verdict === "drift";
   return `<p class="check ${drift ? "drift" : ""}"><span>${drift ? "Second check found a change in meaning: " : "Second check: same meaning. "}${prose(c.check.summary)}</span></p>`;
 }
+const DESTINATION_LABELS: Record<string, string> = {
+  "html-comment": "to an HTML comment",
+  code: "into the code",
+  "scoped-file": "to a scoped file",
+  skill: "to a skill",
+  root: "to the root file",
+  "deferred-doc": "to a doc read on demand",
+};
+function destinationHtml(c: Change) {
+  const label = c.destination ? DESTINATION_LABELS[c.destination] : undefined;
+  return label ? `<span class="destination">${label}</span>` : "";
+}
 function locHtml(c: Change) {
   const e = must(c.edits[0], `edit in ${c.id}`);
   const extra = c.edits.length > 1 ? ` +${c.edits.length - 1}` : "";
@@ -316,6 +328,7 @@ function callCard(c: Change, p = "") {
     <article class="card" id="${p}card-${c.id}" data-id="${c.id}" tabindex="-1">
       <div class="card-meta">
         <span class="verb ${esc(c.verb)}">${esc(c.verb)}</span>
+        ${destinationHtml(c)}
         ${locHtml(c)}
         ${c.split ? `<span class="split-vote">Close vote: ${esc(c.split)}</span>` : ""}
         <span class="tok num" data-tok="${c.id}">${tokText(c)}</span>
