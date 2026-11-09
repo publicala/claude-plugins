@@ -10,6 +10,6 @@ The standard for any rule text bonsai writes or records: a feed proposal, an int
 - Verify every symbol an example references against the real codebase: an example calling a method that does not exist teaches a wrong API and is worse than no example
 - Precise but generic: keep load-bearing identifiers exact. Never enumerate driftable inventories (class lists, file lists, counts)
 - Write for the class of mistake. The correction that prompted a rule is evidence for it, and its wording stays out of the rule
-- Name a repository path in backticks, written from the repository root, never as a Markdown link: agents read the path, and nobody clicks it. An `@path` import stays bare, since backticks stop it importing
+- Name a repository path in backticks, written from the repository root, never as a Markdown link: agents read the path, and nobody clicks it. An `@path` import stays bare and keeps its own base (it resolves from the importing file), since backticks stop it importing
 - Point only at a file the harness does not already load in the rule's situation ([load-model.md](load-model.md)), and never tell a session to run a discovery command it knows (`list`, `--help`) unless the rule needs it at a specific step
 - No document metadata or biography (version stamps, rename history, "previously X, now Z"). State the rule present tense. Git is the history, and the audit cuts these on sight

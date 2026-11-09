@@ -39,7 +39,7 @@ List each in-scope file with its load class and est. token cost (label every fig
 
 Cut what a fresh session reconstructs with a few tool calls:
 
-- Setup commands (`composer install`, `npm install`) and standard CLI usage, discovery commands included (`php artisan list`, `<command> --help`, `npm run`). A step that requires a command at a given moment ("list the commands before adding one, so you never add a duplicate") is a workflow rule, judged like any other line
+- Setup commands (`composer install`, `npm install`) and standard CLI usage, discovery commands included (`php artisan list`, `<command> --help`, `npm run`) on an entry point a session finds on its own. A hint that names a project-specific executable a session would not find stays. A step that requires a command at a given moment ("list the commands before adding one, so you never add a duplicate") is a workflow rule, judged like any other line
 - Stack and version inventories (lockfiles are the source of truth)
 - Directory layouts and file listings
 - Model and class rosters (a `## Models` section restating what `ls` of the directory shows). A class earns a mention only where the line carries a constraint the code cannot show at a glance, and that line lives with the behavior it governs
@@ -99,7 +99,7 @@ Exception: a fact stays in the pointer when the session needs it to pick WHICH t
 
 Two pointer shapes go on sight, because an agent reads every CLAUDE.md and rule file and nobody clicks in them:
 
-- **A Markdown link to a repository path** becomes the path in backticks, resolved against the file the link sits in and written from the repository root (`../README.md` in `docs/CLAUDE.md` becomes `README.md`). The link spells the path twice, and one whose text and target differ names two files. A link to a heading in the same file becomes the heading's name. An `@path` import is a load directive and stays bare. Record it as a rewrite.
+- **A Markdown link to a repository path** becomes the path in backticks, resolved against the file the link sits in and written from the repository root (`../README.md` in `docs/CLAUDE.md` becomes `README.md`). The link spells the path twice, and one whose text and target differ names two files. A link to a heading in the same file becomes the heading's name, and one to a heading in another file names both ("the Modals section of `resources/CLAUDE.md`"). An `@path` import is a load directive and stays bare. Record it as a rewrite.
 - **A pointer to a file the harness already loads** for the work it routes is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is whenever that work reads, writes or edits a file in its scope, creating the first file included: the scoped file arrives right after that call ([../../references/load-model.md](../../references/load-model.md), relative to this skill's directory). A pointer stays for work that starts with a command or acts outside the files (running a migration, a deploy, a `git` operation). A root pointer also stays when the repository serves an agent that reads only the root file (`references/load-model.md`, "Other agents"). A pointer that stays is a path in backticks.
 
 ```markdown
