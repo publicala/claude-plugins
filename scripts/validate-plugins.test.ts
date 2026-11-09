@@ -8,6 +8,7 @@ import {
   main,
   validateFrontmatter,
   validateLinks,
+  validateBareSkillPaths,
   validatePlugins,
   validateSkillLinks,
   validateSkillPaths,
@@ -246,6 +247,48 @@ describe("validateSkillLinks", () => {
     ].join("\n");
 
     expect(validateSkillLinks(AUDIT, text)).toEqual([]);
+  });
+});
+
+describe("validateBareSkillPaths", () => {
+  const ROOT = join(import.meta.dir, "..");
+  const SPLIT = "plugins/bonsai/skills/split/SKILL.md";
+  const DIAGRAM = "plugins/blueprint/skills/diagram/SKILL.md";
+
+  test("names the variable a bundled path in a code span leaves out", () => {
+    const text = [
+      "Apply as `references/rounds.md` prescribes.",
+      "",
+      "Start from `examples/flow.diagram.html`.",
+    ].join("\n");
+
+    expect(validateBareSkillPaths(ROOT, SPLIT, text)).toEqual([
+      {
+        line: 1,
+        message:
+          "names references/rounds.md, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write `${CLAUDE_PLUGIN_ROOT}/references/rounds.md`.",
+      },
+    ]);
+    expect(validateBareSkillPaths(ROOT, DIAGRAM, text)).toEqual([
+      {
+        line: 3,
+        message:
+          "names examples/flow.diagram.html, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write `${CLAUDE_SKILL_DIR}/examples/flow.diagram.html`.",
+      },
+    ]);
+  });
+
+  test("leaves variable paths, project paths and fenced blocks alone", () => {
+    const text = [
+      "Read `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` and `.claude/rules/`.",
+      "Edit `app/Console/Commands/Acme/` and `references/gone.md`.",
+      "",
+      "```bash",
+      "cat references/rounds.md `references/rounds.md`",
+      "```",
+    ].join("\n");
+
+    expect(validateBareSkillPaths(ROOT, SPLIT, text)).toEqual([]);
   });
 });
 

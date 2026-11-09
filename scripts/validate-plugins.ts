@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 
 // Fails when a relative Markdown link points at a missing file, when a
-// SKILL.md links to a bundled file, names one that does not exist or
-// breaks a frontmatter rule, when a plugin's manifests disagree with the tree, or
-// when a plugin file reads a path above the plugin's root.
+// SKILL.md links to a bundled file, names one without its variable or
+// one that does not exist, or breaks a frontmatter rule, when a plugin's
+// manifests disagree with the tree, or when a plugin file reads a path
+// above the plugin's root.
 import { existsSync } from "node:fs";
 import { basename, dirname, join, posix, relative, resolve } from "node:path";
 
@@ -233,6 +234,50 @@ export function validateSkillLinks(path: string, text: string): Finding[] {
   });
 }
 
+// A fenced block, blanked so only inline code spans remain.
+const FENCED_BLOCK = /^ {0,3}(`{3,}|~{3,})[\s\S]*?(?:^ {0,3}\1|(?![\s\S]))/gm;
+
+// A code span that holds one relative path with a directory in it.
+const PATH_SPAN = /`([\w@+-][\w.@+-]*(?:\/[\w.@+-]+)+\/?)`/g;
+
+/**
+ * Flags a code span in a SKILL.md that names a bundled file without its
+ * variable. An agent resolves `references/rounds.md` against the project
+ * it works in, so the span names `${CLAUDE_PLUGIN_ROOT}/references/rounds.md`.
+ * The SKILL.md path is relative to the root.
+ */
+export function validateBareSkillPaths(
+  root: string,
+  path: string,
+  text: string,
+): Finding[] {
+  const skillDirectory = posix.dirname(path);
+  const pluginRoot = posix.dirname(posix.dirname(skillDirectory));
+  const spans = text.replaceAll(FENCED_BLOCK, (block) =>
+    block.replaceAll(/[^\n]/g, " "),
+  );
+
+  return [...spans.matchAll(PATH_SPAN)].flatMap(
+    ({ 1: written = "", index }) => {
+      const variable = [
+        ["CLAUDE_SKILL_DIR", skillDirectory],
+        ["CLAUDE_PLUGIN_ROOT", pluginRoot],
+      ].find(([, base = ""]) => existsSync(join(root, base, written)))?.[0];
+
+      if (variable === undefined) {
+        return [];
+      }
+
+      return [
+        {
+          line: lineAt(spans, index),
+          message: `names ${written}, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write \`\${${variable}}/${written}\`.`,
+        },
+      ];
+    },
+  );
+}
+
 function isMapping(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -389,6 +434,7 @@ export async function validatePlugins(root: string): Promise<{
           ? [
               ...validateSkillPaths(root, path, text),
               ...validateSkillLinks(path, text),
+              ...validateBareSkillPaths(root, path, text),
               ...validateFrontmatter(file, text),
             ]
           : []),
