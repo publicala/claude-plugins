@@ -631,17 +631,20 @@ export const CANARIES: Canary[] = [
   {
     id: "rule-glob-unanchored",
     agent: "claude",
-    fact: "Rule globs match like gitignore: `lib/**` matches `src/lib/` at any depth, and `/lib/**` only the root `lib/`.",
+    fact: "Rule globs match like gitignore: `lib/**` matches `src/lib/` and `package.json` matches `src/package.json` at any depth, while `/lib/**` matches only the root `lib/`.",
     update:
       "load-model.md, Four classes: an unanchored `dir/**` glob matches that directory at any depth, and a leading `/` anchors it.",
     plan: (context) => {
       const unanchored = marker(context, "UNANCHORED");
       const anchored = marker(context, "ANCHORED");
+      const slashless = marker(context, "SLASHLESS");
 
       return {
         files: {
           ...BASE_FILES,
           ".claude/rules/unanchored.md": rule(["lib/**"], unanchored),
+          ".claude/rules/slashless.md": rule(["package.json"], slashless),
+          "src/package.json": "{}\n",
           ".claude/rules/anchored.md": rule(["/lib/**"], anchored),
           "src/lib/x.ts": "export const x = 1;\n",
           "lib/y.ts": "export const y = 2;\n",
@@ -651,10 +654,47 @@ export const CANARIES: Canary[] = [
           steps: [
             { tool: "Read", path: "src/lib/x.ts" },
             { tool: "Read", path: "lib/y.ts" },
+            { tool: "Read", path: "src/package.json" },
           ],
           expectations: [
             { what: "rule `lib/**`", marker: unanchored, afterStep: 1 },
             { what: "rule `/lib/**`", marker: anchored, afterStep: 2 },
+            { what: "rule `package.json`", marker: slashless, afterStep: 3 },
+          ],
+        },
+      };
+    },
+  },
+  {
+    id: "rule-glob-multi-segment",
+    agent: "claude",
+    fact: "A rule glob with a slash before its trailing `/**` is anchored: `src/lib/**` skips `pkg/src/lib/` and matches the root `src/lib/`, as `/src/lib/**` does, while `**/src/lib/**` matches both.",
+    update:
+      "load-model.md, Four classes: a glob with no slash, a leading `**/`, or only the slash of a trailing `/**` matches at any depth.",
+    plan: (context) => {
+      const multiSegment = marker(context, "MULTI-SEGMENT");
+      const anchored = marker(context, "ANCHORED");
+      const anyDepth = marker(context, "ANY-DEPTH");
+
+      return {
+        files: {
+          ...BASE_FILES,
+          ".claude/rules/any-depth.md": rule(["**/src/lib/**"], anyDepth),
+          ".claude/rules/multi-segment.md": rule(["src/lib/**"], multiSegment),
+          ".claude/rules/anchored.md": rule(["/src/lib/**"], anchored),
+          "pkg/src/lib/x.ts": "export const x = 1;\n",
+          "src/lib/y.ts": "export const y = 2;\n",
+        },
+        tools: ["Read"],
+        main: {
+          steps: [
+            { tool: "Read", path: "pkg/src/lib/x.ts" },
+            { tool: "Read", path: "src/lib/y.ts" },
+          ],
+          expectations: [
+            { what: "rule `src/lib/**`", marker: multiSegment, afterStep: 2 },
+            { what: "rule `/src/lib/**`", marker: anchored, afterStep: 2 },
+            { what: "rule `**/src/lib/**`", marker: anyDepth, afterStep: 1 },
           ],
         },
       };

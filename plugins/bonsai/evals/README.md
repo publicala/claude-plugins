@@ -32,7 +32,7 @@ bun evals/harness/run.ts
 - **`--jobs <n>`**: sessions at a time, a positive whole number, 4 by default.
 - **`--keep`**: keeps each fixture and transcript, and prints their paths.
 
-A full run is 13 canaries in about 30 seconds: $0.02 of Claude at list price, plus about 90,000 Codex tokens for the Codex canary, which skips when `codex` is not on PATH. The sessions skip your user settings, plugins and MCP servers (`--setting-sources project --strict-mcp-config`), and each may use only the tools its steps name. Their transcripts land under `~/.claude/projects/` and `~/.codex/sessions/`, and the run deletes them.
+A full run is 14 canaries in about 30 seconds: $0.02 of Claude at list price, plus about 90,000 Codex tokens for the Codex canary, which skips when `codex` is not on PATH. The sessions skip your user settings, plugins and MCP servers (`--setting-sources project --strict-mcp-config`), and each may use only the tools its steps name. Their transcripts land under `~/.claude/projects/` and `~/.codex/sessions/`, and the run deletes them.
 
 Each row ends in one result, and the exit status follows the worst:
 

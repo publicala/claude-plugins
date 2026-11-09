@@ -8,7 +8,7 @@ The harness canaries check when nested files, path rules and skills load, in a s
 
 - **Always resident**: the root CLAUDE.md, user-level and ancestor-directory files, and anything they pull in with `@path` imports. Full price in every session. An `@path` import costs the same as inline text, so moving content behind one saves nothing.
 - **Nested CLAUDE.md** (`<subdir>/CLAUDE.md`): loads when the session reads, writes or edits a file under that directory, then stays for the session. Scopes by subtree.
-- **Path-scoped rule** (`.claude/rules/<topic>.md` with `paths` globs in the frontmatter): loads when the session reads, writes or edits a file matching a glob. The only class that scopes by file pattern across directories. Globs match like gitignore patterns: an unanchored `dir/**` matches a directory of that name at any depth, and a leading `/` anchors it to the root.
+- **Path-scoped rule** (`.claude/rules/<topic>.md` with `paths` globs in the frontmatter): loads when the session reads, writes or edits a file matching a glob. The only class that scopes by file pattern across directories. Globs match like gitignore patterns: a glob with no slash (`package.json`), a leading `**/` (`**/lib/**`), or only the slash of a trailing `/**` (`dir/**`) matches at any depth. Any other slash (`src/lib/**`) anchors it to the root, and so does a leading `/`.
 - **Deferred**: a plain markdown pointer loads nothing until an agent chooses to read the target. The only class where content is close to free.
 
 Nested files and path-scoped rules are the two scope-triggered classes. Judge their lines against a fresh session working in their scope, since only those sessions load them.
