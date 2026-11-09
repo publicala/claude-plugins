@@ -234,11 +234,90 @@ export function validateSkillLinks(path: string, text: string): Finding[] {
   });
 }
 
-// A fenced block, blanked so only inline code spans remain.
-const FENCED_BLOCK = /^ {0,3}(`{3,}|~{3,})[\s\S]*?(?:^ {0,3}\1|(?![\s\S]))/gm;
+// A run of backticks, the text it opens and a closing run of the same
+// length: a code span, or a copy of one inside a fenced block.
+const CODE_SPAN_CANDIDATE = /(?<!`)(`+)(?!`)([^`\n]+?)(?<!`)\1(?!`)/g;
 
-// A code span that holds one relative path with a directory in it.
-const PATH_SPAN = /`([\w@+-][\w.@+-]*(?:\/[\w.@+-]+)+\/?)`/g;
+/**
+ * Each inline code span with the index where its text starts. A parser
+ * decides what is a span, so a fence inside a quote or a list item, or a
+ * triple-backtick span at the start of a line, reads as Markdown does.
+ * The parser reports no positions, so every candidate gets a numbered tag
+ * and the tags that come back name the real spans.
+ */
+export function locatedCodeSpans(
+  text: string,
+): { content: string; index: number }[] {
+  const candidates = [...text.matchAll(CODE_SPAN_CANDIDATE)].map(
+    ({ 1: fence = "", 2: content = "", index }) => ({
+      content,
+      index: index + fence.length,
+    }),
+  );
+  const tagged = candidates.reduceRight(
+    (source, { content, index }, tag) =>
+      `${source.slice(0, index + content.length)}\uE000${tag}\uE001${source.slice(index + content.length)}`,
+    text,
+  );
+  const spans = new Set<number>();
+
+  Bun.markdown.render(tagged, {
+    codespan: (children) => {
+      const tag = /\uE000(\d+)\uE001$/.exec(children)?.[1];
+
+      if (tag !== undefined) {
+        spans.add(Number(tag));
+      }
+
+      return children;
+    },
+  });
+
+  return candidates.filter((_, tag) => spans.has(tag));
+}
+
+// One relative path: dot segments first, then names.
+const RELATIVE_PATH = /^(?:\.{1,2}\/)*[\w@+-][\w.@+-]*(?:\/[\w.@+-]+)*\/?$/;
+
+/**
+ * The variable path for a file bundled with the plugin, written as a
+ * skill would name it: `../` and `./` from the skill's directory, a bare
+ * path from the skill's directory or the plugin root. A bare name names
+ * only a file or directory next to the SKILL.md, since a skill that
+ * writes `README.md` means the project's.
+ */
+function bundledPath(
+  root: string,
+  path: string,
+  written: string,
+): string | undefined {
+  const skillDirectory = posix.dirname(path);
+  const pluginRoot = posix.dirname(posix.dirname(skillDirectory));
+  const bases = written.startsWith(".")
+    ? [skillDirectory]
+    : written.includes("/")
+      ? [skillDirectory, pluginRoot]
+      : [skillDirectory];
+
+  const resolved = bases
+    .map((base) => posix.join(base, written))
+    .find(
+      (candidate) =>
+        candidate !== path &&
+        !posix.relative(pluginRoot, candidate).startsWith("..") &&
+        existsSync(join(root, candidate)),
+    );
+
+  if (resolved === undefined) {
+    return undefined;
+  }
+
+  const fromSkill = posix.relative(skillDirectory, resolved);
+
+  return fromSkill.startsWith("..")
+    ? `\${CLAUDE_PLUGIN_ROOT}/${posix.relative(pluginRoot, resolved)}`
+    : `\${CLAUDE_SKILL_DIR}/${fromSkill}`;
+}
 
 /**
  * Flags a code span in a SKILL.md that names a bundled file without its
@@ -251,31 +330,23 @@ export function validateBareSkillPaths(
   path: string,
   text: string,
 ): Finding[] {
-  const skillDirectory = posix.dirname(path);
-  const pluginRoot = posix.dirname(posix.dirname(skillDirectory));
-  const spans = text.replaceAll(FENCED_BLOCK, (block) =>
-    block.replaceAll(/[^\n]/g, " "),
-  );
+  return locatedCodeSpans(text).flatMap(({ content, index }) => {
+    const written = content.trim();
+    const variablePath = RELATIVE_PATH.test(written)
+      ? bundledPath(root, path, written)
+      : undefined;
 
-  return [...spans.matchAll(PATH_SPAN)].flatMap(
-    ({ 1: written = "", index }) => {
-      const variable = [
-        ["CLAUDE_SKILL_DIR", skillDirectory],
-        ["CLAUDE_PLUGIN_ROOT", pluginRoot],
-      ].find(([, base = ""]) => existsSync(join(root, base, written)))?.[0];
+    if (variablePath === undefined) {
+      return [];
+    }
 
-      if (variable === undefined) {
-        return [];
-      }
-
-      return [
-        {
-          line: lineAt(spans, index),
-          message: `names ${written}, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write \`\${${variable}}/${written}\`.`,
-        },
-      ];
-    },
-  );
+    return [
+      {
+        line: lineAt(text, index),
+        message: `names ${written}, a file bundled with the plugin, without its variable. An agent resolves it against the project it works in: write \`${variablePath}\`.`,
+      },
+    ];
+  });
 }
 
 function isMapping(value: unknown): value is Record<string, unknown> {
