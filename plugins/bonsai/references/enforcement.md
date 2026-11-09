@@ -1,6 +1,6 @@
 # When a check replaces prose
 
-A session meets a checked rule when the check fails, and the failure message is all it reads about the rule. So a check makes the rule's prose redundant once its message carries what the prose carried and the session meets it while the change is still in its hands. The prose then costs tokens in every session to save one fix in the few that break the rule.
+A check is rung R2 of the ladder in `delivery.md`, in this directory, which also says at what moment it runs. A session meets a checked rule when the check fails, and the failure message is all it reads about the rule. So a check makes the rule's prose redundant once its message carries what the prose carried and the session meets it while the change is still in its hands. The prose then costs tokens in every session to save one fix in the few that break the rule.
 
 ## A check holds a rule when it is
 
