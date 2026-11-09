@@ -229,14 +229,21 @@ export function validateSkillLinks(path: string, text: string): Finding[] {
   const skillDirectory = posix.dirname(path);
   const pluginRoot = posix.dirname(posix.dirname(skillDirectory));
 
+  const reported = new Set<number | string>();
+
   return locatedLinkTargets(text).flatMap(({ target, index }) => {
     if (
       /^[a-z][a-z0-9+.-]*:/i.test(target) ||
       target.startsWith("#") ||
-      target.startsWith("/")
+      target.startsWith("/") ||
+      reported.has(index ?? target)
     ) {
       return [];
     }
+
+    // Every use of a reference link reads its one definition, so the uses
+    // share an index and the definition gets one finding.
+    reported.add(index ?? target);
 
     const destination = target.split("#")[0] ?? "";
     const resolved = posix.join(skillDirectory, destination);
@@ -247,10 +254,21 @@ export function validateSkillLinks(path: string, text: string): Finding[] {
         ? `\${CLAUDE_PLUGIN_ROOT}/${posix.relative(pluginRoot, resolved)}`
         : `\${CLAUDE_SKILL_DIR}/${fromSkill}`;
 
+    const label =
+      index === undefined
+        ? undefined
+        : /^ {0,3}\[([^\]]+)\]:\s*<?$/.exec(
+            text.slice(text.lastIndexOf("\n", index - 1) + 1, index),
+          )?.[1];
+    const repair =
+      label === undefined
+        ? `write \`${written}\` in backticks`
+        : `replace every use of [${label}] with \`${written}\` in backticks, and delete this definition`;
+
     return [
       {
         line: index === undefined ? undefined : lineAt(text, index),
-        message: `links to ${target}. An agent reads the skill and never follows a link: write \`${written}\` in backticks, which Claude Code resolves when it loads the skill.`,
+        message: `${label === undefined ? "links" : `defines [${label}] as a link`} to ${target}. An agent reads the skill and never follows a link: ${repair}. Claude Code resolves the path when it loads the skill.`,
       },
     ];
   });

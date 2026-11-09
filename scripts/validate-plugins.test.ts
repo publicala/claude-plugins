@@ -237,17 +237,41 @@ describe("validateSkillLinks", () => {
       {
         line: 1,
         message:
-          "links to ../../references/load-model.md. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/references/load-model.md` in backticks, which Claude Code resolves when it loads the skill.",
+          "links to ../../references/load-model.md. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/references/load-model.md` in backticks. Claude Code resolves the path when it loads the skill.",
       },
       {
         line: 3,
         message:
-          "links to examples/flow.md#top. An agent reads the skill and never follows a link: write `${CLAUDE_SKILL_DIR}/examples/flow.md` in backticks, which Claude Code resolves when it loads the skill.",
+          "links to examples/flow.md#top. An agent reads the skill and never follows a link: write `${CLAUDE_SKILL_DIR}/examples/flow.md` in backticks. Claude Code resolves the path when it loads the skill.",
       },
       {
         line: 3,
         message:
-          "links to ../diagram/SKILL.md. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/skills/diagram/SKILL.md` in backticks, which Claude Code resolves when it loads the skill.",
+          "links to ../diagram/SKILL.md. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/skills/diagram/SKILL.md` in backticks. Claude Code resolves the path when it loads the skill.",
+      },
+    ]);
+  });
+
+  test("names one repair on the definition of a reference link, however many uses it has", () => {
+    const text = [
+      "Read [the guide][docs] first, and [it][docs] again.",
+      "",
+      "Then [rounds][].",
+      "",
+      "[docs]: ../../references/guide.md",
+      "[rounds]: <../../references/rounds.md> 'Rounds'",
+    ].join("\n");
+
+    expect(validateSkillLinks(AUDIT, text)).toEqual([
+      {
+        line: 5,
+        message:
+          "defines [docs] as a link to ../../references/guide.md. An agent reads the skill and never follows a link: replace every use of [docs] with `${CLAUDE_PLUGIN_ROOT}/references/guide.md` in backticks, and delete this definition. Claude Code resolves the path when it loads the skill.",
+      },
+      {
+        line: 6,
+        message:
+          "defines [rounds] as a link to ../../references/rounds.md. An agent reads the skill and never follows a link: replace every use of [rounds] with `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` in backticks, and delete this definition. Claude Code resolves the path when it loads the skill.",
       },
     ]);
   });
@@ -262,7 +286,7 @@ describe("validateSkillLinks", () => {
       {
         line: 1,
         message:
-          "links to ${CLAUDE_PLUGIN_ROOT}/references/rounds.md#apply. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` in backticks, which Claude Code resolves when it loads the skill.",
+          "links to ${CLAUDE_PLUGIN_ROOT}/references/rounds.md#apply. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` in backticks. Claude Code resolves the path when it loads the skill.",
       },
     ]);
   });
@@ -771,7 +795,7 @@ describe("validatePlugins", () => {
         file: "plugins/demo/skills/audit/SKILL.md",
         line: 10,
         message:
-          "links to ../../references/rounds.md. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` in backticks, which Claude Code resolves when it loads the skill.",
+          "links to ../../references/rounds.md. An agent reads the skill and never follows a link: write `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` in backticks. Claude Code resolves the path when it loads the skill.",
       },
     ]);
   });
