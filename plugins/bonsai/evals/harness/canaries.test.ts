@@ -11,6 +11,7 @@ import {
   type CodexEvidence,
   type CodexPlan,
   type Result,
+  type Session,
 } from "./canaries";
 import { FakeTranscript, followingSession, stepInput } from "./fake-transcript";
 import { parseTranscript } from "./transcript";
@@ -110,6 +111,16 @@ describe("the canary set", () => {
   });
 });
 
+function refusedEdit(session: Session): FakeTranscript {
+  return new FakeTranscript(ROOT)
+    .prompt("go")
+    .tool("Edit", stepInput(ROOT, session.steps[0] ?? { tool: "Agent" }), {
+      content: "<tool_use_error>File has not been read yet.</tool_use_error>",
+      isError: true,
+    })
+    .reply("DONE");
+}
+
 describe("judging a Claude canary", () => {
   test.each(claudeCanaries())(
     "%s passes when every marker arrives as expected",
@@ -136,6 +147,24 @@ describe("judging a Claude canary", () => {
     },
   );
 
+  test("fails a paths-scoped skill whose body arrives with its description", () => {
+    const plan = claudeCanaries().find(([id]) => id === "paths-skill")?.[1];
+    const body = plan?.main.expectations.find(
+      (expectation) => expectation.what === "skill body",
+    )?.marker;
+
+    if (plan === undefined || body === undefined) {
+      throw new Error("The paths-skill canary or its body marker is missing.");
+    }
+
+    const outcome = judgeFollowing(plan, { [body]: 2 });
+
+    expect(outcome.result).toBe("FAIL");
+    expect(outcome.detail).toContain(
+      "skill body: right after step 2 (Read src/app/main.ts), expected never.",
+    );
+  });
+
   test("fails a marker that should never arrive and does", () => {
     const plan = claudeCanaries().find(
       ([id]) => id === "gitignored-skill",
@@ -155,27 +184,63 @@ describe("judging a Claude canary", () => {
     });
   });
 
-  test("fails a marker that never arrives, naming the step's error", () => {
+  describe("a step that returns an error", () => {
+    const edit = {
+      tool: "Edit" as const,
+      path: "pkg/a.txt",
+      find: "a",
+      replace: "b",
+    };
+    const expectations = [
+      { what: "pkg/CLAUDE.md", marker: "ACME-NESTED", afterStep: 1 },
+    ];
+
+    test("is invalid, so the canary reruns instead of failing", () => {
+      const session = { steps: [edit], expectations };
+
+      expect(
+        judgeSession(parseTranscript(refusedEdit(session).jsonl()), session),
+      ).toEqual({
+        result: "INVALID",
+        detail:
+          "Step 1 (Edit pkg/a.txt) returned an error: File has not been read yet.",
+      });
+    });
+
+    test("is judged when the step may fail, and the failure names the error", () => {
+      const session = {
+        steps: [{ ...edit, mayFail: true as const }],
+        expectations,
+      };
+
+      expect(
+        judgeSession(parseTranscript(refusedEdit(session).jsonl()), session),
+      ).toEqual({
+        result: "FAIL",
+        detail:
+          "pkg/CLAUDE.md: never, expected right after step 1 (Edit pkg/a.txt). Step 1 returned an error: File has not been read yet.",
+      });
+    });
+  });
+
+  test("ignores a marker in an API request log before the real load", () => {
     const session = {
-      steps: [
-        { tool: "Edit" as const, path: "pkg/a.txt", find: "a", replace: "b" },
-      ],
+      steps: [{ tool: "Read" as const, path: "pkg/a.txt" }],
       expectations: [
         { what: "pkg/CLAUDE.md", marker: "ACME-NESTED", afterStep: 1 },
       ],
     };
-    const transcript = new FakeTranscript()
+    const transcript = new FakeTranscript(ROOT)
       .prompt("go")
-      .tool("Edit", stepInput(ROOT, session.steps[0] ?? { tool: "Agent" }), {
-        content: "<tool_use_error>File has not been read yet.</tool_use_error>",
-        isError: true,
-      })
+      .raw({ type: "api-request-blob", content: "ACME-NESTED" })
+      .raw({ type: "api-request", body: "ACME-NESTED" })
+      .tool("Read", stepInput(ROOT, session.steps[0] ?? { tool: "Agent" }))
+      .attach("nested_memory", { content: "ACME-NESTED" })
       .reply("DONE");
 
     expect(judgeSession(parseTranscript(transcript.jsonl()), session)).toEqual({
-      result: "FAIL",
-      detail:
-        "pkg/CLAUDE.md: never, expected right after step 1 (Edit pkg/a.txt). Step 1 returned an error: File has not been read yet.",
+      result: "PASS",
+      detail: "pkg/CLAUDE.md: right after step 1 (Read pkg/a.txt)",
     });
   });
 
@@ -224,7 +289,7 @@ describe("judging a Claude canary", () => {
         { what: "pkg/CLAUDE.md", marker: "ACME-NESTED", afterStep: 1 },
       ],
     };
-    const transcript = new FakeTranscript()
+    const transcript = new FakeTranscript(ROOT)
       .tool("Read", { file_path: `${ROOT}/pkg/a.txt` })
       .reply("Reading done.")
       .attach("nested_memory", { content: "ACME-NESTED" });
@@ -263,7 +328,7 @@ describe("a session that strays from its steps", () => {
   };
 
   test("is invalid when a step never ran", () => {
-    const transcript = new FakeTranscript().tool("Read", {
+    const transcript = new FakeTranscript(ROOT).tool("Read", {
       file_path: `${ROOT}/pkg/a.txt`,
     });
 
@@ -275,7 +340,7 @@ describe("a session that strays from its steps", () => {
   });
 
   test("is invalid when a step called another tool", () => {
-    const transcript = new FakeTranscript()
+    const transcript = new FakeTranscript(ROOT)
       .tool("Read", { file_path: `${ROOT}/pkg/a.txt` })
       .tool("Bash", { command: "ls pkg" });
 
@@ -286,7 +351,7 @@ describe("a session that strays from its steps", () => {
   });
 
   test("is invalid when a step has no result", () => {
-    const transcript = new FakeTranscript()
+    const transcript = new FakeTranscript(ROOT)
       .tool("Read", { file_path: `${ROOT}/pkg/a.txt` })
       .unansweredTool("Read", { file_path: `${ROOT}/pkg/b.txt` });
 
@@ -326,7 +391,7 @@ describe("judging the subagent canary", () => {
 
   test("returns the main session's outcome when the main session strayed", () => {
     const strayed = parseTranscript(
-      new FakeTranscript()
+      new FakeTranscript(ROOT)
         .tool("Read", { file_path: `${ROOT}/pkg/a.txt` })
         .jsonl(),
     );
@@ -387,11 +452,11 @@ describe("judging the Codex canary", () => {
   const { root, nested } = plan.markers;
   const passing: CodexEvidence = {
     fromRoot: {
-      rollout: `instructions ${root}`,
-      commands: ["/bin/zsh -lc 'cat pkg/a.txt'"],
+      instructions: `instructions ${root}`,
+      commands: [{ command: "cat pkg/a.txt", exitCode: 0 }],
       created: true,
     },
-    fromNested: { rollout: `instructions ${root} ${nested}` },
+    fromNested: { instructions: `instructions ${root} ${nested}` },
   };
 
   test("passes when only the start directory's chain loads", () => {
@@ -401,9 +466,27 @@ describe("judging the Codex canary", () => {
   const cases: [string, CodexEvidence, Result, string][] = [
     [
       "the run never read the file",
-      { ...passing, fromRoot: { ...passing.fromRoot, commands: ["ls"] } },
+      {
+        ...passing,
+        fromRoot: {
+          ...passing.fromRoot,
+          commands: [{ command: "ls pkg/a.txt", exitCode: 0 }],
+        },
+      },
       "INVALID",
-      "never read pkg/a.txt",
+      "never ran `cat pkg/a.txt`",
+    ],
+    [
+      "the read failed",
+      {
+        ...passing,
+        fromRoot: {
+          ...passing.fromRoot,
+          commands: [{ command: "cat pkg/a.txt", exitCode: 1 }],
+        },
+      },
+      "INVALID",
+      "never ran `cat pkg/a.txt`",
     ],
     [
       "the run never wrote the file",
@@ -415,7 +498,7 @@ describe("judging the Codex canary", () => {
       "the root file is missing",
       {
         ...passing,
-        fromRoot: { ...passing.fromRoot, rollout: "instructions" },
+        fromRoot: { ...passing.fromRoot, instructions: "instructions" },
       },
       "FAIL",
       "did not load the root AGENTS.md",
@@ -424,14 +507,14 @@ describe("judging the Codex canary", () => {
       "the nested file loads below it",
       {
         ...passing,
-        fromRoot: { ...passing.fromRoot, rollout: `${root} ${nested}` },
+        fromRoot: { ...passing.fromRoot, instructions: `${root} ${nested}` },
       },
       "FAIL",
       "loaded pkg/AGENTS.md",
     ],
     [
       "the start directory's file is missing",
-      { ...passing, fromNested: { rollout: root } },
+      { ...passing, fromNested: { instructions: root } },
       "FAIL",
       "Started in pkg/",
     ],

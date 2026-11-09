@@ -13,6 +13,20 @@ import {
 } from "./transcript";
 
 describe("parseTranscript", () => {
+  test("takes the working directory from the session's first entry", () => {
+    const transcript = parseTranscript(
+      new FakeTranscript("/repo")
+        .prompt("go")
+        .raw({ type: "user", cwd: "/repo/pkg", message: { content: "later" } })
+        .jsonl(),
+    );
+
+    expect(transcript.cwd).toBe("/repo");
+    expect(
+      parseTranscript(new FakeTranscript().prompt("go").jsonl()).cwd,
+    ).toBeNull();
+  });
+
   test("pairs each tool call with its result", () => {
     const transcript = parseTranscript(
       new FakeTranscript()
@@ -215,16 +229,56 @@ function toolCall(name: string, input: Record<string, unknown>): ToolCall {
 }
 
 describe("callMatchesStep", () => {
+  const CWD = "/repo";
+
   test.each([
     [toolCall("Read", { file_path: "/repo/pkg/a.txt" }), STEPS[0]?.[0], true],
     [toolCall("Read", { file_path: "pkg/a.txt" }), STEPS[0]?.[0], true],
     [
-      toolCall("Read", { file_path: "/repo/other/pkg/a.txt.bak" }),
+      toolCall("Read", { file_path: "/elsewhere/pkg/a.txt" }),
+      STEPS[0]?.[0],
+      false,
+    ],
+    [
+      toolCall("Read", { file_path: "/repo/other/pkg/a.txt" }),
       STEPS[0]?.[0],
       false,
     ],
     [toolCall("Read", {}), STEPS[0]?.[0], false],
     [toolCall("Write", { file_path: "/repo/pkg/a.txt" }), STEPS[0]?.[0], false],
+    [
+      toolCall("Write", { file_path: "/repo/pkg/b.txt", content: "ok" }),
+      STEPS[1]?.[0],
+      true,
+    ],
+    [
+      toolCall("Write", { file_path: "/repo/pkg/b.txt", content: "ok\n" }),
+      STEPS[1]?.[0],
+      true,
+    ],
+    [
+      toolCall("Write", { file_path: "/repo/pkg/b.txt", content: "other" }),
+      STEPS[1]?.[0],
+      false,
+    ],
+    [
+      toolCall("Edit", {
+        file_path: "/repo/pkg/a.txt",
+        old_string: "a",
+        new_string: "b",
+      }),
+      STEPS[2]?.[0],
+      true,
+    ],
+    [
+      toolCall("Edit", {
+        file_path: "/repo/pkg/a.txt",
+        old_string: "a",
+        new_string: "c",
+      }),
+      STEPS[2]?.[0],
+      false,
+    ],
     [toolCall("Bash", { command: " cat pkg/a.txt\n" }), STEPS[3]?.[0], true],
     [
       toolCall("Bash", { command: "cat pkg/a.txt | head" }),
@@ -241,6 +295,21 @@ describe("callMatchesStep", () => {
       throw new Error("The step table is shorter than the test expects.");
     }
 
-    expect(callMatchesStep(call, step)).toBe(matches);
+    expect(callMatchesStep(call, step, CWD)).toBe(matches);
+  });
+
+  test("accepts only the bare relative path when the transcript names no cwd", () => {
+    const step = STEPS[0]?.[0] ?? { tool: "Agent" };
+
+    expect(
+      callMatchesStep(
+        toolCall("Read", { file_path: "/repo/pkg/a.txt" }),
+        step,
+        null,
+      ),
+    ).toBe(false);
+    expect(
+      callMatchesStep(toolCall("Read", { file_path: "pkg/a.txt" }), step, null),
+    ).toBe(true);
   });
 });

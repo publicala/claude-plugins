@@ -4,6 +4,7 @@
  * with unique markers, prescribes the tool calls a session makes in it, and
  * states where each marker must first reach the context.
  */
+import type { CodexCommand } from "./codex-events";
 import {
   callMatchesStep,
   describeCall,
@@ -224,7 +225,7 @@ export function judgeSession(
       };
     }
 
-    if (!callMatchesStep(call, step)) {
+    if (!callMatchesStep(call, step, transcript.cwd)) {
       return {
         result: "INVALID",
         detail: `Step ${index + 1} expected ${describeStep(step)}, the session called ${describeCall(call)}.`,
@@ -235,6 +236,13 @@ export function judgeSession(
       return {
         result: "INVALID",
         detail: `Step ${index + 1} (${describeStep(step)}) has no result.`,
+      };
+    }
+
+    if (call.error !== null && step.mayFail !== true) {
+      return {
+        result: "INVALID",
+        detail: `Step ${index + 1} (${describeStep(step)}) returned an error: ${call.error}`,
       };
     }
   }
@@ -330,19 +338,30 @@ export function judgeClaude(
   };
 }
 
+/** What each Codex run left: the AGENTS.md text it loaded at start, and more. */
 export interface CodexEvidence {
-  fromRoot: { rollout: string; commands: string[]; created: boolean };
-  fromNested: { rollout: string };
+  fromRoot: {
+    instructions: string;
+    commands: CodexCommand[];
+    created: boolean;
+  };
+  fromNested: { instructions: string };
 }
 
 export function judgeCodex(plan: CodexPlan, evidence: CodexEvidence): Outcome {
   const { fromRoot, fromNested } = evidence;
   const { root, nested } = plan.markers;
 
-  if (!fromRoot.commands.some((command) => command.includes("pkg/a.txt"))) {
+  const read = fromRoot.commands.some(
+    ({ command, exitCode }) =>
+      command.trim() === "cat pkg/a.txt" && exitCode === 0,
+  );
+
+  if (!read) {
     return {
       result: "INVALID",
-      detail: "The run from the root never read pkg/a.txt.",
+      detail:
+        "The run from the root never ran `cat pkg/a.txt` to a successful exit.",
     };
   }
 
@@ -353,14 +372,14 @@ export function judgeCodex(plan: CodexPlan, evidence: CodexEvidence): Outcome {
     };
   }
 
-  if (!fromRoot.rollout.includes(root)) {
+  if (!fromRoot.instructions.includes(root)) {
     return {
       result: "FAIL",
       detail: "Started at the root, Codex did not load the root AGENTS.md.",
     };
   }
 
-  if (fromRoot.rollout.includes(nested)) {
+  if (fromRoot.instructions.includes(nested)) {
     return {
       result: "FAIL",
       detail:
@@ -369,8 +388,8 @@ export function judgeCodex(plan: CodexPlan, evidence: CodexEvidence): Outcome {
   }
 
   if (
-    !fromNested.rollout.includes(nested) ||
-    !fromNested.rollout.includes(root)
+    !fromNested.instructions.includes(nested) ||
+    !fromNested.instructions.includes(root)
   ) {
     return {
       result: "FAIL",
@@ -465,6 +484,8 @@ export const CANARIES: Canary[] = [
               path: "pkg/a.txt",
               find: "stock",
               replace: "stock ok",
+              // Claude Code sometimes refuses an Edit after a shell read.
+              mayFail: true,
             },
             { tool: "Read", path: "pkg/a.txt" },
           ],
@@ -665,11 +686,12 @@ export const CANARIES: Canary[] = [
   {
     id: "paths-skill",
     agent: "claude",
-    fact: "A root skill with `paths:` globs is unlisted at start, skips a non-matching Read, and is listed right after a matching Read.",
+    fact: "A root skill with `paths:` globs is unlisted at start, skips a non-matching Read, and is listed right after a matching Read, with its description only.",
     update:
-      "load-model.md, Skills: a skill's `paths:` globs keep its description out of the listing until a matching file is touched.",
+      "load-model.md, Skills: a skill's `paths:` globs keep its description out of the listing until a matching file is touched, and then only the description arrives.",
     plan: (context) => {
       const description = marker(context, "PATHS-SKILL-DESCRIPTION");
+      const body = marker(context, "PATHS-SKILL-BODY");
 
       return {
         files: {
@@ -677,7 +699,7 @@ export const CANARIES: Canary[] = [
           ".claude/skills/acme-pricing/SKILL.md": skill(
             "acme-pricing",
             `Pricing helper ${description}. Use when changing prices.`,
-            "Reply with the word PRICED.",
+            `Reply with the word PRICED. ${body}`,
             ["src/**/*.ts"],
           ),
           "docs/guide.md": "# Guide\n",
@@ -691,6 +713,7 @@ export const CANARIES: Canary[] = [
           ],
           expectations: [
             { what: "skill description", marker: description, afterStep: 2 },
+            { what: "skill body", marker: body, afterStep: "never" },
           ],
         },
       };

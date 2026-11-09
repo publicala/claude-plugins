@@ -7,15 +7,22 @@ import type { Step } from "./transcript";
 
 export class FakeTranscript {
   private readonly entries: Record<string, unknown>[];
+  private readonly cwd: string | null;
   private nextId: number;
 
-  constructor() {
+  /** Every conversation entry names `cwd`, as Claude Code writes them. */
+  constructor(cwd: string | null = null) {
     this.entries = [];
+    this.cwd = cwd;
     this.nextId = 1;
   }
 
+  private push(entry: Record<string, unknown>): void {
+    this.entries.push(this.cwd === null ? entry : { ...entry, cwd: this.cwd });
+  }
+
   prompt(text: string): this {
-    this.entries.push({
+    this.push({
       type: "user",
       message: { role: "user", content: text },
     });
@@ -24,7 +31,7 @@ export class FakeTranscript {
   }
 
   attach(type: string, payload: Record<string, unknown>): this {
-    this.entries.push({ type: "attachment", attachment: { type, ...payload } });
+    this.push({ type: "attachment", attachment: { type, ...payload } });
 
     return this;
   }
@@ -37,14 +44,14 @@ export class FakeTranscript {
   ): this {
     const id = `toolu_${this.nextId++}`;
 
-    this.entries.push({
+    this.push({
       type: "assistant",
       message: {
         role: "assistant",
         content: [{ type: "tool_use", id, name, input }],
       },
     });
-    this.entries.push({
+    this.push({
       type: "user",
       message: {
         role: "user",
@@ -64,7 +71,7 @@ export class FakeTranscript {
 
   /** A tool call whose result never came. */
   unansweredTool(name: string, input: Record<string, unknown>): this {
-    this.entries.push({
+    this.push({
       type: "assistant",
       message: {
         role: "assistant",
@@ -78,7 +85,7 @@ export class FakeTranscript {
   }
 
   reply(text: string): this {
-    this.entries.push({
+    this.push({
       type: "assistant",
       message: { role: "assistant", content: [{ type: "text", text }] },
     });
@@ -148,7 +155,7 @@ export function followingSession(
           arrivalOf(expectation.marker, expectation.afterStep) === position,
       )
       .map((expectation) => expectation.marker);
-  const transcript = new FakeTranscript().prompt("Run these steps");
+  const transcript = new FakeTranscript(root).prompt("Run these steps");
 
   for (const marker of loadsAt(0)) {
     transcript.attach("skill_listing", { content: `- helper: ${marker}` });

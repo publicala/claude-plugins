@@ -19,17 +19,29 @@ export interface Transcript {
   lines: string[];
   /** Positions of the entries the model wrote. */
   modelTurns: Set<number>;
+  /**
+   * Positions of the entries that reach the model's context: user turns
+   * (tool results included) and attachments. API request logs and
+   * snapshots copy earlier content and are left out.
+   */
+  contextEntries: Set<number>;
   toolCalls: ToolCall[];
+  /** The session's working directory, from its first entry that names one. */
+  cwd: string | null;
 }
 
 /** One step a canary prescribes, as the tool call the session must make. */
-export type Step =
+export type Step = (
   | { tool: "Read"; path: string }
   | { tool: "Write"; path: string; content: string }
   | { tool: "Edit"; path: string; find: string; replace: string }
   | { tool: "Bash"; command: string }
   | { tool: "Skill"; skill: string }
-  | { tool: "Agent" };
+  | { tool: "Agent" }
+) & {
+  /** The tool may return an error without the session straying. */
+  mayFail?: true;
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -63,12 +75,17 @@ export function parseTranscript(jsonl: string): Transcript {
     .map((line): unknown => JSON.parse(line))
     .filter(isRecord);
   const modelTurns = new Set<number>();
+  const contextEntries = new Set<number>();
   const toolCalls: ToolCall[] = [];
   const callsById = new Map<string, ToolCall>();
 
   entries.forEach((entry, at) => {
     if (entry["type"] === "assistant") {
       modelTurns.add(at);
+    }
+
+    if (entry["type"] === "user" || entry["type"] === "attachment") {
+      contextEntries.add(at);
     }
 
     for (const block of contentBlocks(entry).filter(isRecord)) {
@@ -97,16 +114,22 @@ export function parseTranscript(jsonl: string): Transcript {
     }
   });
 
+  const cwd = entries
+    .map((entry) => entry["cwd"])
+    .find((value) => typeof value === "string");
+
   return {
     lines: entries.map((entry) => JSON.stringify(entry)),
     modelTurns,
+    contextEntries,
     toolCalls,
+    cwd: typeof cwd === "string" ? cwd : null,
   };
 }
 
 /**
- * Where a marker first reached the context: the first entry holding it that
- * the model did not write. The prompts never name a marker and the steps
+ * Where a marker first reached the context: the first user turn or
+ * attachment holding it. The prompts never name a marker and the steps
  * never read an instruction file, so any such entry is the harness loading
  * one.
  */
@@ -115,7 +138,8 @@ export function markerArrival(
   marker: string,
 ): number | null {
   const at = transcript.lines.findIndex(
-    (line, index) => !transcript.modelTurns.has(index) && line.includes(marker),
+    (line, index) =>
+      transcript.contextEntries.has(index) && line.includes(marker),
   );
 
   return at === -1 ? null : at;
@@ -156,8 +180,16 @@ export function describeCall(call: ToolCall): string {
   return `${call.name} ${target ?? ""}`.trim();
 }
 
-/** Whether a tool call is the one a step prescribes. Paths are relative. */
-export function callMatchesStep(call: ToolCall, step: Step): boolean {
+/**
+ * Whether a tool call is the one a step prescribes. Step paths are relative
+ * to the session's working directory, and a file call must name that exact
+ * file.
+ */
+export function callMatchesStep(
+  call: ToolCall,
+  step: Step,
+  cwd: string | null,
+): boolean {
   if (step.tool === "Bash") {
     return (
       call.name === "Bash" &&
@@ -174,10 +206,29 @@ export function callMatchesStep(call: ToolCall, step: Step): boolean {
   }
 
   const path = call.input["file_path"];
+  const namesTheFile =
+    path === step.path || (cwd !== null && path === `${cwd}/${step.path}`);
 
-  return (
-    call.name === step.tool &&
-    typeof path === "string" &&
-    (path === step.path || path.endsWith(`/${step.path}`))
-  );
+  if (call.name !== step.tool || !namesTheFile) {
+    return false;
+  }
+
+  if (step.tool === "Write") {
+    const content = call.input["content"];
+
+    // A model may or may not end the file it writes with a newline.
+    return (
+      typeof content === "string" &&
+      content.trimEnd() === step.content.trimEnd()
+    );
+  }
+
+  if (step.tool === "Edit") {
+    return (
+      call.input["old_string"] === step.find &&
+      call.input["new_string"] === step.replace
+    );
+  }
+
+  return true;
 }

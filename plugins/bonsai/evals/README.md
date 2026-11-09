@@ -29,7 +29,7 @@ bun evals/harness/run.ts
 ```
 
 - **`--only <id>,<id>`**: runs some canaries, named as the table names them.
-- **`--jobs <n>`**: sessions at a time, 4 by default.
+- **`--jobs <n>`**: sessions at a time, a positive whole number, 4 by default.
 - **`--keep`**: keeps each fixture and transcript, and prints their paths.
 
 A full run is 13 canaries in about 30 seconds: $0.02 of Claude at list price, plus about 90,000 Codex tokens for the Codex canary, which skips when `codex` is not on PATH. The sessions skip your user settings, plugins and MCP servers (`--setting-sources project --strict-mcp-config`), and each may use only the tools its steps name. Their transcripts land under `~/.claude/projects/` and `~/.codex/sessions/`, and the run deletes them.
@@ -38,7 +38,7 @@ Each row ends in one result, and the exit status follows the worst:
 
 - **PASS**: the fact holds.
 - **FAIL**: Claude Code changed. The row says where the marker arrived and names the load-model.md statement to update. Exit 1.
-- **INVALID**: the session strayed from its steps twice, so nothing was judged. Exit 2, like **ERROR**, which means `claude` or `codex` failed.
+- **INVALID**: twice, the session strayed from its steps, or a step returned an error the canary does not allow, so nothing was judged. Exit 2, like **ERROR**, which means `claude` or `codex` failed or exited non-zero.
 
 `harness/*.test.ts` cover the transcript reading and every verdict without calling `claude`, so `bun run check` runs them. A new fact in load-model.md gets its canary in `harness/canaries.ts`.
 

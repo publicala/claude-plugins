@@ -18,7 +18,12 @@ import {
   type CodexPlan,
   type Outcome,
 } from "./canaries";
-import { codexCommands, codexThreadId, codexTokens } from "./codex-events";
+import {
+  codexCommands,
+  codexInstructions,
+  codexThreadId,
+  codexTokens,
+} from "./codex-events";
 import { exitCode, resultTable, summaryLine, type Row } from "./report";
 import { parseTranscript } from "./transcript";
 
@@ -242,7 +247,13 @@ async function runCodexOnce(
   root: string,
   cwd: string,
   prompt: string,
-): Promise<{ rollout: string; rolloutPath: string | null; events: string }> {
+): Promise<{
+  rollout: string;
+  rolloutPath: string | null;
+  events: string;
+  exitCode: number;
+  stderr: string;
+}> {
   const session = Bun.spawn(
     [
       "codex",
@@ -265,8 +276,11 @@ async function runCodexOnce(
       timeout: SESSION_TIMEOUT_MS,
     },
   );
-  const events = await new Response(session.stdout).text();
-  await session.exited;
+  const [events, stderr] = await Promise.all([
+    new Response(session.stdout).text(),
+    new Response(session.stderr).text(),
+  ]);
+  const status = await session.exited;
   const threadId = codexThreadId(events);
   const rolloutPath =
     threadId === null
@@ -278,12 +292,13 @@ async function runCodexOnce(
   const rollout =
     rolloutPath === null ? "" : await Bun.file(rolloutPath).text();
 
-  return { rollout, rolloutPath, events };
+  return { rollout, rolloutPath, events, exitCode: status, stderr };
 }
 
 async function runCodex(plan: CodexPlan): Promise<Attempt> {
   const root = await buildFixture(plan.files);
   const { fromRoot, fromNested } = plan.runs;
+  const rollouts: string[] = [];
 
   try {
     const rootRun = await runCodexOnce(root, fromRoot.cwd, fromRoot.prompt);
@@ -292,7 +307,25 @@ async function runCodex(plan: CodexPlan): Promise<Attempt> {
       fromNested.cwd,
       fromNested.prompt,
     );
+    rollouts.push(
+      ...[rootRun.rolloutPath, nestedRun.rolloutPath].filter(
+        (path): path is string => path !== null,
+      ),
+    );
     const tokens = codexTokens(rootRun.events) + codexTokens(nestedRun.events);
+
+    const failed = [rootRun, nestedRun].find((run) => run.exitCode !== 0);
+
+    if (failed !== undefined) {
+      return {
+        outcome: {
+          result: "ERROR",
+          detail: `A codex run exited with code ${failed.exitCode}: ${failed.stderr.trim().split("\n").slice(-3).join(" ")}`,
+        },
+        costUsd: 0,
+        codexTokens: tokens,
+      };
+    }
 
     if (rootRun.rolloutPath === null || nestedRun.rolloutPath === null) {
       return {
@@ -307,27 +340,23 @@ async function runCodex(plan: CodexPlan): Promise<Attempt> {
 
     const outcome = judgeCodex(plan, {
       fromRoot: {
-        rollout: rootRun.rollout,
+        instructions: codexInstructions(rootRun.rollout),
         commands: codexCommands(rootRun.events),
         created: await Bun.file(join(root, "pkg/new.txt")).exists(),
       },
-      fromNested: { rollout: nestedRun.rollout },
+      fromNested: { instructions: codexInstructions(nestedRun.rollout) },
     });
-
-    if (!options.keep) {
-      await Promise.all(
-        [rootRun.rolloutPath, nestedRun.rolloutPath].map((path) =>
-          rm(path, { force: true }),
-        ),
-      );
-    }
 
     return { outcome, costUsd: 0, codexTokens: tokens };
   } finally {
     if (options.keep) {
-      console.error(`kept ${root}`);
+      console.error(`kept ${[root, ...rollouts].join(", ")}`);
     } else {
-      await rm(root, { recursive: true, force: true });
+      await Promise.all(
+        [root, ...rollouts].map((path) =>
+          rm(path, { recursive: true, force: true }),
+        ),
+      );
     }
   }
 }
