@@ -21,7 +21,7 @@ Not everything called "referenced" is deferred. Classify each file by its load c
 
 Check every line against this list before anything else. A match is a KEEP and skips the rest of the audit, with one exception: a rule a committed check holds may still fall in step 3, because the tool guarantees it. A safety prohibition stays whatever enforces it.
 
-- Safety prohibitions, as `references/load-model.md` defines them ("never force-push", "never run the seeder against a shared database")
+- Safety prohibitions, as `${CLAUDE_PLUGIN_ROOT}/references/load-model.md` defines them ("never force-push", "never run the seeder against a shared database")
 - Gotchas that contradict appearances (the call that silently no-ops, the flag that looks optional but is not). Greps come back clean precisely because the line works, so step 4 would misread these as derivable.
 - Conventions that differ from the framework or tool default, including conventions phrased with "never"
 - Precedence and routing clauses
@@ -29,7 +29,7 @@ Check every line against this list before anything else. A match is a KEEP and s
 
 ## The audit, in order
 
-A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 8 line by line, and present the result as one round when it fits the budget in `references/rounds.md`. Probes and the panel still decide what the steps route to them. A small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `references/probe.md`.
+A file under about 40 lines gets a single pass: read it whole, apply steps 2 through 8 line by line, and present the result as one round when it fits the budget in `${CLAUDE_PLUGIN_ROOT}/references/rounds.md`. Probes and the panel still decide what the steps route to them. A small file only means few candidates reach them. Above that, the steps below run as written, and every probe counts against the budget in `${CLAUDE_PLUGIN_ROOT}/references/probe.md`.
 
 ### 1. Inventory
 
@@ -100,7 +100,7 @@ Exception: a fact stays in the pointer when the session needs it to pick WHICH t
 Two pointer shapes go on sight, because an agent reads every CLAUDE.md and rule file and nobody clicks in them:
 
 - **A Markdown link to a repository path** becomes the path in backticks, resolved against the file the link sits in and written from the repository root (`../README.md` in `docs/CLAUDE.md` becomes `README.md`). The link spells the path twice, and one whose text and target differ names two files. A link to a heading in the same file becomes the heading's name, and one to a heading in another file names both ("the Modals section of `resources/CLAUDE.md`"). An `@path` import is a load directive and stays bare. Record it as a rewrite.
-- **A pointer to a file the harness already loads** for the work it routes is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is whenever that work reads, writes or edits a file in its scope, creating the first file included: the scoped file arrives right after that call (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`). A pointer stays for work that starts with a command or acts outside the files (running a migration, a deploy, a `git` operation). A root pointer also stays when the repository serves an agent that reads only the root file (`references/load-model.md`, "Other agents"). A pointer that stays is a path in backticks.
+- **A pointer to a file the harness already loads** for the work it routes is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is whenever that work reads, writes or edits a file in its scope, creating the first file included: the scoped file arrives right after that call (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`). A pointer stays for work that starts with a command or acts outside the files (running a migration, a deploy, a `git` operation). A root pointer also stays when the repository serves an agent that reads only the root file (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, "Other agents"). A pointer that stays is a path in backticks.
 
 ```markdown
 <!-- Cut: the link and the discovery command. The nested file loads on the first file touch in that directory -->
@@ -140,7 +140,7 @@ Never write a new validator for a rule one in app/Validators already covers.
 
 Content needed only in a specific situation moves verbatim to a referenced file, leaving a one-line read-trigger behind ("read X before doing Y"). A move must beat the pointer it leaves behind: content no longer than its read-trigger stays resident. Reuse the project's existing referenced-doc location (detect it from current pointers) instead of inventing a new one. Deletion is only for content that fails step 2 outright.
 
-Environment-conditional content is its own extract class: sentences that bind only in some execution environments (a cloud sandbox, CI, containerized local dev). No load mechanism triggers on environment, so path scoping cannot help. The pattern is one resident discriminator line per environment naming the trigger and the doc ("cloud session? read X before running anything"), with everything conditional moved to that doc verbatim. Classifying each sentence by the environments it governs is judgement the loaded auditor shortcuts: run a classification probe (`references/probe.md`) with the single question "which execution environments does each sentence govern", and treat every section with mixed answers as an extract candidate.
+Environment-conditional content is its own extract class: sentences that bind only in some execution environments (a cloud sandbox, CI, containerized local dev). No load mechanism triggers on environment, so path scoping cannot help. The pattern is one resident discriminator line per environment naming the trigger and the doc ("cloud session? read X before running anything"), with everything conditional moved to that doc verbatim. Classifying each sentence by the environments it governs is judgement the loaded auditor shortcuts: run a classification probe (`${CLAUDE_PLUGIN_ROOT}/references/probe.md`) with the single question "which execution environments does each sentence govern", and treat every section with mixed answers as an extract candidate.
 
 ## Report delivery
 
@@ -158,6 +158,6 @@ Keep the audit a single pass: verification is the expensive part, and findings i
 
 ## Approval and apply
 
-Present each round in full before editing anything. Per change: the verdict, the exact text affected, and the evidence (surfaces checked, grep ratio, panel vote, second check). Approval arrives as the decisions message when the round is a page, and from AskUserQuestion in plain text, where the ship choice joins the first round's questions. Only edit after approval, and apply as `references/rounds.md` prescribes: one commit per cause on a branch, with a PR, when the user ships as a PR.
+Present each round in full before editing anything. Per change: the verdict, the exact text affected, and the evidence (surfaces checked, grep ratio, panel vote, second check). Approval arrives as the decisions message when the round is a page, and from AskUserQuestion in plain text, where the ship choice joins the first round's questions. Only edit after approval, and apply as `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` prescribes: one commit per cause on a branch, with a PR, when the user ships as a PR.
 
 After applying, re-resolve every pointer you touched. Close the report with before and after est. token totals per file, listing deferred (moved) tokens separately from deleted ones.

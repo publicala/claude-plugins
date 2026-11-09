@@ -19,7 +19,7 @@ Every CLAUDE.md file in the project and every enforcement surface it already has
 
 ## Never
 
-- Remove a rule's prose before its check holds the rule as `references/enforcement.md` defines it, on the current tree.
+- Remove a rule's prose before its check holds the rule as `${CLAUDE_PLUGIN_ROOT}/references/enforcement.md` defines it, on the current tree.
 - Add a CLAUDE.md line for a check you add, or a pointer to it. A session that breaks the rule reads the message, and a line would cost every other session tokens to say the same.
 - Make a check pass with a baseline or a blanket ignore the user did not approve.
 - Add a new entrypoint. New checks run through the existing test and lint commands.
