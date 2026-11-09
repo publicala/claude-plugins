@@ -15,7 +15,7 @@ Throughout the audit, "cut" means recording a cut verdict in the report. No file
 
 Default scope is the current project: its root CLAUDE.md, nested CLAUDE.md files, and the rule files they point to. User-level and ancestor-directory files load in every project, so include them only when the user asks, and evaluate them against a session in an arbitrary project (codebase greps and CI checks do not apply to them). Exclude vendored code, build output, and worktree copies everywhere: from the inventory and from every grep.
 
-Not everything called "referenced" is deferred. Classify each file by its load class before judging it: read `${CLAUDE_PLUGIN_ROOT}/references/load-model.md`. Judge a scope-triggered line against a fresh session working in its scope, and count no saving for a move behind an `@path` import.
+Not everything called "referenced" is deferred. Classify each file by its load class before judging it: read `${CLAUDE_PLUGIN_ROOT}/references/load-model.md`. Judge a scope-triggered line against a fresh session working in its scope, and count no saving for a move behind an `@path` import. Read `${CLAUDE_PLUGIN_ROOT}/references/delivery.md` too: a kept line goes to the strongest rung that holds it.
 
 ## Never cut
 
@@ -33,7 +33,11 @@ A file under about 40 lines gets a single pass: read it whole, apply steps 2 thr
 
 ### 1. Inventory
 
+First read the repository's `agents` setting (`${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md`). When it is missing, ask once whether the repository serves agents other than Claude Code (Codex reads only `AGENTS.md`, from the root down to where it starts), and store the answer. A `--headless` run asks nothing: it assumes none and says so in the PR body. Step 6 and every move read it.
+
 List each in-scope file with its load class and est. token cost (label every figure "est."). Include equivalent rule files other agents consume (`.cursor/rules`, `AGENTS.md` and the like) in the inventory and the dedup pass, even though edits target CLAUDE.md files. Migrating a foreign-format rule file into the project's native format is never part of an audit apply: record it as a proposal and act only on explicit user approval.
+
+Then show the load map: for a few common tasks (an edit in each scoped area, a new file in one, a command run from the root), the files that load and their est. tokens. Count a path-scoped rule whose globs match a large share of the repository's files (about a third or more) as resident. When `~/.claude/bonsai/loads/<key>.jsonl` exists, an optional hook logged real loads there, one JSON line per load: count from it instead of estimating, and label those figures "measured".
 
 ### 2. Derivability pass
 
@@ -46,7 +50,7 @@ Cut what a fresh session reconstructs with a few tool calls:
 - Generic best practices ("write tests", "validate inputs", "use clear names")
 - Self-referential document metadata and biography: version stamps ("**Version**: 2026-08-07"), "last updated" lines, rename history, drift-tracking clauses between files ("if the spine moves forward and this file doesn't..."), and rules phrased against the past ("previously X, now Z"). Git is the history. When the history carries a load-bearing constraint, reframe it present tense, as a rewrite. A date survives only when it is itself the instruction a session must apply.
 
-Test: delete the line and name the mistake a session in the file's scope now makes. No mistake, no line. A line that fails the test but matters in one identifiable situation moves instead of dying (see "Extract to a referenced file").
+Test: delete the line and name the mistake a session in the file's scope now makes. No mistake, no line. A line that fails the test but matters in one identifiable situation moves instead of dying (see "Move to the rung that holds it").
 
 The six classes above cut on sight. A cut for any other derivability claim needs a derivability probe first, run as `${CLAUDE_PLUGIN_ROOT}/references/probe.md` prescribes: one fresh low-effort agent gets a task the line governs, in the file's scope, without the line, and whether it derives the fact or makes the mistake is the verdict. The loaded auditor has read the line and cannot un-read it, so its own guess is not evidence. A line in an always-resident file never probes clean: record that and send the candidate to the capability-floor panel instead.
 
@@ -58,6 +62,7 @@ Never trust a claim (yours or the file's) that "the linter handles this". Inspec
 
 - **Held**: the check meets every condition there. Cut the prose, and every clause that only names the check.
 - **Held with a gap**, or **unenforced**: step 4 decides, and the rule is a candidate for `/bonsai:bake`, which closes the gap or adds the check.
+- **A list of allowed transitions** ("an order goes from pending to paid, never back"): a call, asked as a question, "a transition guard or a check would hold this, hand it to guard", with `/bonsai:guard` in `next`. The redesign belongs to guard (`${CLAUDE_PLUGIN_ROOT}/references/delivery.md`, "Domain redesigns"), so audit proposes no refactor.
 
 Expect surprises in both directions: rules believed enforced that are not, and rules believed prose-only that a formatter already fixes.
 
@@ -100,7 +105,7 @@ Exception: a fact stays in the pointer when the session needs it to pick WHICH t
 Two pointer shapes go on sight, because an agent reads every CLAUDE.md and rule file and nobody clicks in them:
 
 - **A Markdown link to a repository path** becomes the path in backticks, resolved against the file the link sits in and written from the repository root (`../README.md` in `docs/CLAUDE.md` becomes `README.md`). The link spells the path twice, and one whose text and target differ names two files. A link to a heading in the same file becomes the heading's name, and one to a heading in another file names both ("the Modals section of `resources/CLAUDE.md`"). An `@path` import is a load directive and stays bare. Record it as a rewrite.
-- **A pointer to a file the harness already loads** for the work it routes is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is whenever that work reads, writes or edits a file in its scope, creating the first file included: the scoped file arrives right after that call (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`). A pointer stays for work that starts with a command or acts outside the files (running a migration, a deploy, a `git` operation). A root pointer also stays when the repository serves an agent that reads only the root file (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, "Other agents"). A pointer that stays is a path in backticks.
+- **A pointer to a file the harness already loads** for the work it routes is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is whenever that work reads, writes or edits a file in its scope, creating the first file included: the scoped file arrives right after that call (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`). A pointer stays for work that starts with a command or acts outside the files (running a migration, a deploy, a `git` operation). A root pointer also stays when the stored `agents` setting names an agent that reads only the root file (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, "Other agents"). A pointer that stays is a path in backticks.
 
 ```markdown
 <!-- Cut: the link and the discovery command. The nested file loads on the first file touch in that directory -->
@@ -111,6 +116,8 @@ Internal utilities live under `app/Console/Commands/Acme/`.
 ```
 
 When the repository's CLAUDE.md lint already bans path links, a path link is a violation of that check: say so on the rewrite. Otherwise record a `/bonsai:bake` candidate that adds the ban, so the rewrite cannot regress.
+
+A pointer between two scoped files is a placement smell. Flag two shapes: a nested CLAUDE.md whose directory holds no other first-party file, since it never loads on its own and sessions reach it only through pointers, and two scoped files that point at each other. Find the first with the orphan check of `${CLAUDE_PLUGIN_ROOT}/skills/split/SKILL.md` (step 4, "The other direction"). Record each as a call, asked as a question that offers a merge into one file or a new scope covering both, and add `/bonsai:split` to `next`: split makes the move, with its load-path check.
 
 The same rule governs skill frontmatter descriptions: triggers and routing keywords stay, mechanics and step lists move to the body. Safety and precedence clauses stay in the description ("never mutates remote state", "OVERRIDES the global skill") because they change the invocation decision itself.
 
@@ -136,11 +143,22 @@ Our validators are EmailValidator, PhoneValidator, and VatValidator. Never write
 Never write a new validator for a rule one in app/Validators already covers.
 ```
 
-## Extract to a referenced file
+## Move to the rung that holds it
+
+A kept line that another rung of `${CLAUDE_PLUGIN_ROOT}/references/delivery.md` holds better moves there verbatim, as a `move` change whose `destination` names the rung (`${CLAUDE_PLUGIN_ROOT}/renderer/README.md`):
+
+- **`scoped-file`**: a rule that governs one area, placed by split's grep and load-path check (`${CLAUDE_PLUGIN_ROOT}/skills/split/SKILL.md`, steps 2 and 3).
+- **`code`**: knowledge a session needs at one file or command, as a docblock, a command description or `--help`, or a check's message.
+- **`skill`**: a procedure walked start to finish, placed by the skill rung in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md`.
+- **`html-comment`**: a "why" only a reviewer needs, kept in a CLAUDE.md (`${CLAUDE_PLUGIN_ROOT}/references/rule-writing.md`).
+- **`deferred-doc`**: content one situation needs. See below.
+- **`root`**: a scoped line that governs the whole project.
+
+A move to `code`, `skill` or `html-comment` edits code or settings, or hides the line from sessions, so it is always a call. When the `agents` setting names an agent that reads only the root file, a move to `scoped-file` or `skill` also leaves a one-line path pointer in the root.
 
 Content needed only in a specific situation moves verbatim to a referenced file, leaving a one-line read-trigger behind ("read X before doing Y"). A move must beat the pointer it leaves behind: content no longer than its read-trigger stays resident. Reuse the project's existing referenced-doc location (detect it from current pointers) instead of inventing a new one. Deletion is only for content that fails step 2 outright.
 
-Environment-conditional content is its own extract class: sentences that bind only in some execution environments (a cloud sandbox, CI, containerized local dev). No load mechanism triggers on environment, so path scoping cannot help. The pattern is one resident discriminator line per environment naming the trigger and the doc ("cloud session? read X before running anything"), with everything conditional moved to that doc verbatim. Classifying each sentence by the environments it governs is judgement the loaded auditor shortcuts: run a classification probe (`${CLAUDE_PLUGIN_ROOT}/references/probe.md`) with the single question "which execution environments does each sentence govern", and treat every section with mixed answers as an extract candidate.
+Environment-conditional content is its own extract class: sentences that bind only in some execution environments (a cloud sandbox, CI, containerized local dev). No load mechanism triggers on environment, so path scoping cannot help, and a hook that adds context fails the bar in `${CLAUDE_PLUGIN_ROOT}/references/delivery.md` (R6) unless a missed line leads to an action that cannot be undone. Only then flag a hook, as a call. The pattern is one resident discriminator line per environment naming the trigger and the doc ("cloud session? read X before running anything"), with everything conditional moved to that doc verbatim. Classifying each sentence by the environments it governs is judgement the loaded auditor shortcuts: run a classification probe (`${CLAUDE_PLUGIN_ROOT}/references/probe.md`) with the single question "which execution environments does each sentence govern", and treat every section with mixed answers as an extract candidate.
 
 ## Report delivery
 
@@ -149,6 +167,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md` before routing, then 
 - Cut on sight (step 2, or a pointer the harness already follows in step 6), a path link rewritten to a path in backticks (step 6), cut because a committed check holds the rule (step 3), or cut at 90% compliance or above (step 4): **ready**, grouped by cause.
 - Rewrite (step 6 or "Precise but generic") the second check found the same: **ready**, grouped by cause.
 - False or stale claim, rewrite that still drifts, cut by a split panel vote or at a borderline compliance count, move, extract: **call**.
+- A transition list handed to guard, a hook that meets the R6 bar, an orphan or a pair of scoped files that point at each other: **call**, asked as a question. A transition list puts `/bonsai:guard` in `next`, and a placement smell `/bonsai:split`.
 - Evidence that holds only in the auditor's environment, a foreign-format migration proposal: **question**.
 - Keep: `kept`, with nothing to decide.
 
