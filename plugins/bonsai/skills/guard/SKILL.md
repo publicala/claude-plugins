@@ -57,7 +57,7 @@ Collect every marker in the threads, review bodies and PR comments of the PRs in
 
 ### 2. Inventory the target repository
 
-Fetch the default branch and read it there, since a check proven on a stale checkout fails on the real tree. Read [../../references/enforcement.md](../../references/enforcement.md) (relative to this skill's directory) first: its conditions say when a surface holds a rule, and every condition a surface misses is a gap.
+Fetch the default branch and read it there, since a check proven on a stale checkout fails on the real tree. Read `${CLAUDE_PLUGIN_ROOT}/references/enforcement.md` first: its conditions say when a surface holds a rule, and every condition a surface misses is a gap.
 
 The artifact is the surface table, one row per surface: tool and config, the paths it covers, the command that runs it, where it runs (hook, CI), and how the project tests a custom rule (a PHPStan `RuleTestCase` with fixtures, ESLint's `RuleTester`, `ast-grep test`). Cover formatters and linters, static analysis and its custom rules, architecture and guard tests, git hooks, CI jobs, and the runtime guards the code already uses. Mark each surface's gaps: a path it skips, a message that names no fix, a baseline.
 
@@ -130,13 +130,13 @@ Cover only the code forms in use today. A check that guards forms nobody writes 
 
 A CLAUDE.md line is the last rung. It passes only when no rung above can see the rule, and the session cannot learn it from the code at hand: the rule depends on code away from the change site, or a violation found later takes a redesign to fix. The review catch is the evidence that a session misses it. When a loaded file already states the rule and the session still broke it, another line will not help: the finding is **none**, "stated in".
 
-Read [../../references/load-model.md](../../references/load-model.md) (relative to this skill's directory), and place the line in the nearest scoped file whose load trigger fires before the mistake. When the repository has only a root file, create the nested CLAUDE.md for the subtree the rule governs, or a `.claude/rules/` file for a file pattern. The root file takes only a rule that cuts across the project. Write the line to [../../references/rule-writing.md](../../references/rule-writing.md).
+Read `${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, and place the line in the nearest scoped file whose load trigger fires before the mistake. When the repository has only a root file, create the nested CLAUDE.md for the subtree the rule governs, or a `.claude/rules/` file for a file pattern. The root file takes only a rule that cuts across the project. Write the line to `${CLAUDE_PLUGIN_ROOT}/references/rule-writing.md`.
 
 A line that names a check, restates what a check holds, or describes what the code shows fails the gate. Every prose candidate of the run ships in one PR.
 
 ### 7. Decide
 
-The user decides on a page, since an option label cannot carry a review quote, a code sample and a cost table. Read [../../references/decision-artifact.md](../../references/decision-artifact.md) and the guard section of [../../renderer/README.md](../../renderer/README.md) (relative to this skill's directory), write the round's data, build the page, and publish it as that reference prescribes. When `bun` is missing, deliver the same content in plain text, one section per candidate. When no candidate is left to decide and nothing is **not now** (an earlier pass decided them all), publish no page and go to step 10.
+The user decides on a page, since an option label cannot carry a review quote, a code sample and a cost table. Read `${CLAUDE_PLUGIN_ROOT}/references/decision-artifact.md` and the guard section of `${CLAUDE_PLUGIN_ROOT}/renderer/README.md`, write the round's data, build the page, and publish it as that reference prescribes. When `bun` is missing, deliver the same content in plain text, one section per candidate. When no candidate is left to decide and nothing is **not now** (an earlier pass decided them all), publish no page and go to step 10.
 
 Rank the candidates by evidence (how many reviews and threads raised it), then value, then cost. A round holds the first five, and the rest wait for the next round of the run. Each card carries what the user needs to decide without opening the repository:
 
@@ -164,7 +164,7 @@ The check:
 
 The proof, in the Testing section:
 
-- Run the planted-violation check in [../../references/probe.md](../../references/probe.md) (relative to this skill's directory): the check fails on the planted violation, and the message it printed goes in the PR. A formatter rewrites the planted violation.
+- Run the planted-violation check in `${CLAUDE_PLUGIN_ROOT}/references/probe.md`: the check fails on the planted violation, and the message it printed goes in the PR. A formatter rewrites the planted violation.
 - The check reports exactly the violations the PR fixes on the default branch, and passes after the fixes.
 - When the repository runs its suite only in CI, push the planted violation to a probe branch, link the failed run, and delete the branch.
 - The PR's own CI passes.
