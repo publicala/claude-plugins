@@ -26,7 +26,7 @@ List the files the procedure touches, then place it:
 
 - **All under one directory**: a nested skill, `<dir>/.claude/skills/<name>/SKILL.md`. It stays hidden until the first Read, Write or Edit of a file under `<dir>`, in the main session and in subagents.
 - **Spread across trees**: a root skill, `.claude/skills/<name>/SKILL.md`, with `paths:` globs that cover those files.
-- **Starts with a command** before it touches a file (a generator, a deploy): a root skill, since a nested one is still hidden when the procedure starts.
+- **Starts with a command** before it touches a file (a generator, a deploy), or needs a step before its first write (an approval): a root skill, since a nested one is still hidden when that step matters.
 - **The skills directory is gitignored**, or the repository's skills are untracked local symlinks: a call. The skill reaches no clone and no cloud session (`load-model.md`, "Skills").
 
 ## R6: the bar for hook-added context
