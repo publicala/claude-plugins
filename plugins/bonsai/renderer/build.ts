@@ -47,6 +47,47 @@ const DESTINATIONS = [
   "root",
   "deferred-doc",
 ] as const;
+const DESTINATION_FILES: Record<
+  (typeof DESTINATIONS)[number],
+  { matches: (file: string) => boolean; names: string }
+> = {
+  "html-comment": {
+    matches: (file) => isClaudeFile(file),
+    names: "a CLAUDE.md",
+  },
+  code: {
+    matches: (file) => !file.endsWith(".md"),
+    names: "a file other than Markdown",
+  },
+  "scoped-file": {
+    matches: (file) =>
+      (isClaudeFile(file) &&
+        file.includes("/") &&
+        !file.startsWith(".claude/")) ||
+      /^\.claude\/rules\/.+\.md$/.test(file),
+    names: "a nested CLAUDE.md or a `.claude/rules/` file",
+  },
+  skill: {
+    matches: (file) => /(^|\/)\.claude\/skills\/[^/]+\/SKILL\.md$/.test(file),
+    names: "a `.claude/skills/<name>/SKILL.md`",
+  },
+  root: {
+    matches: (file) => file === "CLAUDE.md" || file === ".claude/CLAUDE.md",
+    names: "the root CLAUDE.md",
+  },
+  "deferred-doc": {
+    matches: (file) =>
+      file.endsWith(".md") &&
+      !isClaudeFile(file) &&
+      !file.startsWith(".claude/"),
+    names: "a Markdown doc outside the CLAUDE.md files and `.claude/`",
+  },
+};
+
+function isClaudeFile(file: string): boolean {
+  return file === "CLAUDE.md" || file.endsWith("/CLAUDE.md");
+}
+
 /** Only these can be ready: every other destination edits code or settings, or hides the text from sessions. */
 const READY_DESTINATIONS = ["scoped-file", "root", "deferred-doc"] as const;
 const EDITORS = ["zed", "vscode", "cursor", "phpstorm"] as const;
@@ -667,6 +708,22 @@ function ensureDestination(
     lane === "call" || isOneOf(READY_DESTINATIONS, destination),
     `${owner} moves text into ${quote(destination)}. Only a move into ${listChoices(READY_DESTINATIONS)} can be ready, so set lane to call.`,
   );
+  const target = DESTINATION_FILES[destination];
+  const writes = listOfObjects(change.edits, "edits", owner).filter(
+    (edit) =>
+      typeof edit.file === "string" &&
+      Array.isArray(edit.write) &&
+      edit.write.length > 0 &&
+      target.matches(edit.file) &&
+      (destination !== "html-comment" ||
+        edit.write.some(
+          (line) => typeof line === "string" && line.includes("<!--"),
+        )),
+  );
+  ensure(
+    writes.length > 0,
+    `${owner} moves text to ${quote(destination)}, but no edit writes ${target.names}${destination === "html-comment" ? " with an HTML comment" : ""}. Point "destination" at the rung its edits write to.`,
+  );
 }
 
 function resolveChange(change: JsonObject, context: ChangeContext): PageChange {
@@ -987,6 +1044,10 @@ function resolveCandidate(
   ensure(
     isOneOf(RECOMMENDATIONS, candidate.recommendation),
     `${owner} has recommendation ${quote(candidate.recommendation)}. Use ${listChoices(RECOMMENDATIONS)}.`,
+  );
+  ensure(
+    candidate.destination === undefined,
+    `${owner} carries "destination", which only a move in another run carries. A CLAUDE.md line names its file in "edits".`,
   );
   ensure(
     candidate.skip === undefined,

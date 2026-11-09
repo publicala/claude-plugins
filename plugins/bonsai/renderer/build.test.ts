@@ -212,6 +212,37 @@ describe("build", () => {
     expect(changeIn(page.changes, "testing").destination).toBe("scoped-file");
   });
 
+  test.each([
+    ["root", "CLAUDE.md", "- Tests use the factories."],
+    [
+      "html-comment",
+      "CLAUDE.md",
+      "<!-- Prices are cents since the rounding audit. -->",
+    ],
+    ["skill", "deploy/.claude/skills/release/SKILL.md", "# Release"],
+    ["code", "app/Support/Money.php", "// Amounts are cents."],
+    ["deferred-doc", "docs/payouts.md", "# Payouts"],
+    ["scoped-file", ".claude/rules/tests.md", "- Use the factories."],
+  ])("accepts a move to %s that writes %s", async (destination, file, line) => {
+    const data = await exampleData();
+    const testing = changeIn(data.changes, "testing");
+    const inRoot = file === "CLAUDE.md";
+    testing.destination = destination;
+    testing.edits = [
+      inRoot
+        ? { file, at: 3, write: [line] }
+        : { file, at: "end", write: [line] },
+    ];
+    data.files = data.files.filter((entry) => entry.path !== "tests/CLAUDE.md");
+    if (!inRoot) {
+      data.files.push({ path: file, new: true });
+    }
+
+    const page = await build(data, EXAMPLE);
+
+    expect(changeIn(page.changes, "testing").destination).toBe(destination);
+  });
+
   test("quotes the removed lines from disk", async () => {
     const page = await build(await exampleData(), EXAMPLE);
     const source = (await Bun.file(join(EXAMPLE, "repo", "CLAUDE.md")).text())
@@ -1158,6 +1189,20 @@ describe("build refuses data that would mislead", () => {
       },
       'Change \'livewire\' has "destination", which only a move carries. Remove it, or set verb to "move".',
     ],
+    [
+      "a move whose edits miss its destination",
+      (data) => {
+        changeIn(data.changes, "testing").destination = "root";
+      },
+      'Change \'testing\' moves text to "root", but no edit writes the root CLAUDE.md. Point "destination" at the rung its edits write to.',
+    ],
+    [
+      "a move to an HTML comment that writes no comment",
+      (data) => {
+        changeIn(data.changes, "testing").destination = "html-comment";
+      },
+      'Change \'testing\' moves text to "html-comment", but no edit writes a CLAUDE.md with an HTML comment. Point "destination" at the rung its edits write to.',
+    ],
     ...(["code", "skill", "html-comment"] as const).map(
       (destination): [string, (data: Fixture) => void, string] => [
         `a ready move into ${destination}`,
@@ -1893,6 +1938,13 @@ describe("guard build refuses data that would mislead", () => {
         };
       },
       "run.status.decisions.pull must map not-now ids to true or false.",
+    ],
+    [
+      "a destination on a candidate",
+      (data) => {
+        setField(changeIn(data.changes, TOTAL), "destination", "root");
+      },
+      `Candidate '${TOTAL}' carries "destination", which only a move in another run carries. A CLAUDE.md line names its file in "edits".`,
     ],
   ];
 
