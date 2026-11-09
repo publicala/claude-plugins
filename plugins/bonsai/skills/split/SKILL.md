@@ -15,7 +15,7 @@ This skill decides where rules live. Whether they live is `/bonsai:audit`'s call
 
 ## Scope
 
-Default scope is the current project tree. Writes only ever land in the project's CLAUDE.md files and `.claude/rules/` files. User-level and ancestor-directory files are out of scope in both directions: they load in every project, so no in-project placement can host their content.
+Default scope is the current project tree. Writes only ever land in the project's CLAUDE.md files and `.claude/rules/` files, plus the one-line pointer for another agent in the root `AGENTS.md` (step 3). User-level and ancestor-directory files are out of scope in both directions: they load in every project, so no in-project placement can host their content.
 
 ## Audit first
 
@@ -62,7 +62,7 @@ The grep is the verdict on shape. The author's sense of where a rule "belongs" i
 
 A demotion only works if the scoped file is loaded by the time the rule matters. Name the mistake the rule prevents, then classify the action that commits it:
 
-- Reading, editing or creating an in-scope file through the file tools: demote. The scoped file arrives right after the first Read, Write or Edit in its scope (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`), so a session that writes the first file without the rule sees it before its next step and corrects that file. When the `agents` setting names an agent that reads only the root file (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, "Other agents"), the demotion leaves a one-line pointer in the root for that agent. A rule that also governs files a generator or a shell command writes takes the next check for that workflow.
+- Reading, editing or creating an in-scope file through the file tools: demote. The scoped file arrives right after the first Read, Write or Edit in its scope (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`), so a session that writes the first file without the rule sees it before its next step and corrects that file. When the `agents` setting names an agent that reads only the root file (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, "Other agents"), the demotion leaves a one-line pointer where that agent reads it: in `CLAUDE.md` when the root `AGENTS.md` is a symlink to it, else in the root `AGENTS.md`. With no root `AGENTS.md`, the pointer is a call. A rule that also governs files a generator or a shell command writes takes the next check for that workflow.
 - Acting on in-scope paths only through shell or git (a generator, `sed -i`, `git mv`, running a command): nothing loads. For these rules no verdict exists until a load-path probe runs, as `${CLAUDE_PLUGIN_ROOT}/references/probe.md` prescribes: one fresh low-effort agent gets the task that would commit the mistake, in the real repo, without mention of the rule. The scoped file loads before the mistake: demote. It acts first, or reads only in shapes that load nothing: the rule stays resident. Run the probe in the harness mode the team works in: a mode that reads through the shell loads a scoped file only on plain reads, and a demotion probed in another mode is untested for it. The author guessing whether sessions read first is the same simulation the probe replaces. A rule in an always-resident file never probes clean, since every subagent inherits it (`${CLAUDE_PLUGIN_ROOT}/references/probe.md`): it stays resident, recorded as unresolved.
 
 ### 4. The other direction
@@ -87,7 +87,7 @@ After applying, verify that each scoped file the edits created or re-globbed act
 
 A moved rule keeps its exact text. The only permitted edit is deleting a scope qualifier the destination now expresses: "In tests/, never use RefreshDatabase" becomes "Never use RefreshDatabase" inside `tests/CLAUDE.md`. Phrasing improvements belong to `/bonsai:audit`.
 
-A demotion leaves nothing behind. The scoped file loads automatically, so a pointer at root would rebuild the cost the move removed. The one exception is a repository whose `agents` setting names an agent that reads only the root file: there the demotion leaves the one-line root pointer step 3 names. Create the destination file if it is missing, and append under a heading that matches its existing structure.
+A demotion leaves nothing behind. The scoped file loads automatically, so a pointer at root would rebuild the cost the move removed. The one exception is a repository whose `agents` setting names an agent that reads only the root file: there the demotion leaves the one-line pointer step 3 places. A promotion retargets or removes the pointer that named the rule's old home, and keeps any pointer other rules still need. Create the destination file if it is missing, and append under a heading that matches its existing structure.
 
 ## Skill candidates
 

@@ -33,7 +33,7 @@ A file under about 40 lines gets a single pass: read it whole, apply steps 2 thr
 
 ### 1. Inventory
 
-First read the repository's `agents` setting (`${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md`). When it is missing, ask once whether the repository serves agents other than Claude Code (Codex reads only `AGENTS.md`, from the root down to where it starts), and store the answer. A `--headless` run asks nothing: it assumes none and says so in the PR body. Step 6 and every move read it.
+First read the repository's `agents` setting (`${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md`). When it is missing, or holds `[]` while the repository has a root `AGENTS.md`, ask whether the repository serves agents other than Claude Code (Codex reads only `AGENTS.md`, from the root down to where it starts), and store the answer. A `--headless` run asks nothing: it counts a root `AGENTS.md` as Codex served, cuts no pointer that rests on the answer, and says so in the PR body. Step 6 and every move read it.
 
 List each in-scope file with its load class and est. token cost (label every figure "est."). Include equivalent rule files other agents consume (`.cursor/rules`, `AGENTS.md` and the like) in the inventory and the dedup pass, even though edits target CLAUDE.md files. Migrating a foreign-format rule file into the project's native format is never part of an audit apply: record it as a proposal and act only on explicit user approval.
 
@@ -105,7 +105,7 @@ Exception: a fact stays in the pointer when the session needs it to pick WHICH t
 Two pointer shapes go on sight, because an agent reads every CLAUDE.md and rule file and nobody clicks in them:
 
 - **A Markdown link to a repository path** becomes the path in backticks, resolved against the file the link sits in and written from the repository root (`../README.md` in `docs/CLAUDE.md` becomes `README.md`). The link spells the path twice, and one whose text and target differ names two files. A link to a heading in the same file becomes the heading's name, and one to a heading in another file names both ("the Modals section of `resources/CLAUDE.md`"). An `@path` import is a load directive and stays bare. Record it as a rewrite.
-- **A pointer to a file the harness already loads** for the work it routes is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is whenever that work reads, writes or edits a file in its scope, creating the first file included: the scoped file arrives right after that call (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`). A pointer stays for work that starts with a command or acts outside the files (running a migration, a deploy, a `git` operation). A root pointer also stays when the stored `agents` setting names an agent that reads only the root file (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, "Other agents"). A pointer that stays is a path in backticks.
+- **A pointer to a file the harness already loads** for the work it routes is a cut. The root CLAUDE.md and its imports always are. A nested CLAUDE.md or a path-scoped rule is whenever that work reads, writes or edits a file in its scope, creating the first file included: the scoped file arrives right after that call (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`). A pointer stays for work that starts with a command or acts outside the files (running a migration, a deploy, a `git` operation). A root pointer also stays when the stored `agents` setting names an agent that reads it there (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, "Other agents"). A pointer that stays is a path in backticks.
 
 ```markdown
 <!-- Cut: the link and the discovery command. The nested file loads on the first file touch in that directory -->
@@ -154,7 +154,7 @@ A kept line that another rung of `${CLAUDE_PLUGIN_ROOT}/references/delivery.md` 
 - **`deferred-doc`**: content one situation needs. See below.
 - **`root`**: a scoped line that governs the whole project.
 
-A move to `code`, `skill` or `html-comment` edits code or settings, or hides the line from sessions, so it is always a call. When the `agents` setting names an agent that reads only the root file, a move to `scoped-file` or `skill` also leaves a one-line path pointer in the root.
+A move to `code`, `skill` or `html-comment` edits code or settings, or hides the line from sessions, so it is always a call. When the `agents` setting names an agent that reads only the root file, a move to `scoped-file` or `skill` also leaves a one-line path pointer where that agent reads it (`${CLAUDE_PLUGIN_ROOT}/references/load-model.md`, "Other agents").
 
 Content needed only in a specific situation moves verbatim to a referenced file, leaving a one-line read-trigger behind ("read X before doing Y"). A move must beat the pointer it leaves behind: content no longer than its read-trigger stays resident. Reuse the project's existing referenced-doc location (detect it from current pointers) instead of inventing a new one. Deletion is only for content that fails step 2 outright.
 

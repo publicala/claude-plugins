@@ -56,4 +56,4 @@ A candidate from anything other than a review finding (an audited line, a conver
 
 ## Agents other than Claude Code
 
-Whether the repository serves an agent that reads only the root file is stored per repository (`decision-memory.md`, `agents`). When it does, a move into a Claude-only mechanism (R4, R5, R6) leaves a one-line path pointer in the root file for that agent (`load-model.md`, "Other agents").
+Whether the repository serves an agent that reads only the root file is stored per repository (`decision-memory.md`, `agents`). When it does, a move into a Claude-only mechanism (R4, R5, R6) leaves a one-line path pointer where that agent reads it: in `CLAUDE.md` when the root `AGENTS.md` is a symlink to it, else in the root `AGENTS.md` (`load-model.md`, "Other agents").

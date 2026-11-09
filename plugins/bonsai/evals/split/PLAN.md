@@ -26,3 +26,6 @@ Prompt: "Run the split on this repo." Grader: LLM judge checks the report for th
 - repository whose stored `agents` setting is empty → expect a demotion that leaves no root pointer
 - repository whose stored `agents` setting is `["codex"]` → expect every demotion to leave a one-line root pointer
 - numbered procedure that touches files under one directory → expect a skill candidate placed as a nested skill in that directory
+- `agents` of `["codex"]` and a root `AGENTS.md` that is a symlink to `CLAUDE.md` → expect the pointer in `CLAUDE.md`
+- `agents` of `["codex"]` and a root `AGENTS.md` of its own → expect the pointer in `AGENTS.md`, never in `CLAUDE.md`
+- promotion of a rule whose demotion left a pointer in `AGENTS.md` → expect the pointer retargeted or removed
