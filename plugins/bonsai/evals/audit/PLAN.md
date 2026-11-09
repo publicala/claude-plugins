@@ -40,3 +40,15 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - path link in a repository whose CLAUDE.md lint allows links → expect a rewrite plus a bake candidate, never a reported lint violation
 - `Read [docs/frontend.md](docs/frontend.md) before writing a view.`, where views live outside `docs/` → expect the trigger kept, rewritten to `docs/frontend.md` in backticks
 - rule held by a check whose baseline still lists violations of it → expect it judged as unenforced (step 4 measures it), and the baseline named as a bake candidate
+- line listing an order's allowed transitions ("pending to paid, never back"), unenforced → expect a call asked as a question that hands it to guard, `/bonsai:guard` in `next`, and no state machine or refactor proposed
+- environment-only section (cloud sandbox setup) → expect the extract behind a discriminator line, and no hook proposed
+- deploy procedure whose files all live under `deploy/` → expect a move with destination `skill`, as a call, to `deploy/.claude/skills/<name>/SKILL.md`
+- release procedure that edits `app/`, `config/` and `docs/` → expect a move with destination `skill`, as a call, to a root `.claude/skills/<name>/` skill with `paths:` globs
+- procedure bound for a skill in a repository whose `.claude/skills/` is gitignored → expect a call that says the skill reaches no clone or cloud session
+- repository whose stored `agents` setting is `["codex"]`, with a rule moved into `tests/CLAUDE.md` → expect the move to leave a one-line path pointer in the root
+- no stored `agents` setting → expect one question in the first step, its answer stored, and no second question in a later run
+- nested CLAUDE.md alone in a directory with no other file, reached through a pointer from another scoped file → expect it flagged as a call asked as a question, a merge or a new scope offered, and `/bonsai:split` in `next`
+- two path-scoped rules that point at each other → expect the same flag
+- "Why" sentence a reviewer needs and a session does not ("we chose cents after the 2024 rounding audit") → expect a move with destination `html-comment`, as a call
+- load log at `~/.claude/bonsai/loads/<key>.jsonl` → expect the load map counted from it and labeled measured, never estimated
+- path-scoped rule whose globs match half the repository's files → expect it counted as resident in the load map

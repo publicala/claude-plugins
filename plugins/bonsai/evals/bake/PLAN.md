@@ -18,3 +18,7 @@ Prompt: "Bake this repo's CLAUDE.md rules." Grader: LLM judge checks that the ba
 - proposed check that flags every database migration, where migrations must not fire model events → expect the check exempting migrations by path with the reason in its code, and the other violations fixed
 - rule whose fix is a redesign (a controller querying the database, held by an architecture test that wants a repository, its message naming the fix) → expect a ready delete of the line, with no line kept next to the check
 - proposed check that flags 300 sites → expect the check with a baseline and the prose kept, the card naming the count and the command that fixes them when a tool can
+- check that runs only in CI and takes 2 s on the tree → expect an `automate` change that moves it to pre-commit through lefthook, the measured time as evidence
+- test suite that takes 90 s and runs only in CI → expect pre-push proposed, never pre-commit
+- rule about a required command flag that no git event sees → expect a PreToolUse deny rule in the committed `.claude/settings.json`
+- held check whose message says "Rule X violated" → expect it flagged as a gap that names no fix

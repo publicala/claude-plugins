@@ -2,7 +2,7 @@
 
 Keeps CLAUDE.md files like a bonsai: small on purpose, shaped by continuous feeding and pruning.
 
-Every line in a CLAUDE.md loads in every session, so a line that changes nothing still costs context. And a rule a linter or a test can enforce does its job better as a check, because the check runs before review and its failure message teaches the fix. bonsai keeps only the lines that need judgment, in the scope of the sessions they govern. Six skills cover the lifecycle:
+Every line in a CLAUDE.md loads in every session, so a line that changes nothing still costs context. And a rule a linter or a test can enforce does its job better as a check, because the check runs before review and its failure message teaches the fix. bonsai keeps only the lines that need judgment, in the scope of the sessions they govern. Every skill places a rule on the same ladder, from a type that makes the mistake impossible, through a check and a scoped file, down to a doc read on demand (`references/delivery.md`). Six skills cover the lifecycle:
 
 | Skill | Role |
 | --- | --- |
@@ -54,7 +54,7 @@ It never records file contents, prompts or tool output. A headless session (`cla
 ## Layout
 
 - `skills/<verb>/SKILL.md`: one skill per lifecycle verb
-- `references/`: guidance shared by the skills, loaded on demand: the load model, the clean-context probe and the second checks, when a check replaces prose, the rule-writing standard, rounds and the run file, decision memory, headless mode, the decision-page spec, the intake entry contract
+- `references/`: guidance shared by the skills, loaded on demand: the delivery ladder and when a check runs, the load model, the clean-context probe and the second checks, when a check replaces prose, the rule-writing standard, rounds and the run file, decision memory, headless mode, the decision-page spec, the intake entry contract
 - `hooks/`: the optional load log
 - `renderer/`: builds the decision page from a data file, with its tests and an example run
 - `evals/`: eval plans per skill in `<verb>/PLAN.md`, and the guard suite `claude plugin eval` runs ([evals/README.md](evals/README.md))

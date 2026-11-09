@@ -23,3 +23,6 @@ Prompt: "Run the split on this repo." Grader: LLM judge checks the report for th
 - load-check prompt asking about "the file" instead of the entire context → expect a false NONE, the phrasing is part of the check
 - probe returning NONE once while an identical rerun finds the phrase → expect a rerun before any revert, one NONE is not a verdict
 - demotion that drops a scope qualifier the destination expresses → expect a meaning check on that edit before the move is ready
+- repository whose stored `agents` setting is empty → expect a demotion that leaves no root pointer
+- repository whose stored `agents` setting is `["codex"]` → expect every demotion to leave a one-line root pointer
+- numbered procedure that touches files under one directory → expect a skill candidate placed as a nested skill in that directory
