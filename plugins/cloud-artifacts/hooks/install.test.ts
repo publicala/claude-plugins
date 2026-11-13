@@ -447,4 +447,23 @@ describe("install.sh", () => {
       lstatSync(join(home, ".claude/skills/tool"), { throwIfNoEntry: false }),
     ).toBeUndefined();
   });
+  test("an upgrade that drops the skill removes its link", async () => {
+    await publishSkill("tool", "1.0.0");
+    const home = await temporaryDirectory();
+    await runHookIn(home, { CLOUD_ARTIFACTS_PACKAGES: "tool" });
+    releases.set("tool", {
+      version: "2.0.0",
+      platform: platform(),
+      archive: await buildArchive("tool", {
+        "bin/tool": { content: "#!/bin/sh\n", executable: true },
+      }),
+    });
+
+    const upgrade = await runHookIn(home, { CLOUD_ARTIFACTS_PACKAGES: "tool" });
+
+    expect(
+      lstatSync(join(home, ".claude/skills/tool"), { throwIfNoEntry: false }),
+    ).toBeUndefined();
+    expect(upgrade.reloadsSkills).toBe(true);
+  });
 });

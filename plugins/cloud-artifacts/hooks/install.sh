@@ -70,8 +70,17 @@ seconds_left() {
   echo $((deadline - $(date +%s)))
 }
 
+# curl treats --max-time 0 as no limit, so an exhausted budget refuses the
+# request instead.
 fetch() {
-  curl --fail --silent --show-error --location --max-time "$(seconds_left)" \
+  remaining=$(seconds_left)
+
+  if [ "$remaining" -lt 1 ]; then
+    echo "the install ran out of its time budget"
+    return 1
+  fi
+
+  curl --fail --silent --show-error --location --max-time "$remaining" \
     --header "Authorization: Bearer $token" "$@"
 }
 
@@ -89,15 +98,14 @@ link_package() {
   package=$1
   destination=$2
 
-  if [ -f "$destination/SKILL.md" ]; then
+  if [ ! -f "$destination/SKILL.md" ]; then
+    unlink_previous_skill "$package"
+  elif [ -e "$skills_directory/$package" ] && [ ! -L "$skills_directory/$package" ]; then
+    report "$package: $skills_directory/$package exists and is not a link, so the skill was not linked"
+  else
     mkdir -p "$skills_directory"
-
-    if [ -e "$skills_directory/$package" ] && [ ! -L "$skills_directory/$package" ]; then
-      report "$package: $skills_directory/$package exists and is not a link, so the skill was not linked"
-    else
-      ln -sfn "$destination" "$skills_directory/$package"
-      skills_changed=true
-    fi
+    ln -sfn "$destination" "$skills_directory/$package"
+    skills_changed=true
   fi
 
   unlink_previous_executables "$package"
@@ -115,6 +123,20 @@ link_package() {
       ln -sfn "$executable" "$target"
     fi
   done
+}
+
+# Removes the skill link an earlier version created, when the installed
+# version ships no skill.
+unlink_previous_skill() {
+  link="$skills_directory/$1"
+  [ -L "$link" ] || return 0
+
+  case "$(readlink "$link")" in
+    "$install_root/$1/"*)
+      rm -f "$link"
+      skills_changed=true
+      ;;
+  esac
 }
 
 # Removes the links an earlier version of the package created, so an
