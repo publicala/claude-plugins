@@ -22,6 +22,50 @@ type Release = {
   corrupt?: boolean;
 };
 
+type HookOutput = {
+  hookSpecificOutput: {
+    hookEventName: "SessionStart";
+    additionalContext: string;
+    reloadSkills: boolean;
+  };
+};
+
+function isHookOutput(value: unknown): value is HookOutput {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const specific: unknown = Reflect.get(value, "hookSpecificOutput");
+
+  return (
+    typeof specific === "object" &&
+    specific !== null &&
+    Reflect.get(specific, "hookEventName") === "SessionStart" &&
+    typeof Reflect.get(specific, "additionalContext") === "string" &&
+    typeof Reflect.get(specific, "reloadSkills") === "boolean"
+  );
+}
+
+function readHookOutput(output: string): {
+  context: string;
+  reloadsSkills: boolean;
+} {
+  if (output === "") {
+    return { context: "", reloadsSkills: false };
+  }
+
+  const parsed: unknown = JSON.parse(output);
+
+  if (!isHookOutput(parsed)) {
+    throw new Error(`The hook printed unexpected output: ${output}`);
+  }
+
+  return {
+    context: parsed.hookSpecificOutput.additionalContext,
+    reloadsSkills: parsed.hookSpecificOutput.reloadSkills,
+  };
+}
+
 const releases = new Map<string, Release>();
 const requests: { path: string; authorization: string | null }[] = [];
 const temporary: string[] = [];
@@ -177,11 +221,13 @@ async function runHookIn(
     },
   });
   const output = await new Response(hook.stdout).text();
+  const report = readHookOutput(output);
 
   return {
     home,
     exitCode: await hook.exited,
     output,
+    ...report,
     installed: (packageName: string, version: string) =>
       join(home, ".local/share/cloud-artifacts", packageName, version),
   };
@@ -211,9 +257,10 @@ describe("install.sh", () => {
     const installed = run.installed("tool", "1.2.3");
 
     expect(run.exitCode).toBe(0);
-    expect(run.output).toBe(
+    expect(run.context).toBe(
       `cloud-artifacts: tool 1.2.3 installed at ${installed}\n`,
     );
+    expect(run.reloadsSkills).toBe(true);
     expect(readlinkSync(join(run.home, ".claude/skills/tool"))).toBe(installed);
     expect(readlinkSync(join(run.home, ".local/bin/tool"))).toBe(
       join(installed, "bin/tool"),
@@ -232,7 +279,7 @@ describe("install.sh", () => {
     });
 
     expect(requests[0]?.authorization).toBe("Bearer network-secret");
-    expect(run.output).toContain("tool: unable to read the latest release");
+    expect(run.context).toContain("tool: unable to read the latest release");
     expect(run.exitCode).toBe(0);
   });
 
@@ -245,7 +292,7 @@ describe("install.sh", () => {
       CLOUD_ARTIFACTS_PACKAGES: "tool",
     });
 
-    expect(second.output).toBe(
+    expect(second.context).toBe(
       `cloud-artifacts: tool 1.0.0 ready at ${first.installed("tool", "1.0.0")}\n`,
     );
     expect(requests.map((request) => request.path)).toEqual([
@@ -269,7 +316,7 @@ describe("install.sh", () => {
 
     const run = await runHook({ CLOUD_ARTIFACTS_PACKAGES: "tool" });
 
-    expect(run.output).toContain("does not match the manifest's sha256");
+    expect(run.context).toContain("does not match the manifest's sha256");
     expect(existsSync(run.installed("tool", "1.0.0"))).toBe(false);
   });
 
@@ -282,7 +329,7 @@ describe("install.sh", () => {
 
     const run = await runHook({ CLOUD_ARTIFACTS_PACKAGES: "tool" });
 
-    expect(run.output).toContain("has no top-level tool directory");
+    expect(run.context).toContain("has no top-level tool directory");
     expect(existsSync(run.installed("tool", "1.0.0"))).toBe(false);
   });
 
@@ -292,15 +339,16 @@ describe("install.sh", () => {
 
     const run = await runHook({ CLOUD_ARTIFACTS_PACKAGES: "tool" });
 
-    expect(run.output).toBe(
+    expect(run.context).toBe(
       `cloud-artifacts: tool 1.0.0: no build for ${platform()}\n`,
     );
+    expect(run.reloadsSkills).toBe(false);
   });
 
   test("rejects package names that could escape the install directory", async () => {
     const run = await runHook({ CLOUD_ARTIFACTS_PACKAGES: "../etc -x Tool" });
 
-    expect(run.output.match(/skipped/g)).toHaveLength(3);
+    expect(run.context.match(/skipped/g)).toHaveLength(3);
     expect(requests).toHaveLength(0);
   });
 
@@ -311,7 +359,7 @@ describe("install.sh", () => {
 
     const run = await runHookIn(home, { CLOUD_ARTIFACTS_PACKAGES: "tool" });
 
-    expect(run.output).toContain("is not a link, so the skill was not linked");
+    expect(run.context).toContain("is not a link, so the skill was not linked");
     expect(lstatSync(join(home, ".claude/skills/tool")).isDirectory()).toBe(
       true,
     );
@@ -324,8 +372,47 @@ describe("install.sh", () => {
     });
 
     expect(run.exitCode).toBe(0);
-    expect(run.output).toContain(
+    expect(run.context).toContain(
       "tool: unable to read the latest release from the store",
+    );
+  });
+  test("an upgrade removes executables the new version dropped", async () => {
+    const home = await temporaryDirectory();
+    releases.set("tool", {
+      version: "1.0.0",
+      platform: platform(),
+      archive: await buildArchive("tool", {
+        "bin/tool": { content: "#!/bin/sh\n", executable: true },
+        "bin/tool-legacy": { content: "#!/bin/sh\n", executable: true },
+      }),
+    });
+    await runHookIn(home, { CLOUD_ARTIFACTS_PACKAGES: "tool" });
+    await publishSkill("tool", "2.0.0");
+
+    const upgrade = await runHookIn(home, { CLOUD_ARTIFACTS_PACKAGES: "tool" });
+
+    expect(
+      lstatSync(join(home, ".local/bin/tool-legacy"), {
+        throwIfNoEntry: false,
+      }),
+    ).toBeUndefined();
+    expect(readlinkSync(join(home, ".local/bin/tool"))).toBe(
+      join(upgrade.installed("tool", "2.0.0"), "bin/tool"),
+    );
+  });
+
+  test("puts the bin directory on the session's PATH", async () => {
+    await publishSkill("tool", "1.0.0");
+    const home = await temporaryDirectory();
+    const environmentFile = join(home, "session.env");
+
+    await runHookIn(home, {
+      CLOUD_ARTIFACTS_PACKAGES: "tool",
+      CLAUDE_ENV_FILE: environmentFile,
+    });
+
+    expect(readFileSync(environmentFile, "utf8")).toBe(
+      `export PATH="${join(home, ".local/bin")}:$PATH"\n`,
     );
   });
 });

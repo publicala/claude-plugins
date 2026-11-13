@@ -9,7 +9,9 @@ The SessionStart hook reads the latest release of each package in `CLOUD_ARTIFAC
 - **Skill**: the package directory into `~/.claude/skills/{package}`, when it has a `SKILL.md`
 - **Executables**: each file of its `bin/` into `~/.local/bin`
 
-It prints one line per package, which Claude reads as session context, and exits 0 even when the store is down. A real directory or file already at a link's path stays untouched.
+An upgrade removes the links the previous version created, so an executable a release drops stops resolving. When `~/.local/bin` isn't on `PATH`, the hook adds it for the session's commands.
+
+The hook reports one line per package as session context, asks Claude Code to scan for skills again so a skill it linked works from the first prompt, and exits 0 even when the store is down. A real directory or file already at a link's path stays untouched.
 
 ## Set up a cloud environment
 

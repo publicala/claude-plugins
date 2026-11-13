@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs each package in CLOUD_ARTIFACTS_PACKAGES from the artifact store
-# at CLOUD_ARTIFACTS_URL. Prints one line per package, which Claude reads as
-# session context, and always exits 0 so a store outage never blocks a session.
+# at CLOUD_ARTIFACTS_URL. Reports one line per package as session context, and
+# always exits 0 so a store outage never blocks a session.
 
 [ -n "${CLOUD_ARTIFACTS_URL:-}" ] || exit 0
 [ -n "${CLOUD_ARTIFACTS_PACKAGES:-}" ] || exit 0
@@ -14,8 +14,38 @@ install_root="${CLOUD_ARTIFACTS_HOME:-$HOME/.local/share/cloud-artifacts}"
 skills_directory="$HOME/.claude/skills"
 bin_directory="$HOME/.local/bin"
 
+report_file=$(mktemp) || exit 0
+trap 'rm -f "$report_file"' EXIT
+skills_changed=false
+
 report() {
-  printf 'cloud-artifacts: %s\n' "$*"
+  printf 'cloud-artifacts: %s\n' "$*" >>"$report_file"
+}
+
+# Skill discovery runs before SessionStart hooks finish, so a hook that links
+# a skill asks Claude Code to scan again.
+print_hook_output() {
+  if ! command -v jq >/dev/null 2>&1; then
+    cat "$report_file"
+    return
+  fi
+
+  [ -s "$report_file" ] || [ "$skills_changed" = true ] || return 0
+
+  jq --null-input --rawfile context "$report_file" --argjson reload "$skills_changed" \
+    '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $context, reloadSkills: $reload}}'
+}
+
+add_bin_directory_to_path() {
+  [ -n "${CLAUDE_ENV_FILE:-}" ] || return 0
+
+  case ":$PATH:" in
+    *":$bin_directory:"*) return 0 ;;
+  esac
+
+  # $PATH expands when the session sources the file.
+  # shellcheck disable=SC2016
+  printf 'export PATH="%s:$PATH"\n' "$bin_directory" >>"$CLAUDE_ENV_FILE"
 }
 
 detect_platform() {
@@ -60,8 +90,11 @@ link_package() {
       report "$package: $skills_directory/$package exists and is not a link, so the skill was not linked"
     else
       ln -sfn "$destination" "$skills_directory/$package"
+      skills_changed=true
     fi
   fi
+
+  unlink_previous_executables "$package"
 
   [ -d "$destination/bin" ] || return 0
   mkdir -p "$bin_directory"
@@ -75,6 +108,18 @@ link_package() {
     else
       ln -sfn "$executable" "$target"
     fi
+  done
+}
+
+# Removes the links an earlier version of the package created, so an
+# executable a release drops stops resolving.
+unlink_previous_executables() {
+  for link in "$bin_directory"/*; do
+    [ -L "$link" ] || continue
+
+    case "$(readlink "$link")" in
+      "$install_root/$1/"*) rm -f "$link" ;;
+    esac
   done
 }
 
@@ -155,18 +200,24 @@ install_package() {
   report "$package $version installed at $destination"
 }
 
-if ! command -v jq >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
-  report "curl and jq are required, so nothing was installed"
-  exit 0
-fi
+install_packages() {
+  if ! command -v jq >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
+    report "curl and jq are required, so nothing was installed"
+    return 0
+  fi
 
-if ! platform=$(detect_platform); then
-  report "unsupported platform $(uname -s) $(uname -m), so nothing was installed"
-  exit 0
-fi
+  if ! platform=$(detect_platform); then
+    report "unsupported platform $(uname -s) $(uname -m), so nothing was installed"
+    return 0
+  fi
 
-for package in $(printf '%s' "$CLOUD_ARTIFACTS_PACKAGES" | tr ',' ' '); do
-  install_package "$package"
-done
+  for package in $(printf '%s' "$CLOUD_ARTIFACTS_PACKAGES" | tr ',' ' '); do
+    install_package "$package"
+  done
 
+  add_bin_directory_to_path
+}
+
+install_packages
+print_hook_output
 exit 0
