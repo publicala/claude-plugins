@@ -12,6 +12,8 @@ token="${CLOUD_ARTIFACTS_TOKEN:-network-secret}"
 store="${CLOUD_ARTIFACTS_URL%/}"
 install_root="${CLOUD_ARTIFACTS_HOME:-$HOME/.local/share/cloud-artifacts}"
 skills_directory="$HOME/.claude/skills"
+# Stays under the hook's 120 s timeout, which discards all output when it fires.
+deadline=$(($(date +%s) + ${CLOUD_ARTIFACTS_BUDGET_SECONDS:-100}))
 bin_directory="$HOME/.local/bin"
 
 report_file=$(mktemp) || exit 0
@@ -64,8 +66,12 @@ detect_platform() {
   printf '%s-%s\n' "$system" "$machine"
 }
 
+seconds_left() {
+  echo $((deadline - $(date +%s)))
+}
+
 fetch() {
-  curl --fail --silent --show-error --location --max-time 60 \
+  curl --fail --silent --show-error --location --max-time "$(seconds_left)" \
     --header "Authorization: Bearer $token" "$@"
 }
 
@@ -192,8 +198,12 @@ install_package() {
     return 0
   fi
 
-  mkdir -p "$install_root/$package"
-  mv "$work/extract/$package" "$destination"
+  if ! mkdir -p "$install_root/$package" || ! mv "$work/extract/$package" "$destination"; then
+    report "$package $version: unable to move the package into $destination"
+    rm -rf "$work"
+    return 0
+  fi
+
   rm -rf "$work"
 
   link_package "$package" "$destination"
@@ -212,6 +222,11 @@ install_packages() {
   fi
 
   for package in $(printf '%s' "$CLOUD_ARTIFACTS_PACKAGES" | tr ',' ' '); do
+    if [ "$(seconds_left)" -lt 5 ]; then
+      report "$package: skipped, the install ran out of its time budget"
+      continue
+    fi
+
     install_package "$package"
   done
 

@@ -11,7 +11,7 @@ The SessionStart hook reads the latest release of each package in `CLOUD_ARTIFAC
 
 An upgrade removes the links the previous version created, so an executable a release drops stops resolving. When `~/.local/bin` isn't on `PATH`, the hook adds it for the session's commands.
 
-The hook reports one line per package as session context, asks Claude Code to scan for skills again so a skill it linked works from the first prompt, and exits 0 even when the store is down. A real directory or file already at a link's path stays untouched.
+The hook reports one line per package as session context, asks Claude Code to scan for skills again so a skill it linked works from the first prompt, and exits 0 even when the store is down. The installs share a 100-second budget, inside the hook's 120-second timeout, and a package that doesn't fit is reported as skipped. A real directory or file already at a link's path stays untouched.
 
 ## Set up a cloud environment
 

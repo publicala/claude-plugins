@@ -8,7 +8,7 @@ import {
 } from "bun:test";
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readlinkSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -414,5 +414,37 @@ describe("install.sh", () => {
     expect(readFileSync(environmentFile, "utf8")).toBe(
       `export PATH="${join(home, ".local/bin")}:$PATH"\n`,
     );
+  });
+  test("skips packages once the time budget runs out", async () => {
+    await publishSkill("tool", "1.0.0");
+
+    const run = await runHook({
+      CLOUD_ARTIFACTS_PACKAGES: "tool",
+      CLOUD_ARTIFACTS_BUDGET_SECONDS: "0",
+    });
+
+    expect(run.context).toBe(
+      "cloud-artifacts: tool: skipped, the install ran out of its time budget\n",
+    );
+    expect(requests).toHaveLength(0);
+  });
+
+  test("reports a package it cannot move into place", async () => {
+    await publishSkill("tool", "1.0.0");
+    const home = await temporaryDirectory();
+    const installRoot = join(home, "readonly");
+    await mkdir(join(installRoot, "tool"), { recursive: true });
+    await chmod(join(installRoot, "tool"), 0o555);
+
+    const run = await runHookIn(home, {
+      CLOUD_ARTIFACTS_PACKAGES: "tool",
+      CLOUD_ARTIFACTS_HOME: installRoot,
+    });
+
+    expect(run.context).toContain("tool 1.0.0: unable to move the package");
+    expect(run.context).not.toContain("installed at");
+    expect(
+      lstatSync(join(home, ".claude/skills/tool"), { throwIfNoEntry: false }),
+    ).toBeUndefined();
   });
 });
