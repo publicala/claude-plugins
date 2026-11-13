@@ -6,6 +6,7 @@ The Claude Code plugins we use every day at [Publica.la](https://publica.la), sh
 /plugin marketplace add publicala/claude-plugins
 /plugin install bonsai@publicala
 /plugin install blueprint@publicala
+/plugin install cloud-artifacts@publicala
 ```
 
 ## Plugins
@@ -35,6 +36,10 @@ Blueprint is publica.la's house style for engineering visuals. The plugin holds 
 | `/blueprint:walkthrough` | Makes a short, silent video (about 30 s, 1920x1080) that explains a change, scene by scene, with a contact sheet and a player page |
 
 See [plugins/blueprint](plugins/blueprint) for details.
+
+### cloud-artifacts
+
+A cloud session can't download a private repository's releases. cloud-artifacts installs private skills and CLIs at session start from an artifact store you host, with the store's token in the environment's network secret, so the token never enters the session. See [plugins/cloud-artifacts](plugins/cloud-artifacts) for the setup.
 
 ## Contributing
 

@@ -18,6 +18,12 @@
       "description": "Blueprint, publica.la's house style for engineering visuals: diagram renders figures, spec sheets, social cards and slides to PNG and PDF, and walkthrough makes short silent videos that explain a change, both from small HTML sources with checks that refuse a broken result.",
       "source": "./plugins/blueprint",
       "homepage": "https://github.com/publicala/claude-plugins/tree/main/plugins/blueprint"
+    },
+    {
+      "name": "cloud-artifacts",
+      "description": "Installs private skills and CLIs into Claude Code cloud sessions at session start, from an artifact store the environment reaches through a network secret.",
+      "source": "./plugins/cloud-artifacts",
+      "homepage": "https://github.com/publicala/claude-plugins/tree/main/plugins/cloud-artifacts"
     }
   ]
 }
