@@ -1,0 +1,8 @@
+{
+  "name": "cloud-artifacts",
+  "description": "Installs private skills and CLIs into Claude Code cloud sessions at session start, from an artifact store the environment reaches through a network secret.",
+  "author": { "name": "Publica.la" },
+  "repository": "https://github.com/publicala/claude-plugins",
+  "license": "MIT",
+  "keywords": ["cloud", "sessions", "install", "skills", "network-secrets"]
+}

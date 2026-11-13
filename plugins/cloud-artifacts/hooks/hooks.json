@@ -1,0 +1,16 @@
+{
+  "description": "Installs the packages listed in CLOUD_ARTIFACTS_PACKAGES from CLOUD_ARTIFACTS_URL at session start.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/install.sh\"",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
