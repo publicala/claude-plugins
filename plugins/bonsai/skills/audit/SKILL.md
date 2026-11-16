@@ -184,6 +184,6 @@ Keep the audit a single pass: verification is the expensive part, and findings i
 
 ## Approval and apply
 
-Present each round in full before editing anything. Per change: the verdict, the exact text affected, and the evidence (surfaces checked, grep ratio, panel vote, second check). Approval arrives as the decisions message when the round is a page, and from AskUserQuestion in plain text, where the ship choice joins the first round's questions. Only edit after approval, and apply as `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` prescribes: one commit per cause on a branch, with a PR, when the user ships as a PR.
+Present each round in full before editing anything. Per change: the verdict, the exact text affected, and the evidence (surfaces checked, grep ratio, panel vote, second check). Approval arrives as the decisions message from the page, or as the user's reply in plain text. Only edit after approval, and apply as `${CLAUDE_PLUGIN_ROOT}/references/rounds.md` prescribes: one commit per cause on a branch, with a PR, when the user ships as a PR.
 
 After applying, re-resolve every pointer you touched. Close the report with before and after est. token totals per file, listing deferred (moved) tokens separately from deleted ones.

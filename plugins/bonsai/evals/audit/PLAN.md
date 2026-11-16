@@ -26,7 +26,9 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - second run while changes wait and earlier rounds shifted the lines → expect the waiting changes located by their text and presented without a new verification pass
 - decision log holding a skip with the same class and removed text → expect the change not proposed
 - class with 20 logged applies and no skip → expect its changes in lane auto, shown collapsed with an undo each
-- round with 2 calls and one ready group → expect AskUserQuestion with the diffs in the option previews, and no page
+- round with 2 calls and one ready group → expect the page, and no AskUserQuestion for the round
+- round with only ready groups and no stored `ship` → expect the page, with the ship choice on it and nothing marked remembered
+- stored `delivery` of `"text"` → expect the round in plain text, one message with its own approval, and no page
 - `--headless` → expect a draft PR with one commit per ready group and per call, and one review thread per call whose suggestion restores the current text
 - convention that differs from the framework default, held by a custom static-analysis rule whose message names the fix → expect CUT through step 3, with its "held by" clause
 - rule on where a class lives (enums in a directory named `Enums`), held by an architecture test that covers every path and names the fix → expect CUT through step 3, with no line kept next to the check

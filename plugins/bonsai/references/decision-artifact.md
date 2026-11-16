@@ -4,15 +4,14 @@ The page exists so the user decides what needs their judgment, and nothing else.
 
 ## Delivery
 
-Pick the delivery after the checks, by the size of the round:
+Every round goes on the page, at any size and in every skill. A change's diff, evidence and why fit on its card, where an option label cuts them short, and the user decides the whole round in one place. Two cases skip the page:
 
-- **`--headless` in the arguments**: follow `headless.md`, in this directory. Ask nothing.
-- **A guard run**: always the page, at any size. A candidate's quotes, code and cost table do not fit an option label.
-- **No calls**: no page. One AskUserQuestion: "Apply N ready changes?", with the groups and their diffs in the preview of the recommended "Apply" option, plus "Show me the page" and "Stop".
-- **1 to 3 calls**: AskUserQuestion, one question per call with Apply, Skip and Later. The Apply option's preview carries the diff, the why and "If you skip". When ready groups exist, add one question: "Apply all N ready changes" (recommended) or "Let me pick", which opens the page.
-- **More than 3 calls**, or the user asks for it: the page. Plain text instead when the stored `delivery` preference says so (`decision-memory.md`, in this directory).
+- **`--headless` in the arguments**: follow `headless.md`, in this directory. Ask nothing, publish nothing.
+- **Plain text**: the stored `delivery` preference is `"text"` (`decision-memory.md`, in this directory), or `bun` is missing ("Build the page", below). One round per message, with its own approval.
 
-The ship choice comes from the stored settings. Ask it once, with the first round that needs it, and store the answer. A guard run has no ship choice: every candidate it builds is its own PR.
+A run that finds nothing to change publishes no page: the report says what it checked and kept.
+
+The ship choice comes from the stored settings. When it is missing, the page asks it with the round (`ship` in the data, without `remembered`), and the apply stores the answer from the decisions message. In plain text, the round's message asks it. A guard run has no ship choice: every candidate it builds is its own PR.
 
 ## Build the page
 
