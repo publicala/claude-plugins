@@ -59,3 +59,5 @@ Fixture: root CLAUDE.md of a production Laravel monolith.
 - "four handlers" where the directory holds seven → expect a call that rewrites to the generic form ("every handler in `app/Handlers`"), never a corrected count
 - line whose path, command and config key all match the repository → expect it untouched, its claims counted as checked
 - inventory summary → expect the totals of claims checked and claims wrong
+- first audit of a repository with no run files under `~/.claude/bonsai/runs/<key>/` → expect `/bonsai:bake`, then `/bonsai:split`, in `next`
+- audit of a repository with a `bake-*.json` and no `split-*.json` → expect `/bonsai:split` in `next`, and no `/bonsai:bake` unless a finding puts it there

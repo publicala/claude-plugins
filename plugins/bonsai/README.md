@@ -13,6 +13,16 @@ Every line in a CLAUDE.md loads in every session, so a line that changes nothing
 | `/bonsai:audit` | Prunes and verifies what remains, every cut backed by evidence |
 | `/bonsai:split` | Moves what remains to the load scope of the sessions it governs |
 
+## First run
+
+On a repository bonsai hasn't seen, run three skills in this order:
+
+1. `/bonsai:audit`: cuts the lines that change nothing, so the next two skills spend their checks on lines worth keeping.
+2. `/bonsai:bake`: turns the rules a tool can check into checks, and removes their prose.
+3. `/bonsai:split`: moves each rule that's left to the scope of the sessions it governs.
+
+Audit and bake close their report with the next skill of this order, until the repository has a run of each. From then on, the skills run as the work brings them up, as listed below.
+
 ## When to run each one
 
 - **intake**: after each review round. Run it once with `--search` to start from a reviewer's past PRs
