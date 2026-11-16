@@ -38,6 +38,30 @@ const VERBS = [
   "automate",
 ] as const;
 const MOVE_VERB = "move";
+/**
+ * A title opens with what the card does. An article opens a statement
+ * ("A PATCH of a store leaves..."), which the reader has to turn into an
+ * action before deciding.
+ */
+const ARTICLES = ["A", "An", "The"] as const;
+/** As the reader sees it: backticks render as code and count nothing. */
+const MAX_TITLE_LENGTH = 80;
+/**
+ * The verbs that name one action open their title with its word, and that
+ * word belongs to them: a card that says "Remove" under a DELETE chip, or
+ * "Delete" under a REWRITE chip, gives the reader two words for one action.
+ */
+const VERB_WORDS: Partial<Record<(typeof VERBS)[number], string>> = {
+  delete: "Delete",
+  move: "Move",
+  add: "Add",
+};
+const RESERVED_WORDS: Record<string, (typeof VERBS)[number]> = {
+  Delete: "delete",
+  Remove: "delete",
+  Move: "move",
+  Add: "add",
+};
 /** Where a move lands, one per rung of the delivery ladder that holds text. */
 const DESTINATIONS = [
   "html-comment",
@@ -668,6 +692,54 @@ function resolveEvidence(
   });
 }
 
+/** The title as the page shows it: inline code loses its backticks. */
+function shownLength(title: string): number {
+  return Array.from(title.replaceAll("`", "")).length;
+}
+
+/**
+ * Every card title opens with the action, fits on one line, and, for a
+ * change, opens with the word its verb chip names.
+ */
+function ensureTitle(
+  owner: string,
+  title: string,
+  options: { max?: number; verb?: (typeof VERBS)[number] } = {},
+): void {
+  const max = options.max ?? MAX_TITLE_LENGTH;
+  // Inline code renders without its backticks, so the reader sees this word first.
+  const first = title.replaceAll("`", "").trim().split(/\s+/, 1)[0] ?? "";
+  ensure(
+    !isOneOf(ARTICLES, first),
+    `${owner} has a title that opens with "${first}", which reads as a statement. Open with the action, such as "Delete the stack list" or "Read every order total from \`Order::total()\`".`,
+  );
+
+  const length = shownLength(title);
+  ensure(
+    length <= max,
+    `${owner} has a title of ${length} characters. Name the action in ${max} or fewer, and give the reason in "why".`,
+  );
+
+  const { verb } = options;
+  if (verb === undefined) {
+    return;
+  }
+
+  const word = VERB_WORDS[verb];
+  if (word !== undefined) {
+    ensure(
+      first === word,
+      `${owner} is a ${verb}, so its title opens with "${word}", the word on its chip. It opens with ${quote(first)}.`,
+    );
+  }
+
+  const owns = RESERVED_WORDS[first];
+  ensure(
+    owns === undefined || owns === verb,
+    `${owner} is a ${verb}, but its title opens with "${first}", the word of a ${owns ?? ""}. Open with what a ${verb} does, or set verb to "${owns ?? ""}".`,
+  );
+}
+
 function resolveGroups(entries: JsonObject[]): Map<string, PageGroup> {
   const groups = entries.map((group): PageGroup => {
     const groupId = group.id;
@@ -680,6 +752,7 @@ function resolveGroups(entries: JsonObject[]): Map<string, PageGroup> {
       `Group '${groupId}' needs lane ${listChoices(GROUP_LANES)}.`,
     );
     ensure(isFilledString(group.title), `Group '${groupId}' needs a title.`);
+    ensureTitle(`Group '${groupId}'`, group.title);
 
     return { ...group, id: groupId, lane: group.lane };
   });
@@ -783,6 +856,7 @@ function resolveChange(change: JsonObject, context: ChangeContext): PageChange {
     isFilledString(change.title) && isFilledString(change.why),
     `${owner} needs a title and a why.`,
   );
+  ensureTitle(owner, change.title, { verb: change.verb });
 
   const edits = listOfObjects(change.edits, "edits", owner);
   ensure(edits.length > 0, `${owner} has no edits.`);
@@ -1074,6 +1148,7 @@ function resolveCandidate(
     isFilledString(candidate.title),
     `${owner} needs a title: the rule in plain words.`,
   );
+  ensureTitle(owner, candidate.title);
   ensure(
     isOneOf(RECOMMENDATIONS, candidate.recommendation),
     `${owner} has recommendation ${quote(candidate.recommendation)}. Use ${listChoices(RECOMMENDATIONS)}.`,
@@ -1277,6 +1352,7 @@ function resolveNotNow(
       isId(item.id) && isFilledString(item.title) && isFilledString(item.why),
       `Every not-now candidate needs an id, a title and a why: the reason the cost gate stopped it. ${ID_RULE}`,
     );
+    ensureTitle(`Not-now candidate '${item.id}'`, item.title);
 
     const threads = item.threads ?? [];
     ensure(

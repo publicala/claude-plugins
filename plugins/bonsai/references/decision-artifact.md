@@ -35,7 +35,7 @@ A round holds at most 5 calls (questions included) and 3 ready groups, and the b
 
 ## Write for the reader
 
-- **Titles say what changes**, in the reader's words: "Name the Livewire default that causes the mistake". A category label such as "Correctness: rewrite" never titles a card.
+- **Titles say what changes**, in the reader's words: "Name the Livewire default that causes the mistake". A category label such as "Correctness: rewrite" never titles a card. Open with the action, and with the chip's own word on a delete, move or add ("Delete the stack list"). Fit it in 80 characters: the reason goes in the why.
 - **Why** is one or two sentences. **Skip** names the mistake a session makes when the user skips the change. It is the audit question, turned toward the reader.
 - **No method words on the card**: Write "3 small models did the task without the line: 2 said cut, 1 said keep". Never "capability-floor panel", "step 2", "probe", "derivable", "resident" or a model name. The method paragraph (`run.method`) holds the how, collapsed.
 - **Evidence is one fact per item**, with the file and line it rests on, so the build can link it. The user must never need the repo open to decide.
