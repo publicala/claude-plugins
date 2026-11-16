@@ -66,3 +66,25 @@ describe("cost-names-the-violations", () => {
     );
   });
 });
+
+describe("measured-on-a-scratch-copy", () => {
+  test("passes a gofmt run in a copy of the default branch", async () => {
+    const log = `READ git clone -q --shared --no-checkout . /tmp/guard-main exit=0
+RAN gofmt -s -l . where=scratch exit=0`;
+
+    expect((await graderPattern("measured-on-a-scratch-copy")).test(log)).toBe(
+      true,
+    );
+  });
+
+  test.each(["checkout", "elsewhere"])(
+    "fails a gofmt run only where=%s",
+    async (place) => {
+      const log = `RAN gofmt -s -l . where=${place} exit=0`;
+
+      expect(
+        (await graderPattern("measured-on-a-scratch-copy")).test(log),
+      ).toBe(false);
+    },
+  );
+});

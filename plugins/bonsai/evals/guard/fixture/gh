@@ -118,6 +118,41 @@ pr_json() {
     }' "$state/$number.json"
 }
 
+# A file or a directory at a ref (`?ref=` or `-f ref=`, the default branch
+# otherwise), read from the local origin: the raw file when the Accept header
+# asks for it, else the JSON GitHub sends.
+serve_contents() {
+  local file="${1#/}" ref=main a object type
+  [[ "$endpoint" =~ [?\&]ref=([^\&]+) ]] && ref="${BASH_REMATCH[1]}"
+  for a in "${args[@]}"; do
+    [[ "$a" == ref=* ]] && ref="${a#ref=}"
+  done
+  local git=("$(cat "$HOME/.eval-fixture/real-git")" --git-dir="$HOME/.eval-fixture/origin.git")
+  object="$ref:$file"
+  type="$("${git[@]}" cat-file -t "$object" 2>/dev/null)" || {
+    echo "gh: Not Found (HTTP 404)" >&2
+    exit 1
+  }
+
+  if [[ "$type" == tree ]]; then
+    "${git[@]}" ls-tree "$object" | while IFS=$'\t' read -r meta entry; do
+      jq -n --arg name "$entry" --arg path "${file:+$file/}$entry" --arg sha "${meta##* }" \
+        --arg type "$([[ "$meta" == *" tree "* ]] && echo dir || echo file)" '{name: $name, path: $path, sha: $sha, type: $type}'
+    done | jq -s . | emit
+    return
+  fi
+
+  for a in "${args[@]}"; do
+    if [[ "$a" == *[Aa]ccept:*raw* ]]; then
+      "${git[@]}" show "$object"
+      return
+    fi
+  done
+  jq -n --arg name "${file##*/}" --arg path "$file" --arg sha "$("${git[@]}" rev-parse "$object")" \
+    --arg content "$("${git[@]}" show "$object" | base64 | tr -d '\n')" \
+    '{name: $name, path: $path, sha: $sha, type: "file", encoding: "base64", content: $content}' | emit
+}
+
 all_prs() {
   local file
   for file in "$state"/[0-9]*.json; do
@@ -327,6 +362,9 @@ case "${1:-}" in
       "$base"/issues/[0-9]*/comments)
         number="${path#"$base"/issues/}"; number="${number%%/*}"
         pr_json "$number" | jq '[.comments.nodes[] | . + {id: .databaseId, user: {login: .author.login}, html_url: .url}]' | emit
+        ;;
+      "$base"/contents | "$base"/contents/*)
+        serve_contents "${path#"$base"/contents}"
         ;;
       "$base"/labels*) echo '[]' | emit ;;
       "$base"/collaborators/*/permission)

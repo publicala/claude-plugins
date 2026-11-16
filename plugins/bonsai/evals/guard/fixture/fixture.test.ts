@@ -87,6 +87,31 @@ async function run(
   };
 }
 
+/** A shared clone of the checkout, detached at the given revision. */
+async function copyAt(name: string, revision: string): Promise<string> {
+  const copy = join(root, name);
+  const commit = Bun.spawnSync(["git", "rev-parse", revision], {
+    cwd: workspace,
+    env: environment,
+  })
+    .stdout.toString()
+    .trim();
+  await run("git", ["clone", "-q", "--shared", "--no-checkout", ".", copy]);
+  await run("git", ["-C", copy, "checkout", "-q", "--detach", commit]);
+
+  return copy;
+}
+
+/** Runs the fake gh and returns its exit code and output. */
+function gh(args: string[]): { exitCode: number; stdout: string } {
+  const result = Bun.spawnSync(
+    [join(home, ".eval-fixture", "bin", "gh"), ...args],
+    { cwd: workspace, env: environment },
+  );
+
+  return { exitCode: result.exitCode, stdout: result.stdout.toString() };
+}
+
 describe("the git wrapper", () => {
   test("logs a checkout that guesses a local branch from origin as a write", async () => {
     const { exitCode, logged } = await run("git", [
@@ -167,6 +192,37 @@ describe("the git wrapper", () => {
     ).toBe(`READ git -C ${detached} commit -q --allow-empty -m probe exit=0`);
   });
 
+  test("logs a shared clone and its detached checkout as reads", async () => {
+    const copy = join(root, "shared-copy");
+
+    expect(
+      (
+        await run("git", [
+          "clone",
+          "-q",
+          "--shared",
+          "--no-checkout",
+          ".",
+          copy,
+        ])
+      ).logged,
+    ).toBe(`READ git clone -q --shared --no-checkout . ${copy} exit=0`);
+    expect(
+      (
+        await run("git", [
+          "-C",
+          copy,
+          "checkout",
+          "-q",
+          "--detach",
+          "refs/remotes/origin/main",
+        ])
+      ).logged,
+    ).toBe(
+      `READ git -C ${copy} checkout -q --detach refs/remotes/origin/main exit=0`,
+    );
+  });
+
   test("logs a commit in the checkout and a push as writes", async () => {
     expect(
       (await run("git", ["commit", "-q", "--allow-empty", "-m", "mine"]))
@@ -191,8 +247,19 @@ describe("the git wrapper", () => {
 });
 
 describe("the gofmt wrapper", () => {
-  test("logs a run in a linked worktree, from inside it or by its path", async () => {
-    const scratch = join(root, "measure");
+  test("logs a run in a clone at the default branch, from inside it or by its path", async () => {
+    const scratch = await copyAt("measure", "origin/main");
+
+    expect((await run("gofmt", ["-s", "-l", "."], scratch)).logged).toBe(
+      "RAN gofmt -s -l . where=scratch exit=0",
+    );
+    expect((await run("gofmt", ["-s", "-l", scratch])).logged).toBe(
+      `RAN gofmt -s -l ${scratch} where=scratch exit=0`,
+    );
+  });
+
+  test("logs a run in a linked worktree at the default branch", async () => {
+    const scratch = join(root, "measure-worktree");
     await run("git", [
       "worktree",
       "add",
@@ -202,11 +269,16 @@ describe("the gofmt wrapper", () => {
       "origin/main",
     ]);
 
-    expect((await run("gofmt", ["-s", "-l", "."], scratch)).logged).toBe(
-      "RAN gofmt -s -l . where=worktree exit=0",
-    );
     expect((await run("gofmt", ["-s", "-l", scratch])).logged).toBe(
-      `RAN gofmt -s -l ${scratch} where=worktree exit=0`,
+      `RAN gofmt -s -l ${scratch} where=scratch exit=0`,
+    );
+  });
+
+  test("logs a run in a copy at another commit as elsewhere", async () => {
+    const stale = await copyAt("stale", "origin/main~1");
+
+    expect((await run("gofmt", ["-l", stale])).logged).toBe(
+      `RAN gofmt -l ${stale} where=elsewhere exit=0`,
     );
   });
 
@@ -285,6 +357,46 @@ describe("the fake gh", () => {
     expect(logged).toBe(
       "READ gh pr view https://github.com/acme-books/inventory/pull/41 --json title [pr=41]",
     );
+  });
+
+  const RESTOCK =
+    "repos/acme-books/inventory/contents/internal/report/restock.go";
+
+  test("serves a file at a ref, raw or as base64 JSON", async () => {
+    const raw = gh([
+      "api",
+      `${RESTOCK}?ref=restock-order`,
+      "-H",
+      "Accept: application/vnd.github.raw",
+    ]);
+    const encoded = gh([
+      "api",
+      `${RESTOCK}?ref=restock-order`,
+      "--jq",
+      ".content | @base64d",
+    ]);
+
+    expect(raw.exitCode).toBe(0);
+    expect(raw.stdout).toStartWith("package report\n");
+    expect(encoded.stdout).toBe(`${raw.stdout}\n`);
+  });
+
+  test("lists a directory on the default branch and refuses a missing path", async () => {
+    const listed = gh([
+      "api",
+      "repos/acme-books/inventory/contents/internal",
+      "--jq",
+      ".[].name",
+    ]);
+    const missing = gh([
+      "api",
+      `${RESTOCK}?ref=main`,
+      "-H",
+      "Accept: application/vnd.github.raw",
+    ]);
+
+    expect(listed.stdout).toBe("archtest\ncatalog\nreport\nstock\n");
+    expect(missing.exitCode).toBe(1);
   });
 
   test.each([

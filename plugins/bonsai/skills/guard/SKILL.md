@@ -24,7 +24,7 @@ Reads the review threads, review bodies and comments of the PRs it is given, and
 - Ship a check that passes on its planted violation, or that the default branch passes only through a baseline or a blanket ignore.
 - Stack a guardrail on the source PR's branch. A guardrail stacks only on its own prep PR.
 - Add a tool, a dependency or a new command the repository does not run without a call that names its cost. A second config of a tool the repository runs, run by a command it already has, is no new command: its run time goes in the cost gate.
-- Count violations or plant one in the user's checkout. Both run in a throwaway worktree.
+- Count violations or plant one in the user's checkout. Both run in a throwaway copy of the default branch (step 5).
 - Resolve, unresolve or react to a review thread.
 
 ## The pass, in order
@@ -77,7 +77,7 @@ Sort every finding into one class:
 
 Name each guard and prose candidate by the mistake a session makes (`order-total-summed-by-hand`), and merge findings that a fresh session would make by ignoring the same rule, across threads and PRs. One thread may feed several candidates.
 
-The artifact is the triage table: one row per finding, with its candidate or its reason.
+The artifact is the triage table: one row per finding, with its candidate or its reason. A **none** row opens with the reason in the words of the list above ("a design choice"), then the evidence.
 
 ### 4. Pick the rung
 
@@ -106,7 +106,7 @@ The artifact is the rung and the check's shape per candidate, with the message i
 
 ### 5. Cost gate
 
-A check costs run time, false positives, rigidity and upkeep, so each candidate earns its place. Count by running a scratch version of the check in a throwaway worktree of the fresh default branch, dependencies installed: a grep sees only what grep can see, and a tightened rule has to run to show its hits. Record per candidate, with the count or the time first and the detail after it:
+A check costs run time, false positives, rigidity and upkeep, so each candidate earns its place. Count by running a scratch version of the check in a throwaway copy of the fresh default branch, dependencies installed: a grep sees only what grep can see, and a tightened rule has to run to show its hits. Make the copy with `git clone --shared --no-checkout . <tmp> && git -C <tmp> checkout --detach <commit>`, where `<commit>` is `git rev-parse origin/<default>` after the fetch, and delete `<tmp>` when the count is in. The copy shares the checkout's objects and leaves the user's refs alone. `git worktree add` fails in Claude Code's sandbox, which keeps `.git/worktrees` read-only. Chain the copy and the check with `&&`, so a failed copy never runs the check in the user's checkout. Record per candidate, with the count or the time first and the detail after it:
 
 - **Violations** on the default branch: the count, and whether a tool fixes them. Narrowing a type so the check passes is a fix.
 - **Exceptions** it needs: a suppression at one site, or a path or name left out in the check's config, each with its reason.
@@ -139,11 +139,11 @@ A line that names a check, restates what a check holds, or describes what the co
 
 ### 7. Decide
 
-The user decides on a page, since an option label cannot carry a review quote, a code sample and a cost table. Read `${CLAUDE_PLUGIN_ROOT}/references/decision-artifact.md` and the guard section of `${CLAUDE_PLUGIN_ROOT}/renderer/README.md`, write the round's data, build the page, and publish it as that reference prescribes. When `bun` is missing, deliver the same content in plain text, one section per candidate. When no candidate is left to decide and nothing is **not now** (an earlier pass decided them all), publish no page and go to step 10.
+The user decides on a page, since an option label cannot carry a review quote, a code sample and a cost table. Read `${CLAUDE_PLUGIN_ROOT}/references/decision-artifact.md` and the guard section of `${CLAUDE_PLUGIN_ROOT}/renderer/README.md`, write the round's data, build the page, and publish it as that reference prescribes. When `bun` is missing, deliver the same content in plain text, one section per candidate, headed by the card's title (the rule, below), with the cost rows under their step 5 names. The candidate's slug appears only in its branch name. When no candidate is left to decide and nothing is **not now** (an earlier pass decided them all), publish no page and go to step 10.
 
 Rank the candidates by evidence (how many reviews and threads raised it), then value, then cost. A round holds the first five, and the rest wait for the next round of the run. Each card carries what the user needs to decide without opening the repository:
 
-- **The rule** as the title, with the recommendation (recommended, close call or low value): what a session writes, in the terms of the code it edits, in 60 characters at most. A title that states what the check asserts ("An order total equals what `Order::total()` returns") makes the reader work out the action, so write the action: "Read every order total from `Order::total()`".
+- **The rule** as the title, with the recommendation (recommended, close call or low value): what a session writes, in the terms of the code it edits, in 60 characters at most. A title that states what the check asserts ("An order total equals what `Order::total()` returns") makes the reader work out the action, so write the action: "Read every order total from `Order::total()`". The tool goes in the check line, so a title that names it ("Run `gofmt -s` in `make check`") is a check line in the wrong place, even for an auto-fix.
 - **The case**, under the title: one instance of the mistake, what a session does and what goes wrong ("Invoice a taxed order: the hand-built total leaves out the VAT and bills low.").
 - **The verdict**, open: one sentence on what the recommendation rests on. **Why it comes back** sits in a fold: what goes wrong when the mistake ships, and why a fresh session writes it again (the value verdict of step 5). The page shows the reason as a chip beside the thread count and the first sentence of the violations, exceptions and run time, so open each with the count or the time and its noun, in 24 characters ("4 violations, all fixed").
 - **The mistake**: the wrong code from the PR or the default branch, and what to write instead.
