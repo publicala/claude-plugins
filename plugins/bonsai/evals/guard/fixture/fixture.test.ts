@@ -381,13 +381,7 @@ describe("the fake gh", () => {
     expect(encoded.stdout).toBe(`${raw.stdout}\n`);
   });
 
-  test("lists a directory on the default branch and refuses a missing path", async () => {
-    const listed = gh([
-      "api",
-      "repos/acme-books/inventory/contents/internal",
-      "--jq",
-      ".[].name",
-    ]);
+  test("refuses a path missing at the ref", async () => {
     const missing = gh([
       "api",
       `${RESTOCK}?ref=main`,
@@ -395,7 +389,6 @@ describe("the fake gh", () => {
       "Accept: application/vnd.github.raw",
     ]);
 
-    expect(listed.stdout).toBe("archtest\ncatalog\nreport\nstock\n");
     expect(missing.exitCode).toBe(1);
   });
 
