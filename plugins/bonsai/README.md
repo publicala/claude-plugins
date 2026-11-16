@@ -21,7 +21,7 @@ On a repository bonsai hasn't seen, run three skills in this order:
 2. `/bonsai:bake`: turns the rules a tool can check into checks, and removes their prose.
 3. `/bonsai:split`: moves each rule that's left to the scope of the sessions it governs.
 
-Audit and bake close their report with the next skill of this order, until the repository has a run of each. From then on, the skills run as the work brings them up, as listed below.
+Audit and bake close their report with the next skill of this order, until the repository has a finished run of each (every change applied or skipped). From then on, the skills run as the work brings them up, as listed below.
 
 ## When to run each one
 

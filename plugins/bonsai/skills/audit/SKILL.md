@@ -178,7 +178,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/decision-memory.md` before routing, then 
 - Evidence that holds only in the auditor's environment, a foreign-format migration proposal: **question**.
 - Keep: `kept`, with nothing to decide.
 
-On a first run the order is audit, then bake, then split. So when `~/.claude/bonsai/runs/<key>/` holds no `bake-*.json`, `next` holds `/bonsai:bake`, and when it holds no `split-*.json`, `/bonsai:split` after it. `<key>` is the repository key from `${CLAUDE_PLUGIN_ROOT}/references/intake-entry.md`.
+On a first run the order is audit, then bake, then split. So until the repository has a finished bake run (`${CLAUDE_PLUGIN_ROOT}/references/rounds.md`, "Continue a run"), `next` holds `/bonsai:bake`, and until it has a finished split run, `/bonsai:split` after it.
 
 ## Rounds
 

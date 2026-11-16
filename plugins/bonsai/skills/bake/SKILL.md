@@ -82,4 +82,4 @@ After approval, implement each check with its test, apply its fixes or its basel
 
 Then update the intake entries: after a check lands, set `baked: <check> (<PR URL or commit>)` on every entry carrying the slug. When you decline because no tool can express it, or the check is not worth its cost, set `Class: prose` and keep `open`, with the reason in `History`, so `/bonsai:feed` can still propose the prose. Set `rejected: <reason>` only when the rule itself is wrong or already enforced. Append a dated `History` line either way.
 
-On a first run, split comes after bake: when `~/.claude/bonsai/runs/<key>/` holds no `split-*.json`, `next` holds `/bonsai:split`, to place the rules the bake left as prose. `<key>` is the repository key from `${CLAUDE_PLUGIN_ROOT}/references/intake-entry.md`.
+On a first run, split comes after bake: until the repository has a finished split run (`${CLAUDE_PLUGIN_ROOT}/references/rounds.md`, "Continue a run"), `next` holds `/bonsai:split`, to place the rules the bake left as prose.
