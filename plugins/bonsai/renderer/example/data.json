@@ -125,7 +125,7 @@
       "id": "framing",
       "lane": "call",
       "verb": "delete",
-      "title": "Drop the sentence under \"Hard constraints\"",
+      "title": "Delete the sentence under \"Hard constraints\"",
       "why": "It repeats the heading and names no rule. The test was close, so it is your call.",
       "skip": "Nothing breaks. The file keeps one sentence that changes no session's work.",
       "split": "2 cut, 1 keep",
@@ -141,7 +141,7 @@
       "lane": "ready",
       "group": "covered",
       "verb": "delete",
-      "title": "Stack and versions",
+      "title": "Delete the stack and version list",
       "why": "`composer.json` and `package.json` list every version.",
       "edits": [{ "file": "CLAUDE.md", "lines": [5, 8], "write": [] }],
       "evidence": [
@@ -156,7 +156,7 @@
       "lane": "ready",
       "group": "covered",
       "verb": "delete",
-      "title": "`composer dev`",
+      "title": "Delete the `composer dev` line",
       "why": "The standard Laravel script, defined in `composer.json`.",
       "edits": [{ "file": "CLAUDE.md", "lines": [11, 11], "write": [] }],
       "evidence": [
@@ -168,7 +168,7 @@
       "lane": "ready",
       "group": "covered",
       "verb": "delete",
-      "title": "`strict_types` and `final`",
+      "title": "Delete the `strict_types` and `final` rule",
       "why": "Pint adds both on every commit, and an architecture test fails if one is missing.",
       "edits": [{ "file": "CLAUDE.md", "lines": [25, 25], "write": [] }],
       "evidence": [
@@ -184,7 +184,7 @@
       "lane": "ready",
       "group": "triggers",
       "verb": "rewrite",
-      "title": "Payouts doc",
+      "title": "Say when to read the payouts doc",
       "why": "Says when to read it instead of what it holds.",
       "edits": [
         {
@@ -206,7 +206,7 @@
       "lane": "auto",
       "group": "cli",
       "verb": "delete",
-      "title": "Run one test file",
+      "title": "Delete the run-one-test-file line",
       "why": "Standard Pest usage.",
       "edits": [{ "file": "CLAUDE.md", "lines": [13, 13], "write": [] }]
     }

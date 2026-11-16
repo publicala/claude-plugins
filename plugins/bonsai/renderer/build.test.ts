@@ -786,7 +786,7 @@ describe("build refuses data that would mislead", () => {
             lane: "ready",
             group: `g${index}`,
             verb: "delete",
-            title: "T",
+            title: "Delete one line",
             why: "W",
             edits: [{ file: "CLAUDE.md", lines: [line, line], write: [] }],
           });
@@ -863,6 +863,53 @@ describe("build refuses data that would mislead", () => {
         changeIn(data.changes, "stack").why = "";
       },
       "Change 'stack' needs a title and a why.",
+    ],
+    [
+      "a title that opens with an article",
+      (data) => {
+        changeIn(data.changes, "stack").title = "The stack and version list";
+      },
+      "Change 'stack' has a title that opens with \"The\", which reads as a statement.",
+    ],
+    [
+      "a title longer than a line",
+      (data) => {
+        changeIn(data.changes, "stack").title = `Delete \`${"x".repeat(80)}\``;
+      },
+      "Change 'stack' has a title of 87 characters. Name the action in 80 or fewer",
+    ],
+    [
+      "a delete titled with another word",
+      (data) => {
+        changeIn(data.changes, "stack").title =
+          "Remove the stack and version list";
+      },
+      'Change \'stack\' is a delete, so its title opens with "Delete", the word on its chip. It opens with "Remove".',
+    ],
+    [
+      "a move titled with another word",
+      (data) => {
+        changeIn(data.changes, "testing").title =
+          "Put the factory rule in tests/CLAUDE.md";
+      },
+      'Change \'testing\' is a move, so its title opens with "Move", the word on its chip. It opens with "Put".',
+    ],
+    [
+      "a rewrite titled with the word of a delete",
+      (data) => {
+        changeIn(data.changes, "payouts").title = "Delete the payouts summary";
+      },
+      'Change \'payouts\' is a rewrite, but its title opens with "Delete", the word of a delete. Open with what a rewrite does, or set verb to "delete".',
+    ],
+    [
+      "a group title that opens with an article",
+      (data) => {
+        const group = data.groups.find((item) => item.id === "covered");
+        if (group) {
+          group.title = "The lines the repo already covers";
+        }
+      },
+      "Group 'covered' has a title that opens with \"The\"",
     ],
     [
       "a change without edits",
@@ -1492,6 +1539,22 @@ describe("guard build refuses data that would mislead", () => {
         delete changeIn(data.changes, TOTAL).title;
       },
       `Candidate '${TOTAL}' needs a title: the rule in plain words.`,
+    ],
+    [
+      "a candidate titled with what its test asserts",
+      (data) => {
+        changeIn(data.changes, TOTAL).title =
+          "A total of an order equals the sum its lines and taxes give";
+      },
+      `Candidate '${TOTAL}' has a title that opens with "A", which reads as a statement.`,
+    ],
+    [
+      "a not-now title longer than a line",
+      (data) => {
+        firstNotNow(data).title =
+          `Format money ${"only ".repeat(15)}through \`Money::format()\``;
+      },
+      `Not-now candidate 'money-by-hand' has a title of 111 characters.`,
     ],
     [
       "a check without its failure message",

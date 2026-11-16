@@ -83,7 +83,7 @@ Every file a change edits. A guard run lists only the files its CLAUDE.md lines 
 | `group` | Required for `ready` and `auto`: the id of a group in the same lane. |
 | `verb` | `fix`, `delete`, `shorten`, `rewrite`, `move`, `add` or `automate`. |
 | `destination` | Required for a `move`, and only there: the rung of the delivery ladder (`../references/delivery.md`) the text lands on. `scoped-file` (a nested CLAUDE.md or a path-scoped rule), `root`, `deferred-doc` (a doc behind a read-trigger), `skill`, `code` (a docblock, a command description or `--help`, a check message) or `html-comment` (a reviewer-only why in a CLAUDE.md). At least one edit must write the destination's file: the root `CLAUDE.md`, a nested CLAUDE.md or a `.claude/rules/` file, a `.claude/skills/<name>/SKILL.md`, a file other than Markdown, a Markdown doc outside `.claude/` and the CLAUDE.md files, or a CLAUDE.md line holding `<!--`. Other edits (a root pointer) may sit beside it. A ready or auto move edits only Markdown outside `.claude/`, plus `.claude/rules/` files and `.claude/CLAUDE.md`: code, a skill, settings or a hook at any depth makes it a call. The card names it next to the verb. A move to `skill`, `code` or `html-comment` edits code or settings, or hides the line from sessions, so it sits in lane `call`. |
-| `title` | What changes, in the reader's words. |
+| `title` | What changes, in the reader's words, opening with the action. A `delete`, `move` or `add` opens with the word on its chip ("Delete", "Move", "Add"), and those words and "Remove" open no other verb's card. 80 characters at most, inline code counted without its backticks. |
 | `why` | One or two sentences. |
 | `skip` | Required for calls: what goes wrong if the user skips the change. |
 | `split` | Optional, for a close vote, for example "2 cut, 1 keep". |
@@ -211,6 +211,7 @@ The build refuses, in a guard run:
 
 ## What the build refuses
 
+- A title of a change, group, guard candidate or not-now candidate that opens with "A", "An" or "The", or that runs past 80 characters. A `delete`, `move` or `add` whose title opens with another word than its own, or a change of another verb whose title opens with "Delete", "Remove", "Move" or "Add"
 - A call without `skip`, or a `drift` check outside lane `call`
 - A `move` without a `destination` from the list, a `destination` on any other verb or on a guard candidate, a move whose edits write no file of its destination, a ready or auto move that edits code, a skill, settings or a hook, or a move to `skill`, `code` or `html-comment` outside lane `call`
 - More than 5 calls (questions and guard candidates included) or more than 3 ready groups in one round
