@@ -1614,6 +1614,13 @@ describe("guard build refuses data that would mislead", () => {
       `Candidate '${TOTAL}' needs "why.verdict" in one sentence`,
     ],
     [
+      "a verdict in two sentences, the first one exclaimed",
+      (data) => {
+        setWhy(data, "verdict", "Recommended! One PHPStan rule holds it.");
+      },
+      `Candidate '${TOTAL}' needs "why.verdict" in one sentence`,
+    ],
+    [
       "a verdict that runs on",
       (data) => {
         setWhy(
@@ -2772,6 +2779,19 @@ describe("guard page", () => {
     expect(
       document.querySelector(`#card-${TOTAL} .g-folds`)?.textContent,
     ).toContain("3 more threads raised it.");
+    await window.happyDOM.close();
+  });
+
+  test("raises no new-tool flag when the new tools row says there are none", async () => {
+    const data = await guardData();
+    changeIn(data.changes, TOTAL).cost.newTools =
+      "No new tools. PHPStan runs in `composer test` and CI.";
+    const { window, document, errors } = await openPage(
+      await build(data, EXAMPLE),
+    );
+
+    expect(errors).toEqual([]);
+    expect(document.querySelector(`#card-${TOTAL} .tb-new`)).toBeNull();
     await window.happyDOM.close();
   });
 

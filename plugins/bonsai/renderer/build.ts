@@ -203,6 +203,8 @@ const MAX_VERDICT_LENGTH = 140;
 const MAX_DETAIL_LENGTH = 200;
 /** A cost row that opens with this word asks for nothing new. */
 const NOTHING_NEW = "None";
+/** "None", "No new tools" or "Nothing new": a `newTools` row that adds no tool. */
+const ADDS_NO_TOOL = /^(?:none|no|nothing)\b/i;
 const GUARD_CHANGE_FIELDS = [
   "case",
   "recommendation",
@@ -1121,14 +1123,14 @@ const COST_HINTS: Record<CostKey, string> = {
 };
 
 const sentences = (text: string): number =>
-  text.split(/\.(?=\s|$)/).filter((part) => part.trim() !== "").length;
+  text.split(/[.!?](?=\s|$)/).filter((part) => part.trim() !== "").length;
 
 /**
- * The text up to the first full stop that ends a sentence,
+ * The text up to the first mark that ends a sentence,
  * so "0.5 s on a cold run. Cached, 0.1 s." leads with the time.
  */
 function firstSentence(text: string): string {
-  const match = /^(.*?)\.(?=\s|$)/s.exec(text);
+  const match = /^(.*?)[.!?](?=\s|$)/s.exec(text);
 
   return match?.[1] ?? text;
 }
@@ -1174,7 +1176,7 @@ function resolveCost(
     // A new tool shows its cost on the tool band, beside the tool it adds.
     const shownOpen =
       stripKeys.includes(key) ||
-      (key === "newTools" && !text.startsWith(NOTHING_NEW));
+      (key === "newTools" && !ADDS_NO_TOOL.test(text.trim()));
     const lead = shownOpen ? firstSentence(text) : null;
     const length = lead === null ? 0 : shownLength(lead);
     ensure(
