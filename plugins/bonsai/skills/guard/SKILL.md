@@ -121,7 +121,7 @@ A CLAUDE.md line records **violations**, **tokens** per session that loads it, *
 
 A candidate passes when three things hold:
 
-- **Value**: a fresh session would plausibly write the wrong form again. It is the framework's default, the review saw it more than once, or the surrounding code shows it. A form one caller wrote once is upkeep for little: rank it low value. Record the verdict as the **why** the card opens with, in two or three sentences: what goes wrong when the mistake ships, which of the four holds and the evidence for it, and what tipped a close call or a low value.
+- **Value**: a fresh session would plausibly write the wrong form again. It is the framework's default, the review saw it more than once, or the surrounding code shows it. A form one caller wrote once is upkeep for little: rank it low value. Record it as the card's **why**: a one-sentence verdict that opens with the recommendation and says what tipped it, then two sentences or more on what goes wrong when the mistake ships and which of the four holds, with the evidence. Counts and times stay in the cost rows.
 - **Fit**: a tool the repository runs expresses it, with few exceptions.
 - **Size**: its fixes fit one PR. An auto-fix fits at any count. More than about 20 fixes by hand, or fixes that need a refactor, go to a prep PR first, and the guardrail PR stacks on it: make the change easy, then make the easy change.
 
@@ -143,13 +143,14 @@ The user decides on a page, since an option label cannot carry a review quote, a
 
 Rank the candidates by evidence (how many reviews and threads raised it), then value, then cost. A round holds the first five, and the rest wait for the next round of the run. Each card carries what the user needs to decide without opening the repository:
 
-- **The rule**, in plain words, as the title, with the recommendation: recommended, close call or low value.
-- **Why build it**, first under the title: what goes wrong when the mistake ships, why a fresh session writes it again (the value verdict of step 5), and what the recommendation rests on. The page shows the reason as a chip beside the thread count, the rung and the first sentence of the violations, run time and exceptions, so put the number first in each.
+- **The rule** as the title, with the recommendation (recommended, close call or low value): what a session writes, in the terms of the code it edits, in 60 characters at most. A title that states what the check asserts ("An order total equals what `Order::total()` returns") makes the reader work out the action, so write the action: "Read every order total from `Order::total()`".
+- **The case**, under the title: one instance of the mistake, what a session does and what goes wrong ("Invoice a taxed order: the hand-built total leaves out the VAT and bills low.").
+- **The verdict**, open: one sentence on what the recommendation rests on. **Why it comes back** sits in a fold: what goes wrong when the mistake ships, and why a fresh session writes it again (the value verdict of step 5). The page shows the reason as a chip beside the thread count and the first sentence of the violations, exceptions and run time, so open each with the count or the time and its noun, in 24 characters ("4 violations, all fixed").
 - **The mistake**: the wrong code from the PR or the default branch, and what to write instead.
-- **The check**: the rung, the tool, the file it lives in, and the exact message it prints.
+- **The check**: the tool as the repository's people name it ("PHPStan custom rule", "Pest arch()", "ESLint rule"), the rung, the files it lives in, the command, hook or CI job that runs it, and the exact message it prints. The tool leads the card, right under the case.
 - **The tradeoff**: what the check forbids and the way past it, and what breaks it. A CLAUDE.md line has none.
 - **The cost**: the rows of the cost line, and the cheaper rung when step 4 found one.
-- **What the review caught**: up to four quotes with the reviewer and the thread link, and the count when more threads raised it. The page shows two and folds the rest.
+- **What the review caught**: up to four quotes with the reviewer and the thread link, and the count when more threads raised it. The page folds them with the cost and the why, under the open layer.
 
 The page also lists the **not now** candidates with their reasons, so the user can pull one back in, and the triage table's **none** rows, collapsed. Act on the decisions the page sends back, as the reference describes.
 

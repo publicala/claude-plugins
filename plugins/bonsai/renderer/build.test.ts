@@ -68,12 +68,13 @@ interface GuardCandidate {
   id: string;
   lane?: string;
   title?: string;
+  case?: unknown;
   recommendation?: unknown;
-  why?: unknown;
+  why?: Record<string, unknown>;
   caught: { count?: unknown; quotes: Record<string, unknown>[] };
   mistake: Record<string, unknown>;
   guardrail: Record<string, unknown>;
-  tradeoff?: unknown;
+  tradeoff?: Record<string, unknown>;
   cost: Record<string, unknown>;
   skip?: string;
   alternative?: unknown;
@@ -110,6 +111,11 @@ function firstQuote(candidate: GuardCandidate): Record<string, unknown> {
   }
 
   return quoted;
+}
+
+function setWhy(data: GuardFixture, field: string, text: string): void {
+  const total = changeIn(data.changes, TOTAL);
+  total.why = { ...total.why, [field]: text };
 }
 
 function firstNotNow(data: GuardFixture): Record<string, unknown> {
@@ -1229,6 +1235,13 @@ describe("build refuses data that would mislead", () => {
       "Change 'livewire' has \"guardrail\", which only a guard run shows.",
     ],
     [
+      "a case on a change outside a guard run",
+      (data) => {
+        setField(changeIn(data.changes, "livewire"), "case", "A modal.");
+      },
+      "Change 'livewire' has \"case\", which only a guard run shows.",
+    ],
+    [
       "a PR shape outside a guard run",
       (data) => {
         data.run.prs = "Each one its own PR.";
@@ -1378,11 +1391,16 @@ describe("guard build", () => {
         "tests/PHPStan/OrderTotalRuleTest.php",
         "phpstan.neon",
       ],
+      runs: "Runs in `composer phpstan`, which `composer test` and CI run.",
       message:
         "Order totals come from Order::total(), which applies discounts and VAT.\nReplace this sum over $order->lines with $order->total().",
     });
     expect(total.caught).toMatchObject({ count: 3 });
-    expect(total.why).toMatchObject({ recurs: "seen-again" });
+    expect(total.why).toMatchObject({
+      recurs: "seen-again",
+      verdict: "Recommended: one PHPStan rule holds it, with one exception.",
+    });
+    expect(total.case).toStartWith("Invoice a taxed order");
     expect(total.tradeoff).toEqual({
       forbids:
         "Any sum over `$order->lines`, even one that wants the subtotal before discounts. The way past it is `Order::subtotal()`, or a `@phpstan-ignore` with the reason on the line.",
@@ -1392,13 +1410,13 @@ describe("guard build", () => {
     expect(total.cost).toEqual([
       {
         key: "violations",
-        value: "4, all fixed in this PR",
-        lead: "4, all fixed in this PR",
+        value: "4 violations, all fixed. This PR fixes all four.",
+        lead: "4 violations, all fixed",
       },
       {
         key: "exceptions",
-        value: "1: `Order::total()` itself sums the lines",
-        lead: "1: `Order::total()` itself sums the lines",
+        value: "1 exception. `Order::total()` itself sums the lines.",
+        lead: "1 exception",
       },
       {
         key: "falsePositives",
@@ -1445,6 +1463,7 @@ describe("guard build", () => {
       name: "CLAUDE.md line",
       tool: null,
       where: [],
+      runs: null,
       message: null,
     });
     expect(changeIn(page.changes, USERS).tradeoff).toBeNull();
@@ -1456,13 +1475,14 @@ describe("guard build", () => {
       },
       {
         key: "tokens",
-        value: "About 50, only in sessions that read `app/Users`",
-        lead: "About 50, only in sessions that read `app/Users`",
+        value: "About 50 tokens. Only sessions that read `app/Users` pay them.",
+        lead: "About 50 tokens",
       },
       {
         key: "loadsWhen",
-        value: "A session touches a file under `app/Users/`",
-        lead: "A session touches a file under `app/Users/`",
+        value:
+          "Loads with `app/Users/`. A session that reads or edits a file there loads the line.",
+        lead: "Loads with `app/Users/`",
       },
       {
         key: "alreadyStated",
@@ -1564,6 +1584,113 @@ describe("guard build refuses data that would mislead", () => {
       `Not-now candidate 'money-by-hand' has a title of 111 characters.`,
     ],
     [
+      "a candidate title that crowds its badge",
+      (data) => {
+        changeIn(data.changes, TOTAL).title =
+          "Read every order total from `Order::total()`, and never from the lines";
+      },
+      `Candidate '${TOTAL}' has a title of 68 characters. Name the action in 60 or fewer`,
+    ],
+    [
+      "a candidate without a case",
+      (data) => {
+        delete changeIn(data.changes, TOTAL).case;
+      },
+      `Candidate '${TOTAL}' needs "case": one concrete instance of the mistake`,
+    ],
+    [
+      "a case that tells a story",
+      (data) => {
+        changeIn(data.changes, TOTAL).case =
+          `Invoice a taxed order${", and then refund it".repeat(5)}: the total comes out low.`;
+      },
+      `Candidate '${TOTAL}' has a "case" of 147 characters. Show one instance in 110 or fewer.`,
+    ],
+    [
+      "a verdict in two sentences",
+      (data) => {
+        setWhy(data, "verdict", "Recommended. One PHPStan rule holds it.");
+      },
+      `Candidate '${TOTAL}' needs "why.verdict" in one sentence`,
+    ],
+    [
+      "a verdict that runs on",
+      (data) => {
+        setWhy(
+          data,
+          "verdict",
+          `Recommended: ${"one PHPStan rule holds it, ".repeat(5)}with one exception.`,
+        );
+      },
+      `Candidate '${TOTAL}' has a "why.verdict" of 167 characters.`,
+    ],
+    [
+      "a why that repeats a cost row's count",
+      (data) => {
+        setWhy(
+          data,
+          "text",
+          "A hand-built total bills low. Main has 4 of them, and sessions copy them.",
+        );
+      },
+      `Candidate '${TOTAL}' says 4 in "why.text", and cost row "violations" holds it.`,
+    ],
+    [
+      "a tool named by its rung",
+      (data) => {
+        changeIn(data.changes, PAYMENTS).guardrail.tool = "Arch or guard test";
+      },
+      `Candidate '${PAYMENTS}' names the rung "Arch or guard test" as its tool. Name the tool the repository runs`,
+    ],
+    [
+      "a check that says nothing about what runs it",
+      (data) => {
+        delete changeIn(data.changes, TOTAL).guardrail.runs;
+      },
+      `Candidate '${TOTAL}' needs "guardrail.runs": the command, hook or CI job that runs the check`,
+    ],
+    [
+      "a CLAUDE.md line that something runs",
+      (data) => {
+        changeIn(data.changes, USERS).guardrail.runs = "Runs in CI.";
+      },
+      `Candidate '${USERS}' is a CLAUDE.md line (rung 8), so nothing runs it.`,
+    ],
+    [
+      "a chip that says None",
+      (data) => {
+        changeIn(data.changes, STATUS).cost.exceptions = "None";
+      },
+      `Candidate '${STATUS}' cost row "exceptions" opens with "None", which says nothing alone on a chip.`,
+    ],
+    [
+      "a new tool whose cost outgrows its chip",
+      (data) => {
+        changeIn(data.changes, TOTAL).cost.newTools =
+          "ast-grep, with its own config and a CI step. It adds 2 s.";
+      },
+      `Candidate '${TOTAL}' cost row "newTools" runs 43 characters before its first full stop`,
+    ],
+    [
+      "a cost row that tells how it was measured",
+      (data) => {
+        changeIn(data.changes, TOTAL).cost.overlap =
+          `None. ${"The sweep of every stage found nothing more. ".repeat(5)}`;
+      },
+      `Candidate '${TOTAL}' has a "cost.overlap" of 231 characters. Say it in 200 or fewer`,
+    ],
+    [
+      "a tradeoff that runs on",
+      (data) => {
+        const total = changeIn(data.changes, TOTAL);
+        total.tradeoff = {
+          ...total.tradeoff,
+          breaks: `\`Order::total()\` is renamed.${" The rule names it.".repeat(10)}`,
+        };
+      },
+      `Candidate '${TOTAL}' has a "tradeoff.breaks" of 216 characters.`,
+    ],
+    [
       "a check without its failure message",
       (data) => {
         delete changeIn(data.changes, TOTAL).guardrail.message;
@@ -1610,14 +1737,14 @@ describe("guard build refuses data that would mislead", () => {
       (data) => {
         setField(changeIn(data.changes, TOTAL), "guardrail", "PHPStan");
       },
-      `Candidate '${TOTAL}' needs "guardrail": { "rung", "tool", "where", "message" }.`,
+      `Candidate '${TOTAL}' needs "guardrail": { "rung", "tool", "where", "runs", "message" }.`,
     ],
     [
       "a check without its tool",
       (data) => {
         delete changeIn(data.changes, TOTAL).guardrail.tool;
       },
-      `Candidate '${TOTAL}' needs "guardrail.tool": the tool that runs the check.`,
+      `Candidate '${TOTAL}' needs "guardrail.tool": the tool that runs the check, as the repository's own people name it.`,
     ],
     [
       "a check that lives nowhere",
@@ -1631,7 +1758,7 @@ describe("guard build refuses data that would mislead", () => {
       (data) => {
         changeIn(data.changes, TOTAL).guardrail.where = "phpstan.neon";
       },
-      `Candidate '${TOTAL}' needs "guardrail.tool" and "guardrail.message" as text, and "guardrail.where" as a list of paths.`,
+      `Candidate '${TOTAL}' needs "guardrail.tool", "guardrail.runs" and "guardrail.message" as text, and "guardrail.where" as a list of paths.`,
     ],
     [
       "a quote that links to a script",
@@ -1723,20 +1850,21 @@ describe("guard build refuses data that would mislead", () => {
       (data) => {
         delete changeIn(data.changes, TOTAL).why;
       },
-      `Candidate '${TOTAL}' needs "why": { "recurs", "text" }. The text says why a fresh session writes the mistake again, and what the recommendation rests on.`,
+      `Candidate '${TOTAL}' needs "why": { "recurs", "verdict", "text" }. The verdict says in one sentence what the recommendation rests on, and the text why a fresh session writes the mistake again.`,
     ],
     [
       "a why without its text",
       (data) => {
         changeIn(data.changes, TOTAL).why = { recurs: "seen-again" };
       },
-      `Candidate '${TOTAL}' needs "why": { "recurs", "text" }.`,
+      `Candidate '${TOTAL}' needs "why": { "recurs", "verdict", "text" }.`,
     ],
     [
       "a why with an unknown recurrence",
       (data) => {
         changeIn(data.changes, TOTAL).why = {
           recurs: "always",
+          verdict: "Recommended.",
           text: "Totals come out low. Everyone sums by hand.",
         };
       },
@@ -1747,6 +1875,7 @@ describe("guard build refuses data that would mislead", () => {
       (data) => {
         changeIn(data.changes, NOW).why = {
           recurs: "seen-again",
+          verdict: "Recommended.",
           text: "The clock has two names. Everyone writes it.",
         };
       },
@@ -1826,7 +1955,7 @@ describe("guard build refuses data that would mislead", () => {
         changeIn(data.changes, TOTAL).cost.violations =
           "Four sites on main break it, all of them fixed by hand in this pull request with one call each";
       },
-      `Candidate '${TOTAL}' cost row "violations" runs 94 characters before its first full stop, and the decision strip shows that sentence. Put the count or the time first, and the detail in a second sentence.`,
+      `Candidate '${TOTAL}' cost row "violations" runs 94 characters before its first full stop, and the card shows that sentence alone on a chip.`,
     ],
     [
       "a candidate with a skip line",
@@ -1840,6 +1969,7 @@ describe("guard build refuses data that would mislead", () => {
       (data) => {
         changeIn(data.changes, TOTAL).why = {
           recurs: "seen-again",
+          verdict: "Recommended.",
           text: "Everyone sums the lines by hand, as 3 reviews said.",
         };
       },
@@ -2517,8 +2647,21 @@ describe("guard page", () => {
     expect(document.querySelector(".tabs")?.hasAttribute("hidden")).toBe(true);
     expect(document.querySelector(".meter")).toBeNull();
     expect(total?.querySelector(".badge")?.textContent).toBe("recommended");
-    expect(total?.querySelector(".g-why")?.textContent).toStartWith(
-      "A hand-built total skips the discount and VAT",
+    expect(total?.querySelector(".g-case")?.textContent).toStartWith(
+      "Invoice a taxed order",
+    );
+    expect(total?.querySelector(".tb-tool")?.textContent).toBe(
+      "PHPStan custom rule",
+    );
+    expect(total?.querySelector(".tb-kind")?.textContent).toBe(
+      "static analysis · rung 3",
+    );
+    expect(total?.querySelector(".toolband")?.textContent).toContain(
+      "Runs in composer phpstan",
+    );
+    expect(total?.querySelector(".tb-new")).toBeNull();
+    expect(total?.querySelector(".g-verdict")?.textContent).toBe(
+      "Recommended: one PHPStan rule holds it, with one exception.",
     );
     expect(total?.querySelector(".ifskip")).toBeNull();
     expect(
@@ -2528,50 +2671,75 @@ describe("guard page", () => {
     ).toEqual([
       "3 threads in PR #57",
       "review saw it again",
-      "rung 3 · Static analysis",
-      "violations4, all fixed in this PR",
-      "exceptions1: Order::total() itself sums the lines",
-      "run time+1s on composer phpstan",
+      "4 violations, all fixed",
+      "1 exception",
+      "+1s on composer phpstan",
     ]);
+    expect(
+      Array.from(total?.querySelectorAll("details.g-fold") ?? []).map(
+        (fold) => [
+          fold.querySelector("summary")?.textContent,
+          fold.hasAttribute("open"),
+        ],
+      ),
+    ).toEqual([
+      ["Why it comes back", false],
+      ["Cost and tradeoffs", false],
+      ["What reviewers said", false],
+    ]);
+    expect(total?.querySelector(".g-fold .why")?.textContent).toStartWith(
+      "A hand-built total skips the discount and VAT",
+    );
     expect(total?.querySelectorAll(".quotes li")).toHaveLength(3);
-    expect(total?.querySelectorAll(".quotes")[0]?.children).toHaveLength(2);
-    expect(total?.querySelector("details.more > summary")?.textContent).toBe(
-      "1 more quote",
-    );
-    expect(total?.querySelector(".caught h4 span")?.textContent).toBe(
-      "3 reviews flagged this",
-    );
-    expect(total?.querySelector(".tradeoff")?.textContent).toContain(
+    expect(total?.textContent).not.toContain("more thread");
+    expect(total?.querySelector(".g-folds")?.textContent).toContain(
       "Breaks when",
     );
-    expect(total?.querySelector(".cost")?.textContent).toContain(
+    expect(total?.querySelector(".g-folds")?.textContent).toContain(
       "Violations on main",
     );
     expect(
       Array.from(total?.children ?? []).map((node) => node.className),
     ).toEqual([
       "g-head",
-      "why g-why",
+      "g-case",
+      "toolband",
       "strip",
+      "g-verdict",
       "g-sec",
       "g-sec",
-      "g-sec tradeoff",
-      "g-sec cost",
-      "g-sec caught",
+      "g-folds",
       "",
       "choice",
     ]);
     expect(
-      document.getElementById(`card-${STATUS}`)?.querySelector("details.more"),
-    ).toBeNull();
+      document.querySelectorAll(`#card-${STATUS} details.g-fold`),
+    ).toHaveLength(4);
+    const users = document.getElementById(`card-${USERS}`);
+    expect(users?.querySelector(".toolband.line .tb-tool")?.textContent).toBe(
+      "CLAUDE.md line",
+    );
+    expect(users?.querySelector(".toolband")?.textContent).toContain(
+      "Nothing fails when a session breaks it",
+    );
     expect(
-      document.getElementById(`card-${USERS}`)?.querySelector(".tradeoff")
-        ?.textContent,
-    ).toContain("Holds only while a session reads it");
+      Array.from(users?.querySelectorAll(".strip li") ?? []).map(
+        (chip) => chip.textContent,
+      ),
+    ).toEqual([
+      "1 thread in PR #57",
+      "written once",
+      "About 50 tokens",
+      "Loads with app/Users/",
+    ]);
     expect(
-      document.getElementById(`card-${USERS}`)?.querySelector(".cost")
-        ?.textContent,
-    ).toContain("Loads when");
+      Array.from(users?.querySelectorAll("details.g-fold > summary") ?? []).map(
+        (heading) => heading.textContent,
+      ),
+    ).toEqual(["Why it comes back", "Cost", "What reviewers said"]);
+    expect(users?.querySelector(".g-folds")?.textContent).toContain(
+      "Loads when",
+    );
     expect(total?.querySelector(".code.msg")?.textContent).toContain(
       "Replace this sum over $order->lines with $order->total().",
     );
@@ -2601,6 +2769,30 @@ describe("guard page", () => {
     expect(
       document.querySelector(`#card-${TOTAL} .strip li`)?.textContent,
     ).toBe("6 threads, 3 quoted from PR #57");
+    expect(
+      document.querySelector(`#card-${TOTAL} .g-folds`)?.textContent,
+    ).toContain("3 more threads raised it.");
+    await window.happyDOM.close();
+  });
+
+  test("flags a tool the repository does not run yet on the tool band", async () => {
+    const data = await guardData();
+    changeIn(data.changes, PAYMENTS).cost.newTools =
+      "ast-grep in CI. One more CI step, and about 2 s.";
+    const { window, document, errors } = await openPage(
+      await build(data, EXAMPLE),
+    );
+
+    expect(errors).toEqual([]);
+    expect(
+      document.querySelector(`#card-${PAYMENTS} .toolband .tb-new`)
+        ?.textContent,
+    ).toBe("New tool · ast-grep in CI");
+    expect(
+      Array.from(document.querySelectorAll(`#card-${PAYMENTS} .strip li`)).map(
+        (chip) => chip.textContent,
+      ),
+    ).not.toContain("ast-grep in CI");
     await window.happyDOM.close();
   });
 

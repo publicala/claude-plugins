@@ -59,6 +59,7 @@ const SHIPS =
   "Each candidate you build becomes its own pull request from the default branch, labelled `guardrail`.";
 
 const isCandidate = (c: Change): c is Candidate =>
+  c.case !== undefined &&
   c.recommendation !== undefined &&
   c.caught !== undefined &&
   c.mistake !== undefined &&
@@ -396,14 +397,6 @@ const COST_LABELS: Record<CostKey, string> = {
   loadsWhen: "Loads when",
   alreadyStated: "Already stated",
 };
-const STRIP_LABELS: Partial<Record<CostKey, string>> = {
-  violations: "violations",
-  runTime: "run time",
-  exceptions: "exceptions",
-  tokens: "tokens",
-  loadsWhen: "loads",
-};
-const QUOTES_SHOWN = 2;
 /* The facts a decision rests on, read from the data the build checked. */
 function stripHtml(c: Candidate) {
   const count = c.caught.count;
@@ -429,78 +422,81 @@ function stripHtml(c: Candidate) {
   const items = [
     `<li><b>${count}</b> ${count === 1 ? "thread" : "threads"}${sources}</li>`,
     `<li class="recurs ${c.why.recurs}">${RECURS[c.why.recurs]}</li>`,
-    `<li>rung ${c.guardrail.rung} · ${esc(c.guardrail.name)}</li>`,
     ...c.cost
-      .filter((r) => r.lead !== null)
-      .map(
-        (r) =>
-          `<li><span class="k">${STRIP_LABELS[r.key] ?? r.key}</span>${prose(r.lead ?? "")}</li>`,
-      ),
+      .filter((r) => r.lead !== null && r.key !== "newTools")
+      .map((r) => `<li>${prose(r.lead ?? "")}</li>`),
   ];
   return `<ul class="strip" aria-label="At a glance">${items.join("")}</ul>`;
 }
+const RUNG_KINDS: Record<number, string> = {
+  1: "type or schema",
+  2: "auto-fix",
+  3: "static analysis",
+  4: "guard test",
+  5: "syntax rule",
+  6: "git hook",
+  7: "runtime guard",
+  8: "prose, not enforced",
+};
+/* The check as it will run: its tool, its files, and what runs it. */
+function toolBandHtml(c: Candidate) {
+  const g = c.guardrail,
+    isLine = g.rung === 8;
+  const newTool = c.cost.find((r) => r.key === "newTools")?.lead;
+  const lives = homes(c)
+    .map((f) => `<code>${esc(f)}</code>${files[f]?.new ? " (new file)" : ""}`)
+    .join(", ");
+  return `<div class="toolband${isLine ? " line" : ""}">
+      <div class="tb-top"><span class="tb-tool">${g.tool ? prose(g.tool) : esc(g.name)}</span><span class="tb-kind">${RUNG_KINDS[g.rung] ?? ""} · rung ${g.rung}</span>${newTool ? `<span class="tb-new">New tool · ${prose(newTool)}</span>` : ""}</div>
+      <p class="tb-line">${isLine ? "Writes" : "Lives in"} ${lives}</p>
+      <p class="tb-line">${isLine ? "Nothing fails when a session breaks it: review catches it by hand again." : prose(g.runs ?? "")}</p>
+    </div>`;
+}
 const quoteHtml = (q: Quote) =>
   `<li><blockquote>${prose(q.text)}</blockquote><cite><b>${esc(q.reviewer)}</b> · ${ext(q.url, prLabel(q.url))}</cite></li>`;
-function quotesHtml(caught: Candidate["caught"]) {
-  const shown = caught.quotes.slice(0, QUOTES_SHOWN),
-    rest = caught.quotes.slice(QUOTES_SHOWN);
-  return `<ul class="quotes">${shown.map(quoteHtml).join("")}</ul>${
-    rest.length
-      ? `<details class="more"><summary>${plural(rest.length, "more quote")}</summary><ul class="quotes">${rest.map(quoteHtml).join("")}</ul></details>`
-      : ""
-  }`;
-}
-function tradeoffHtml(c: Candidate) {
-  if (!c.tradeoff)
-    return `<p class="g-note">Holds only while a session reads it: nothing fails when a session breaks the line, and review catches it by hand again.</p>`;
-  return kv([
-    ["Forbids", prose(c.tradeoff.forbids)],
-    ["Breaks when", prose(c.tradeoff.breaks)],
-  ]);
+const foldHtml = (title: string, body: string) =>
+  `<details class="g-fold"><summary>${title}</summary><div class="g-fold-body">${body}</div></details>`;
+/* What the session that breaks the rule sees, or the line it reads. */
+function showsHtml(c: Candidate) {
+  const g = c.guardrail;
+  if (g.rung === 8)
+    return `<section class="g-sec"><h4>The line <span class="tok num" data-tok="${c.id}">${tokText(c)}</span></h4><div data-diff="${c.id}">${diffHtml(c)}</div></section>`;
+  if (!g.message)
+    return `<p class="g-note">Rewrites the code on commit, so it prints no message.</p>`;
+  return `<section class="g-sec"><h4>${g.rung === 2 ? "It prints" : "A session that breaks it sees"}</h4>${codeBlock("msg", "Message", "", g.message)}</section>`;
 }
 function guardCard(c: Candidate, p = "") {
-  const g = c.guardrail,
-    m = c.mistake,
-    caught = c.caught,
-    isLine = g.rung === 8;
-  const flagged =
-    caught.count > 1
-      ? `<span>${caught.count} reviews flagged this${caught.count > caught.quotes.length ? `, ${caught.quotes.length} quoted` : ""}</span>`
-      : "";
-  const facts: [string, string][] = [
-    ["Rung", `${g.rung} · ${esc(g.name)}`],
-    ...(g.tool ? [["Tool", prose(g.tool)] satisfies [string, string]] : []),
-    [
-      "Lives in",
-      homes(c)
-        .map(
-          (f) => `<code>${esc(f)}</code>${files[f]?.new ? " (new file)" : ""}`,
-        )
-        .join("<br>"),
-    ],
-  ];
-  const shows = isLine
-    ? `<div data-diff="${c.id}">${diffHtml(c)}</div>`
-    : g.message
-      ? codeBlock(
-          "msg",
-          g.rung === 2 ? "It prints" : "It fails with",
-          "",
-          g.message,
-        )
-      : `<p class="g-note">Rewrites the code on commit, so it prints no message.</p>`;
+  const m = c.mistake,
+    caught = c.caught;
+  const unquoted = caught.count - caught.quotes.length;
+  const tradeoff = c.tradeoff
+    ? kv([
+        ["Forbids", prose(c.tradeoff.forbids)],
+        ["Breaks when", prose(c.tradeoff.breaks)],
+      ])
+    : "";
+  const cost = kv(
+    c.cost.map((r): [string, string] => [
+      prose(COST_LABELS[r.key]),
+      prose(r.value),
+    ]),
+  );
   return `
     <article class="card guard" id="${p}card-${c.id}" data-id="${c.id}" tabindex="-1">
       <div class="g-head"><h3>${prose(c.title)}</h3><span class="badge ${c.recommendation.replace(" ", "-")}">${esc(c.recommendation)}</span></div>
+      <p class="g-case">${prose(c.case)}</p>
       ${builtLink(c.id)}
-      <p class="why g-why">${prose(c.why.text)}</p>
+      ${toolBandHtml(c)}
       ${stripHtml(c)}
+      <p class="g-verdict">${prose(c.why.verdict)}</p>
       <section class="g-sec"><h4>The mistake</h4><div class="pair">${codeBlock("wrong", "Wrong", m.lang, m.wrong)}${codeBlock("right", "Write instead", m.lang, m.right)}</div>${m.note ? `<p class="g-note">${prose(m.note)}</p>` : ""}</section>
-      <section class="g-sec"><h4>${isLine ? "The line" : "The check"}${isLine ? ` <span class="tok num" data-tok="${c.id}">${tokText(c)}</span>` : ""}</h4>${kv(facts)}${shows}</section>
-      <section class="g-sec tradeoff"><h4>Tradeoff</h4>${tradeoffHtml(c)}</section>
-      <section class="g-sec cost"><h4>Cost</h4>${kv(c.cost.map((r): [string, string] => [prose(COST_LABELS[r.key]), prose(r.value)]))}</section>
-      <section class="g-sec caught"><h4>What the review caught ${flagged}</h4>${quotesHtml(caught)}</section>
-      ${c.alternative ? `<p class="ifskip"><b>Alternative:</b> ${prose(c.alternative)}</p>` : ""}
+      ${showsHtml(c)}
+      <div class="g-folds">
+        ${foldHtml("Why it comes back", `<p class="why">${prose(c.why.text)}</p>`)}
+        ${foldHtml(c.tradeoff ? "Cost and tradeoffs" : "Cost", tradeoff + cost)}
+        ${foldHtml("What reviewers said", `<ul class="quotes">${caught.quotes.map(quoteHtml).join("")}</ul>${unquoted > 0 ? `<p class="g-note">${plural(unquoted, "more thread")} raised it.</p>` : ""}`)}
+        ${c.alternative ? foldHtml("Alternative", `<p>${prose(c.alternative)}</p>`) : ""}
+      </div>
       ${checkHtml(c)}
       ${evidenceHtml(c)}
       ${noteHtml(c, p)}
