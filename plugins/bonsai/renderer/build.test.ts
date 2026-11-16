@@ -872,6 +872,13 @@ describe("build refuses data that would mislead", () => {
       "Change 'stack' has a title that opens with \"The\", which reads as a statement.",
     ],
     [
+      "a title whose article sits in code",
+      (data) => {
+        changeIn(data.changes, "stack").title = "`The` stack and version list";
+      },
+      "Change 'stack' has a title that opens with \"The\", which reads as a statement.",
+    ],
+    [
       "a title longer than a line",
       (data) => {
         changeIn(data.changes, "stack").title = `Delete \`${"x".repeat(80)}\``;

@@ -707,7 +707,8 @@ function ensureTitle(
   options: { max?: number; verb?: (typeof VERBS)[number] } = {},
 ): void {
   const max = options.max ?? MAX_TITLE_LENGTH;
-  const first = title.trim().split(/\s+/, 1)[0] ?? "";
+  // Inline code renders without its backticks, so the reader sees this word first.
+  const first = title.replaceAll("`", "").trim().split(/\s+/, 1)[0] ?? "";
   ensure(
     !isOneOf(ARTICLES, first),
     `${owner} has a title that opens with "${first}", which reads as a statement. Open with the action, such as "Delete the stack list" or "Read every order total from \`Order::total()\`".`,
