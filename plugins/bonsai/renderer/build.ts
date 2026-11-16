@@ -770,6 +770,36 @@ function ensureNamesATool(owner: string, tool: string): void {
 }
 
 /**
+ * The tool band under the title names the tool, so a title that names it
+ * too reads as the check instead of what a session writes. A tool shows
+ * in a title by its first word ("gofmt", "PHPStan") or by a code span of
+ * its name, compared case-sensitively so a plain word such as "enum"
+ * stays free.
+ */
+function ensureTitleOmitsTool(
+  owner: string,
+  title: string,
+  tool: string,
+): void {
+  const firstWord = tool.replaceAll("`", "").trim().split(/\s+/, 1)[0] ?? "";
+  const names = [
+    ...(firstWord.length >= 3 ? [firstWord] : []),
+    ...Array.from(tool.matchAll(/`([^`]+)`/g), (span) => span[1] ?? ""),
+  ];
+  const named = names.find((name) =>
+    new RegExp(`(^|[^\\w-])${escapeRegExp(name)}($|[^\\w-])`).test(title),
+  );
+  ensure(
+    named === undefined,
+    `${owner} names its tool "${named ?? ""}" in the title. The tool band under the title shows the tool, so the title says what a session writes, such as "Read every order total from \`Order::total()\`".`,
+  );
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
  * An automate card shows the check's tool in a band under the title,
  * so the title says only the rule it holds.
  */
@@ -788,6 +818,9 @@ function ensureAutomateTool(owner: string, change: JsonObject): void {
     `${owner} automates a rule, so it needs "tool": the tool that runs the check, as the repository's own people name it.`,
   );
   ensureNamesATool(owner, change.tool);
+  if (isFilledString(change.title)) {
+    ensureTitleOmitsTool(owner, change.title, change.tool);
+  }
   ensure(
     isFilledString(change.runs),
     `${owner} automates a rule, so it needs "runs": the command, hook or CI job that runs the check, such as "Runs in \`composer test\` and the CI test job."`,
@@ -1306,6 +1339,9 @@ function resolveCandidate(
   const why = resolveWhy(owner, candidate.why, caught.count);
   const mistake = resolveMistake(owner, candidate.mistake);
   const guardrail = resolveGuardrail(owner, candidate.guardrail);
+  if (guardrail.tool !== null) {
+    ensureTitleOmitsTool(owner, candidate.title, guardrail.tool);
+  }
   const tradeoff = resolveTradeoff(owner, candidate.tradeoff, guardrail.rung);
   const cost = resolveCost(owner, candidate.cost, guardrail.rung);
   ensureCountsInCost(owner, why, cost);

@@ -1267,6 +1267,18 @@ describe("build refuses data that would mislead", () => {
       "Change 'livewire' names the rung \"Static analysis\" as its tool.",
     ],
     [
+      "an automate change whose title names its tool",
+      (data) => {
+        automateLivewire(data);
+        setField(
+          changeIn(data.changes, "livewire"),
+          "title",
+          "Run PHPStan on every Livewire default",
+        );
+      },
+      "Change 'livewire' names its tool \"PHPStan\" in the title.",
+    ],
+    [
       "an automate change that says nothing about what runs it",
       (data) => {
         automateLivewire(data);
@@ -1688,6 +1700,23 @@ describe("guard build refuses data that would mislead", () => {
         changeIn(data.changes, PAYMENTS).guardrail.tool = "Arch or guard test";
       },
       `Candidate '${PAYMENTS}' names the rung "Arch or guard test" as its tool. Name the tool the repository runs`,
+    ],
+    [
+      "a title that names the tool by its first word",
+      (data) => {
+        changeIn(data.changes, TOTAL).title =
+          "Let PHPStan catch every hand-summed order total";
+      },
+      `Candidate '${TOTAL}' names its tool "PHPStan" in the title.`,
+    ],
+    [
+      "a title that names the tool by a code span of its name",
+      (data) => {
+        const candidate = changeIn(data.changes, TOTAL);
+        candidate.guardrail.tool = "Go formatter (`gofmt -s`)";
+        candidate.title = "Drop redundant syntax the way `gofmt -s` does";
+      },
+      `Candidate '${TOTAL}' names its tool "gofmt -s" in the title.`,
     ],
     [
       "a check that says nothing about what runs it",
