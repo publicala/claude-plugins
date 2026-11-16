@@ -38,6 +38,7 @@ const VERBS = [
   "automate",
 ] as const;
 const MOVE_VERB = "move";
+const AUTOMATE_VERB = "automate";
 /**
  * A title opens with what the card does. An article opens a statement
  * ("A PATCH of a store leaves..."), which the reader has to turn into an
@@ -754,6 +755,45 @@ function ensureTitle(
   );
 }
 
+/**
+ * A tool is named as the repository's own people name it, so a new tool
+ * needs no list here. A rung names a kind of check, never the tool.
+ */
+function ensureNamesATool(owner: string, tool: string): void {
+  const rungName = RUNGS.find(
+    (listed) => listed.toLowerCase() === tool.trim().toLowerCase(),
+  );
+  ensure(
+    rungName === undefined,
+    `${owner} names the rung "${rungName ?? ""}" as its tool. Name the tool the repository runs, such as "PHPStan custom rule", "Pest arch()" or "ESLint rule".`,
+  );
+}
+
+/**
+ * An automate card shows the check's tool in a band under the title,
+ * so the title says only the rule it holds.
+ */
+function ensureAutomateTool(owner: string, change: JsonObject): void {
+  if (change.verb !== AUTOMATE_VERB) {
+    ensure(
+      change.tool === undefined && change.runs === undefined,
+      `${owner} has "tool" or "runs", which only an automate change carries. Remove them, or set verb to "${AUTOMATE_VERB}".`,
+    );
+
+    return;
+  }
+
+  ensure(
+    isFilledString(change.tool),
+    `${owner} automates a rule, so it needs "tool": the tool that runs the check, as the repository's own people name it.`,
+  );
+  ensureNamesATool(owner, change.tool);
+  ensure(
+    isFilledString(change.runs),
+    `${owner} automates a rule, so it needs "runs": the command, hook or CI job that runs the check, such as "Runs in \`composer test\` and the CI test job."`,
+  );
+}
+
 function resolveGroups(entries: JsonObject[]): Map<string, PageGroup> {
   const groups = entries.map((group): PageGroup => {
     const groupId = group.id;
@@ -871,6 +911,7 @@ function resolveChange(change: JsonObject, context: ChangeContext): PageChange {
     `${owner} needs a title and a why.`,
   );
   ensureTitle(owner, change.title, { verb: change.verb });
+  ensureAutomateTool(owner, change);
 
   const edits = listOfObjects(change.edits, "edits", owner);
   ensure(edits.length > 0, `${owner} has no edits.`);
@@ -948,13 +989,7 @@ function resolveGuardrail(owner: string, value: unknown): PageGuardrail {
       tool !== undefined,
       `${owner} needs "guardrail.tool": the tool that runs the check, as the repository's own people name it.`,
     );
-    const rungName = RUNGS.find(
-      (listed) => listed.toLowerCase() === tool.trim().toLowerCase(),
-    );
-    ensure(
-      rungName === undefined,
-      `${owner} names the rung "${rungName ?? ""}" as its tool. Name the tool the repository runs, such as "PHPStan custom rule", "Pest arch()" or "ESLint rule".`,
-    );
+    ensureNamesATool(owner, tool);
     ensure(
       runs !== undefined,
       `${owner} needs "guardrail.runs": the command, hook or CI job that runs the check, such as "Runs in \`composer test\` and the CI test job."`,

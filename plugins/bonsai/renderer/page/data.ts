@@ -159,6 +159,9 @@ export interface Change {
   /** Where a move lands: a rung of the delivery ladder. */
   destination?: string;
   title: string;
+  /** An automate change: the check's tool, and the command, hook or CI job that runs it. */
+  tool?: string;
+  runs?: string;
   /** Guard runs: one concrete instance of the mistake, under the title. */
   case?: string;
   /** Prose on a change. A guard candidate carries a `Why` instead. */
