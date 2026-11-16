@@ -1566,6 +1566,16 @@ describe("guard build", () => {
     });
   });
 
+  test("lets a title name what the tool's code span guards", async () => {
+    const data = await guardData();
+    changeIn(data.changes, STATUS).title =
+      "Write order status through `Order::$status`";
+
+    expect(
+      changeIn((await build(data, EXAMPLE)).changes, STATUS),
+    ).toMatchObject({ title: "Write order status through `Order::$status`" });
+  });
+
   test("lets an auto-fix print a message", async () => {
     const data = await guardData();
     changeIn(data.changes, NOW).guardrail.message = "Rector rewrote 1 file.";
@@ -1710,13 +1720,13 @@ describe("guard build refuses data that would mislead", () => {
       `Candidate '${TOTAL}' names its tool "PHPStan" in the title.`,
     ],
     [
-      "a title that names the tool by a code span of its name",
+      "a title that names the tool inside a code span",
       (data) => {
         const candidate = changeIn(data.changes, TOTAL);
-        candidate.guardrail.tool = "Go formatter (`gofmt -s`)";
+        candidate.guardrail.tool = "gofmt -s";
         candidate.title = "Drop redundant syntax the way `gofmt -s` does";
       },
-      `Candidate '${TOTAL}' names its tool "gofmt -s" in the title.`,
+      `Candidate '${TOTAL}' names its tool "gofmt" in the title.`,
     ],
     [
       "a check that says nothing about what runs it",

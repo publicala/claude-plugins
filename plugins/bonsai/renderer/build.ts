@@ -771,10 +771,10 @@ function ensureNamesATool(owner: string, tool: string): void {
 
 /**
  * The tool band under the title names the tool, so a title that names it
- * too reads as the check instead of what a session writes. A tool shows
- * in a title by its first word ("gofmt", "PHPStan") or by a code span of
- * its name, compared case-sensitively so a plain word such as "enum"
- * stays free.
+ * too reads as the check instead of what a session writes. The tool's
+ * first word names it ("gofmt", "PHPStan"), while a later code span often
+ * names what the check guards (`Order::$status`), so only the first word
+ * counts, compared case-sensitively so a plain "enum" stays free.
  */
 function ensureTitleOmitsTool(
   owner: string,
@@ -782,16 +782,13 @@ function ensureTitleOmitsTool(
   tool: string,
 ): void {
   const firstWord = tool.replaceAll("`", "").trim().split(/\s+/, 1)[0] ?? "";
-  const names = [
-    ...(firstWord.length >= 3 ? [firstWord] : []),
-    ...Array.from(tool.matchAll(/`([^`]+)`/g), (span) => span[1] ?? ""),
-  ];
-  const named = names.find((name) =>
-    new RegExp(`(^|[^\\w-])${escapeRegExp(name)}($|[^\\w-])`).test(title),
-  );
+  if (firstWord.length < 3) {
+    return;
+  }
+
   ensure(
-    named === undefined,
-    `${owner} names its tool "${named ?? ""}" in the title. The tool band under the title shows the tool, so the title says what a session writes, such as "Read every order total from \`Order::total()\`".`,
+    !new RegExp(`(^|[^\\w-])${escapeRegExp(firstWord)}($|[^\\w-])`).test(title),
+    `${owner} names its tool "${firstWord}" in the title. The tool band under the title shows the tool, so the title says what a session writes, such as "Read every order total from \`Order::total()\`".`,
   );
 }
 
