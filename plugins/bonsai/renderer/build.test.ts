@@ -143,6 +143,15 @@ function setField(target: object, key: string, value: unknown): void {
   Reflect.set(target, key, value);
 }
 
+/** Turns the Livewire fix into a card that automates its rule. */
+function automateLivewire(data: Fixture): void {
+  const livewire = changeIn(data.changes, "livewire");
+  livewire.verb = "automate";
+  livewire.title = "Hold the Livewire default in one rule";
+  setField(livewire, "tool", "PHPStan custom rule");
+  setField(livewire, "runs", "Runs in `composer phpstan` and CI.");
+}
+
 function changeIn<T extends { id: string }>(changes: T[], changeId: string): T {
   const found = changes.find((change) => change.id === changeId);
 
@@ -1233,6 +1242,37 @@ describe("build refuses data that would mislead", () => {
         setField(changeIn(data.changes, "livewire"), "guardrail", { rung: 3 });
       },
       "Change 'livewire' has \"guardrail\", which only a guard run shows.",
+    ],
+    [
+      "a tool on a change that automates nothing",
+      (data) => {
+        setField(changeIn(data.changes, "livewire"), "tool", "PHPStan");
+      },
+      'Change \'livewire\' has "tool" or "runs", which only an automate change carries.',
+    ],
+    [
+      "an automate change without its tool",
+      (data) => {
+        automateLivewire(data);
+        setField(changeIn(data.changes, "livewire"), "tool", undefined);
+      },
+      "Change 'livewire' automates a rule, so it needs \"tool\"",
+    ],
+    [
+      "an automate change named by its rung",
+      (data) => {
+        automateLivewire(data);
+        setField(changeIn(data.changes, "livewire"), "tool", "Static analysis");
+      },
+      "Change 'livewire' names the rung \"Static analysis\" as its tool.",
+    ],
+    [
+      "an automate change that says nothing about what runs it",
+      (data) => {
+        automateLivewire(data);
+        setField(changeIn(data.changes, "livewire"), "runs", undefined);
+      },
+      "Change 'livewire' automates a rule, so it needs \"runs\"",
     ],
     [
       "a case on a change outside a guard run",
@@ -2382,6 +2422,23 @@ describe("page", () => {
     expect(errors).toEqual([]);
     expect(document.title).toBe("Acme Books CLAUDE.md Audit");
     expect(document.querySelectorAll(".card").length).toBeGreaterThan(0);
+    await window.happyDOM.close();
+  });
+
+  test("names the tool of an automate card in a band under its title", async () => {
+    const data = await exampleData();
+    automateLivewire(data);
+    const { window, document, errors } = await openPage(
+      await build(data, EXAMPLE),
+    );
+    const band = document.querySelector("#card-livewire h3 + .toolband");
+
+    expect(errors).toEqual([]);
+    expect(band?.querySelector(".tb-tool")?.textContent).toBe(
+      "PHPStan custom rule",
+    );
+    expect(band?.textContent).toContain("Runs in composer phpstan and CI.");
+    expect(document.querySelectorAll(".toolband")).toHaveLength(1);
     await window.happyDOM.close();
   });
 

@@ -335,6 +335,7 @@ function callCard(c: Change, p = "") {
         <span class="tok num" data-tok="${c.id}">${tokText(c)}</span>
       </div>
       <h3>${prose(c.title)}</h3>
+      ${automateBand(c)}
       <p class="why">${prose(whyText(c))}</p>
       <div data-diff="${c.id}">${diffHtml(c)}</div>
       ${checkHtml(c)}
@@ -438,20 +439,45 @@ const RUNG_KINDS: Record<number, string> = {
   7: "runtime guard",
   8: "prose, not enforced",
 };
+interface ToolBand {
+  tool: string;
+  runs: string;
+  kind?: string;
+  newTool?: string | null;
+  /** A CLAUDE.md line: the band says what it writes, and that nothing runs it. */
+  line?: boolean;
+  homes?: string[];
+}
 /* The check as it will run: its tool, its files, and what runs it. */
-function toolBandHtml(c: Candidate) {
-  const g = c.guardrail,
-    isLine = g.rung === 8;
-  const newTool = c.cost.find((r) => r.key === "newTools")?.lead;
-  const lives = homes(c)
+function toolBandHtml(band: ToolBand) {
+  const lives = (band.homes ?? [])
     .map((f) => `<code>${esc(f)}</code>${files[f]?.new ? " (new file)" : ""}`)
     .join(", ");
-  return `<div class="toolband${isLine ? " line" : ""}">
-      <div class="tb-top"><span class="tb-tool">${g.tool ? prose(g.tool) : esc(g.name)}</span><span class="tb-kind">${RUNG_KINDS[g.rung] ?? ""} · rung ${g.rung}</span>${newTool ? `<span class="tb-new">New tool · ${prose(newTool)}</span>` : ""}</div>
-      <p class="tb-line">${isLine ? "Writes" : "Lives in"} ${lives}</p>
-      <p class="tb-line">${isLine ? "Nothing fails when a session breaks it: review catches it by hand again." : prose(g.runs ?? "")}</p>
+  return `<div class="toolband${band.line ? " line" : ""}">
+      <div class="tb-top"><span class="tb-tool">${prose(band.tool)}</span>${band.kind ? `<span class="tb-kind">${band.kind}</span>` : ""}${band.newTool ? `<span class="tb-new">New tool · ${prose(band.newTool)}</span>` : ""}</div>
+      ${lives ? `<p class="tb-line">${band.line ? "Writes" : "Lives in"} ${lives}</p>` : ""}
+      <p class="tb-line">${prose(band.runs)}</p>
     </div>`;
 }
+function candidateBand(c: Candidate) {
+  const g = c.guardrail,
+    isLine = g.rung === 8;
+  return toolBandHtml({
+    tool: g.tool ?? g.name,
+    kind: `${RUNG_KINDS[g.rung] ?? ""} · rung ${g.rung}`,
+    homes: homes(c),
+    runs: isLine
+      ? "Nothing fails when a session breaks it: review catches it by hand again."
+      : (g.runs ?? ""),
+    newTool: c.cost.find((r) => r.key === "newTools")?.lead ?? null,
+    line: isLine,
+  });
+}
+/* An automate card names its tool beside the rule it holds. */
+const automateBand = (c: Change) =>
+  c.verb === "automate" && c.tool && c.runs
+    ? toolBandHtml({ tool: c.tool, runs: c.runs })
+    : "";
 const quoteHtml = (q: Quote) =>
   `<li><blockquote>${prose(q.text)}</blockquote><cite><b>${esc(q.reviewer)}</b> · ${ext(q.url, prLabel(q.url))}</cite></li>`;
 const foldHtml = (title: string, body: string) =>
@@ -486,7 +512,7 @@ function guardCard(c: Candidate, p = "") {
       <div class="g-head"><h3>${prose(c.title)}</h3><span class="badge ${c.recommendation.replace(" ", "-")}">${esc(c.recommendation)}</span></div>
       <p class="g-case">${prose(c.case)}</p>
       ${builtLink(c.id)}
-      ${toolBandHtml(c)}
+      ${candidateBand(c)}
       ${stripHtml(c)}
       <p class="g-verdict">${prose(c.why.verdict)}</p>
       <section class="g-sec"><h4>The mistake</h4><div class="pair">${codeBlock("wrong", "Wrong", m.lang, m.wrong)}${codeBlock("right", "Write instead", m.lang, m.right)}</div>${m.note ? `<p class="g-note">${prose(m.note)}</p>` : ""}</section>
