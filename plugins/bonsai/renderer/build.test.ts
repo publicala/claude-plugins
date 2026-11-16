@@ -2442,6 +2442,25 @@ describe("page", () => {
     await window.happyDOM.close();
   });
 
+  test("names the tool of a grouped automate card", async () => {
+    const data = await exampleData();
+    const stack = changeIn(data.changes, "stack");
+    stack.verb = "automate";
+    stack.title = "Hold the stack versions in one check";
+    setField(stack, "tool", "Composer validate");
+    setField(stack, "runs", "Runs in `composer validate` and CI.");
+    const { window, document, errors } = await openPage(
+      await build(data, EXAMPLE),
+    );
+
+    expect(errors).toEqual([]);
+    expect(
+      document.querySelector('[data-item="stack"] .toolband .tb-tool')
+        ?.textContent,
+    ).toBe("Composer validate");
+    await window.happyDOM.close();
+  });
+
   test("names where a move lands", async () => {
     const { window, document } = await openPage(
       await build(await exampleData(), EXAMPLE),
