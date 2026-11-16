@@ -108,6 +108,8 @@ export interface Guardrail {
   name: string;
   tool: string | null;
   where: string[];
+  /** The command, hook or CI job that runs a check. A CLAUDE.md line has none. */
+  runs: string | null;
   message: string | null;
 }
 
@@ -120,6 +122,8 @@ export type Recurrence =
 /** Why a guardrail is worth building: the value verdict of the cost gate. */
 export interface Why {
   recurs: Recurrence;
+  /** One sentence, open on the card: what the recommendation rests on. */
+  verdict: string;
   text: string;
 }
 
@@ -140,7 +144,7 @@ export type CostKey =
   | "loadsWhen"
   | "alreadyStated";
 
-/** `lead` is the row's first sentence when the decision strip shows it. */
+/** `lead` is the row's first sentence when the card shows it on a chip. */
 export interface CostRow {
   key: CostKey;
   value: string;
@@ -155,6 +159,8 @@ export interface Change {
   /** Where a move lands: a rung of the delivery ladder. */
   destination?: string;
   title: string;
+  /** Guard runs: one concrete instance of the mistake, under the title. */
+  case?: string;
   /** Prose on a change. A guard candidate carries a `Why` instead. */
   why?: string | Why;
   skip?: string;
@@ -178,7 +184,10 @@ export interface Change {
 
 /** A change in a guard run: a candidate check, always a call. */
 export type Candidate = Omit<Change, "why"> & { why: Why } & Required<
-    Pick<Change, "recommendation" | "caught" | "mistake" | "guardrail" | "cost">
+    Pick<
+      Change,
+      "case" | "recommendation" | "caught" | "mistake" | "guardrail" | "cost"
+    >
   >;
 
 export interface Group {

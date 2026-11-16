@@ -59,7 +59,7 @@ An `UNSUPPORTED` line in the log means guard asked for something the fake does n
 
 | Case | Pull request | It fails when guard |
 | --- | --- | --- |
-| `guard-auto-fix-candidate` | 41: a reviewer flags `for i, _ := range`, which `gofmt -s` rewrites | misses the candidate, picks a rung below auto-fix, skips the scratch run of `gofmt -s` in a throwaway worktree that finds the two files on the default branch it would rewrite, or rewrites them in the user's checkout |
+| `guard-auto-fix-candidate` | 41: a reviewer flags `for i, _ := range`, which `gofmt -s` rewrites | misses the candidate, picks a rung below auto-fix, skips the scratch run of `gofmt -s` in a throwaway worktree that finds the two files on the default branch it would rewrite, rewrites them in the user's checkout, or titles the candidate with what the check asserts instead of what a session writes |
 | `guard-design-choice-is-none` | 42: a reviewer asks for a map, the author keeps the slice and says why | turns the design choice into a check or a CLAUDE.md line, or gives another reason |
 | `guard-overridden-check-is-held` | 43: the author adds the new file to the allowlist of the test that fired | proposes a new check for a rule a check already holds, or misses that the author overrode it |
 

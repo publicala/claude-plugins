@@ -26,10 +26,12 @@
     {
       "id": "order-total-summed-by-hand",
       "title": "Read every order total from `Order::total()`",
+      "case": "Invoice a taxed order: the hand-built total leaves out the VAT and bills low.",
       "recommendation": "recommended",
       "why": {
         "recurs": "seen-again",
-        "text": "A hand-built total skips the discount and VAT, so an invoice comes out low and a refund pays back too much. Three reviews caught it in three files, and summing the lines is the first thing a session writes when it needs a total. Recommended: one PHPStan rule holds it, with one exception."
+        "verdict": "Recommended: one PHPStan rule holds it, with one exception.",
+        "text": "A hand-built total skips the discount and VAT, so an invoice comes out low and a refund pays back too much. Three reviews caught it in three files, and summing the lines is the first thing a session writes when it needs a total."
       },
       "caught": {
         "count": 3,
@@ -65,6 +67,7 @@
           "tests/PHPStan/OrderTotalRuleTest.php",
           "phpstan.neon"
         ],
+        "runs": "Runs in `composer phpstan`, which `composer test` and CI run.",
         "message": "Order totals come from Order::total(), which applies discounts and VAT.\nReplace this sum over $order->lines with $order->total()."
       },
       "tradeoff": {
@@ -72,8 +75,8 @@
         "breaks": "`Order::total()` is renamed or the lines relation moves: the rule names both, so its test fails and names the rename."
       },
       "cost": {
-        "violations": "4, all fixed in this PR",
-        "exceptions": "1: `Order::total()` itself sums the lines",
+        "violations": "4 violations, all fixed. This PR fixes all four.",
+        "exceptions": "1 exception. `Order::total()` itself sums the lines.",
         "falsePositives": "None: `Order::total()` is the one sum the rule allows",
         "runTime": "+1s on `composer phpstan`",
         "newTools": "None. PHPStan runs in `composer test` and CI.",
@@ -83,10 +86,12 @@
     {
       "id": "status-as-string",
       "title": "Store order status as the `OrderStatus` enum",
+      "case": "Write `'shiped'` as a status: the order drops out of every filter.",
       "recommendation": "close call",
       "why": {
         "recurs": "code-shows-it",
-        "text": "A misspelled status is stored as it is, so the order drops out of every status filter and the fulfilment queue with no error. `main` passes `status` as a string in 26 places, so a session copies the form it sees. A close call: the cast needs a prep PR that touches 11 files before the check can land."
+        "verdict": "Close call: the cast needs a prep PR before the check can land.",
+        "text": "A misspelled status is stored as it is, so the order drops out of every status filter and the fulfilment queue with no error. `main` passes `status` as a string all over, so a session copies the form it sees."
       },
       "caught": {
         "count": 2,
@@ -113,6 +118,7 @@
         "rung": 1,
         "tool": "Enum cast on `Order::$status`",
         "where": ["app/Enums/OrderStatus.php", "app/Models/Order.php"],
+        "runs": "The model refuses the value on every write, in tests and in production.",
         "message": "ValueError: \"shiped\" is not a valid backing value for enum App\\Enums\\OrderStatus"
       },
       "tradeoff": {
@@ -120,10 +126,10 @@
         "breaks": "A row written outside Eloquent (`DB::table()`, a seeder) skips the cast and stores any string again."
       },
       "cost": {
-        "violations": "26 string literals in 11 files. A prep PR fixes them by hand, and this PR stacks on it",
-        "exceptions": "None",
+        "violations": "26 strings in 11 files. A prep PR fixes them by hand, and this PR stacks on it.",
+        "exceptions": "No exceptions",
         "falsePositives": "None: the cast runs on write, so a string that names a status still passes",
-        "runTime": "None. The cast runs on write.",
+        "runTime": "No added run time. The cast runs on write.",
         "newTools": "None",
         "overlap": "#63 (draft, updated 2026-10-14) adds a `refunded` status. Merge it first, or add the case here."
       },
@@ -132,10 +138,12 @@
     {
       "id": "now-helper",
       "title": "Write `Date::now()` where the code calls `now()`",
+      "case": "Stamp an invoice with `now()`: a search for the clock misses it.",
       "recommendation": "recommended",
       "why": {
         "recurs": "framework-default",
-        "text": "A `now()` call hides from a search for the clock, so a change to how the code reads time misses it, and one thing has two names. `now()` is Laravel's own helper, so every fresh session reaches for it. Recommended: Rector rewrites it on commit, so the check costs nothing to obey."
+        "verdict": "Recommended: Rector rewrites it on commit, so the check costs nothing to obey.",
+        "text": "A `now()` call hides from a search for the clock, so a change to how the code reads time misses it, and one thing has two names. `now()` is Laravel's own helper, so every fresh session reaches for it."
       },
       "caught": {
         "quotes": [
@@ -154,28 +162,31 @@
       "guardrail": {
         "rung": 2,
         "tool": "Rector `FuncCallToStaticCallRector`",
-        "where": ["rector.php"]
+        "where": ["rector.php"],
+        "runs": "Runs in the pre-commit hook, which rewrites the staged files."
       },
       "tradeoff": {
         "forbids": "Nothing: Rector rewrites `now()` to `Date::now()` and the session never sees a failure.",
         "breaks": "A file Rector does not read: `rector.php` lists `app` and `tests`, so a `now()` in `database/` stays."
       },
       "cost": {
-        "violations": "41, all rewritten by Rector in this PR",
-        "exceptions": "None",
+        "violations": "41 calls, all rewritten. Rector rewrites them in this PR.",
+        "exceptions": "No exceptions",
         "falsePositives": "None: every `now()` on `main` means the clock",
-        "runTime": "+2s on the pre-commit hook",
+        "runTime": "+2 s on pre-commit. The hook runs Rector on the staged files.",
         "newTools": "None. Rector runs in the pre-commit hook.",
         "overlap": "None"
       }
     },
     {
       "id": "user-created-over-deleted",
-      "title": "Restore a deleted user before you create one for the same email",
+      "title": "Restore a deleted user before creating one for its email",
+      "case": "Invite an email a deleted account holds: a second user row splits its invoices.",
       "recommendation": "close call",
       "why": {
         "recurs": "once",
-        "text": "A second user row for an email a deleted account holds splits the customer's invoices across two rows, and nothing errors. One flow created the duplicate, and nothing near `User::create()` shows the deleted rows. A close call: the rule lives far from the change site, so a line is the only rung that reaches it."
+        "verdict": "Close call: the rule lives far from the change site, so a line is the only rung that reaches it.",
+        "text": "A second user row for an email a deleted account holds splits the customer's invoices across two rows, and nothing errors. One flow created the duplicate, and nothing near `User::create()` shows the deleted rows."
       },
       "caught": {
         "quotes": [
@@ -208,8 +219,8 @@
       ],
       "cost": {
         "violations": "1 in `InviteUser`, which the source PR fixes",
-        "tokens": "About 50, only in sessions that read `app/Users`",
-        "loadsWhen": "A session touches a file under `app/Users/`",
+        "tokens": "About 50 tokens. Only sessions that read `app/Users` pay them.",
+        "loadsWhen": "Loads with `app/Users/`. A session that reads or edits a file there loads the line.",
         "alreadyStated": "No. The unique index lives in a migration, and no CLAUDE.md names it",
         "overlap": "None"
       }
@@ -217,10 +228,12 @@
     {
       "id": "payments-graphql-by-hand",
       "title": "Send payments GraphQL only through `PaymentsClient`",
+      "case": "Refund through `Http::post()`: a retry after a timeout refunds twice.",
       "recommendation": "low value",
       "why": {
         "recurs": "once",
-        "text": "A raw payments call goes out without the auth header, the idempotency key and the retries, so a retry after a timeout can refund twice. One job skipped the client in 14 months, and `PaymentsClient` sits in the same namespace as every caller. Low value: the test guards a form nobody else writes."
+        "verdict": "Low value: the test guards a form nobody else writes.",
+        "text": "A raw payments call goes out without the auth header, the idempotency key and the retries, so a retry after a timeout can refund twice. One job skipped the client in 14 months, and `PaymentsClient` sits in the same namespace as every caller."
       },
       "caught": {
         "quotes": [
@@ -240,6 +253,7 @@
         "rung": 4,
         "tool": "Pest guard test",
         "where": ["tests/Arch/PaymentsClientTest.php"],
+        "runs": "Runs in `composer test` and the CI test job.",
         "message": "app/Jobs/RefundOrder.php sends a payments GraphQL request outside PaymentsClient.\nAdd a method to App\\Payments\\PaymentsClient and call it, so the request gets auth, an idempotency key and retries."
       },
       "tradeoff": {
@@ -247,8 +261,8 @@
         "breaks": "The payments host moves to a new domain: the test matches the URL by hand, so it scans for nothing until the pattern is updated."
       },
       "cost": {
-        "violations": "1, fixed in this PR",
-        "exceptions": "None",
+        "violations": "1 violation, fixed here. This PR fixes it.",
+        "exceptions": "No exceptions",
         "falsePositives": "None: `PaymentsClient` itself lives outside `App\\Jobs`",
         "runTime": "+0.2s on `composer test`",
         "newTools": "None",

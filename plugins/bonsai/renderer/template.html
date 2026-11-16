@@ -611,6 +611,88 @@
     color: var(--body);
     max-width: 68ch;
   }
+  .g-case {
+    margin-top: -4px;
+    color: var(--body);
+    max-width: 68ch;
+  }
+  .g-verdict {
+    max-width: 68ch;
+  }
+  .g-verdict b {
+    font-weight: 600;
+  }
+  /* The check's tool comes first: the decision starts from what will run. */
+  .toolband {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--hair-strong);
+    background: var(--sunk);
+  }
+  .tb-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+  .tb-tool {
+    font: 600 0.84rem/1.3 var(--mono);
+    padding: 3px 8px;
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .tb-tool code {
+    background: none;
+    color: inherit;
+    padding: 0;
+  }
+  .toolband.line .tb-tool {
+    background: transparent;
+    color: var(--ink);
+    border: 1px dashed var(--body);
+  }
+  .tb-kind {
+    font: 500 0.76rem var(--mono);
+    color: var(--body);
+  }
+  .tb-new {
+    font: 600 0.7rem/1 var(--mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 4px 7px;
+    background: var(--call-bg);
+    color: var(--call);
+  }
+  .tb-line {
+    font-size: 0.86rem;
+    color: var(--body);
+    overflow-wrap: anywhere;
+  }
+  /* The second layer: proof and detail the decision may not need. */
+  .g-folds {
+    display: grid;
+    gap: 6px;
+  }
+  details.g-fold {
+    border: 1px solid var(--hair-strong);
+    min-width: 0;
+  }
+  details.g-fold > summary {
+    cursor: pointer;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  details.g-fold > summary:hover {
+    color: var(--accent);
+  }
+  details.g-fold > .g-fold-body {
+    display: grid;
+    gap: 10px;
+    padding: 2px 12px 12px;
+  }
   /* The decision strip: the facts the build computed, one chip each. */
   .strip {
     list-style: none;
@@ -631,11 +713,6 @@
     color: var(--ink);
     font-weight: 700;
   }
-  .strip li .k {
-    color: var(--ink);
-    font-weight: 600;
-    margin-right: 4px;
-  }
   .strip li.recurs {
     border-color: var(--accent);
     color: var(--accent);
@@ -645,19 +722,6 @@
     border-color: var(--hair-strong);
     color: var(--body);
     background: var(--sunk);
-  }
-  details.more > summary {
-    cursor: pointer;
-    color: var(--body);
-    font-size: 0.86rem;
-    width: max-content;
-    max-width: 100%;
-  }
-  details.more > summary:hover {
-    color: var(--ink);
-  }
-  details.more[open] > summary {
-    margin-bottom: 10px;
   }
   .kv {
     width: 100%;

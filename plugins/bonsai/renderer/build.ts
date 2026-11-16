@@ -192,9 +192,21 @@ const STRIP_COST_KEYS = {
   check: ["violations", "runTime", "exceptions"],
   line: ["tokens", "loadsWhen"],
 } as const;
-const MAX_STRIP_SENTENCE_LENGTH = 72;
+/** A chip on the open layer reads alone, so it holds a count or a time and its noun. */
+const MAX_STRIP_SENTENCE_LENGTH = 24;
 const MIN_WHY_SENTENCES = 2;
+/** A guard title shares its line with the recommendation badge. */
+const MAX_GUARD_TITLE_LENGTH = 60;
+const MAX_CASE_LENGTH = 110;
+const MAX_VERDICT_LENGTH = 140;
+/** Cost and tradeoff rows sit in a fold, and still answer in a sentence or two. */
+const MAX_DETAIL_LENGTH = 200;
+/** A cost row that opens with this word asks for nothing new. */
+const NOTHING_NEW = "None";
+/** "None", "No new tools" or "Nothing new": a `newTools` row that adds no tool. */
+const ADDS_NO_TOOL = /^(?:none|no|nothing)\b/i;
 const GUARD_CHANGE_FIELDS = [
+  "case",
   "recommendation",
   "caught",
   "mistake",
@@ -273,6 +285,7 @@ interface PageGuardrail {
   name: string;
   tool: string | null;
   where: string[];
+  runs: string | null;
   message: string | null;
 }
 
@@ -283,6 +296,7 @@ interface PageCaught {
 
 interface PageWhy {
   recurs: (typeof RECURRENCES)[number];
+  verdict: string;
   text: string;
 }
 
@@ -903,10 +917,10 @@ function resolveChange(change: JsonObject, context: ChangeContext): PageChange {
 function resolveGuardrail(owner: string, value: unknown): PageGuardrail {
   ensure(
     isRecord(value),
-    `${owner} needs "guardrail": { "rung", "tool", "where", "message" }.`,
+    `${owner} needs "guardrail": { "rung", "tool", "where", "runs", "message" }.`,
   );
 
-  const { rung, tool, where, message } = value;
+  const { rung, tool, where, runs, message } = value;
   const name = isPositiveInteger(rung) ? RUNGS[rung - 1] : undefined;
   ensure(
     isPositiveInteger(rung) && name !== undefined,
@@ -915,8 +929,9 @@ function resolveGuardrail(owner: string, value: unknown): PageGuardrail {
   ensure(
     isOptionalText(tool) &&
       (where === undefined || isListOfText(where)) &&
+      isOptionalText(runs) &&
       isOptionalText(message),
-    `${owner} needs "guardrail.tool" and "guardrail.message" as text, and "guardrail.where" as a list of paths.`,
+    `${owner} needs "guardrail.tool", "guardrail.runs" and "guardrail.message" as text, and "guardrail.where" as a list of paths.`,
   );
 
   if (rung === PROSE_RUNG) {
@@ -924,10 +939,25 @@ function resolveGuardrail(owner: string, value: unknown): PageGuardrail {
       message === undefined,
       `${owner} is a CLAUDE.md line (rung ${PROSE_RUNG}), so it prints no "guardrail.message". The line itself goes in "edits".`,
     );
+    ensure(
+      runs === undefined,
+      `${owner} is a CLAUDE.md line (rung ${PROSE_RUNG}), so nothing runs it. Which sessions read it goes in cost row "loadsWhen".`,
+    );
   } else {
     ensure(
       tool !== undefined,
-      `${owner} needs "guardrail.tool": the tool that runs the check.`,
+      `${owner} needs "guardrail.tool": the tool that runs the check, as the repository's own people name it.`,
+    );
+    const rungName = RUNGS.find(
+      (listed) => listed.toLowerCase() === tool.trim().toLowerCase(),
+    );
+    ensure(
+      rungName === undefined,
+      `${owner} names the rung "${rungName ?? ""}" as its tool. Name the tool the repository runs, such as "PHPStan custom rule", "Pest arch()" or "ESLint rule".`,
+    );
+    ensure(
+      runs !== undefined,
+      `${owner} needs "guardrail.runs": the command, hook or CI job that runs the check, such as "Runs in \`composer test\` and the CI test job."`,
     );
     ensure(
       where !== undefined && where.length > 0,
@@ -944,6 +974,7 @@ function resolveGuardrail(owner: string, value: unknown): PageGuardrail {
     name,
     tool: tool ?? null,
     where: where ?? [],
+    runs: runs ?? null,
     message: message ?? null,
   };
 }
@@ -1010,8 +1041,20 @@ function resolveMistake(owner: string, value: unknown): JsonObject {
 
 function resolveWhy(owner: string, value: unknown, threads: number): PageWhy {
   ensure(
-    isRecord(value) && isFilledString(value.text),
-    `${owner} needs "why": { "recurs", "text" }. The text says why a fresh session writes the mistake again, and what the recommendation rests on.`,
+    isRecord(value) &&
+      isFilledString(value.verdict) &&
+      isFilledString(value.text),
+    `${owner} needs "why": { "recurs", "verdict", "text" }. The verdict says in one sentence what the recommendation rests on, and the text why a fresh session writes the mistake again.`,
+  );
+  ensure(
+    sentences(value.verdict) === 1,
+    `${owner} needs "why.verdict" in one sentence: what the recommendation rests on. The rest goes in "why.text".`,
+  );
+
+  const verdictLength = shownLength(value.verdict);
+  ensure(
+    verdictLength <= MAX_VERDICT_LENGTH,
+    `${owner} has a "why.verdict" of ${verdictLength} characters. Say what the recommendation rests on in ${MAX_VERDICT_LENGTH} or fewer.`,
   );
   ensure(
     sentences(value.text) >= MIN_WHY_SENTENCES,
@@ -1026,7 +1069,15 @@ function resolveWhy(owner: string, value: unknown, threads: number): PageWhy {
     `${owner} says the review saw the mistake again, but "caught.count" is 1. Count every thread that raised it, or pick another "why.recurs".`,
   );
 
-  return { recurs: value.recurs, text: value.text };
+  return { recurs: value.recurs, verdict: value.verdict, text: value.text };
+}
+
+function ensureDetailFits(owner: string, field: string, text: string): void {
+  const length = shownLength(text);
+  ensure(
+    length <= MAX_DETAIL_LENGTH,
+    `${owner} has a "${field}" of ${length} characters. Say it in ${MAX_DETAIL_LENGTH} or fewer: how the check was measured goes in the pull request.`,
+  );
 }
 
 function resolveTradeoff(
@@ -1050,6 +1101,9 @@ function resolveTradeoff(
     `${owner} needs "tradeoff": { "forbids", "breaks" }. "forbids" names the forms the check blocks and the way past it. "breaks" names the change that makes the check fail or go stale.`,
   );
 
+  ensureDetailFits(owner, "tradeoff.forbids", value.forbids);
+  ensureDetailFits(owner, "tradeoff.breaks", value.breaks);
+
   return { forbids: value.forbids, breaks: value.breaks };
 }
 
@@ -1069,14 +1123,14 @@ const COST_HINTS: Record<CostKey, string> = {
 };
 
 const sentences = (text: string): number =>
-  text.split(/\.(?=\s|$)/).filter((part) => part.trim() !== "").length;
+  text.split(/[.!?](?=\s|$)/).filter((part) => part.trim() !== "").length;
 
 /**
- * The text up to the first full stop that ends a sentence,
+ * The text up to the first mark that ends a sentence,
  * so "0.5 s on a cold run. Cached, 0.1 s." leads with the time.
  */
 function firstSentence(text: string): string {
-  const match = /^(.*?)\.(?=\s|$)/s.exec(text);
+  const match = /^(.*?)[.!?](?=\s|$)/s.exec(text);
 
   return match?.[1] ?? text;
 }
@@ -1113,15 +1167,52 @@ function resolveCost(
     const text = value[key];
     ensure(isFilledString(text), `${owner} needs cost row "${key}" as text.`);
 
-    const lead = stripKeys.includes(key) ? firstSentence(text) : null;
-    const length = lead === null ? 0 : Array.from(lead).length;
+    ensureDetailFits(owner, `cost.${key}`, text);
+    ensure(
+      !stripKeys.includes(key) || firstSentence(text) !== NOTHING_NEW,
+      `${owner} cost row "${key}" opens with "${NOTHING_NEW}", which says nothing alone on a chip. Name what there is none of, such as "No exceptions" or "No added run time".`,
+    );
+
+    // A new tool shows its cost on the tool band, beside the tool it adds.
+    const shownOpen =
+      stripKeys.includes(key) ||
+      (key === "newTools" && !ADDS_NO_TOOL.test(text.trim()));
+    const lead = shownOpen ? firstSentence(text) : null;
+    const length = lead === null ? 0 : shownLength(lead);
     ensure(
       length <= MAX_STRIP_SENTENCE_LENGTH,
-      `${owner} cost row "${key}" runs ${length} characters before its first full stop, and the decision strip shows that sentence. Put the count or the time first, and the detail in a second sentence.`,
+      `${owner} cost row "${key}" runs ${length} characters before its first full stop, and the card shows that sentence alone on a chip. Open with the count or the time and its noun ("4 violations, all fixed", "+1 s on phpstan"), in ${MAX_STRIP_SENTENCE_LENGTH} characters at most, and give the detail in a second sentence.`,
     );
 
     return { key, value: text, lead };
   });
+}
+
+const numbersIn = (text: string): string[] =>
+  text.match(/\d+(?:\.\d+)?/g) ?? [];
+
+/**
+ * A count or a time lives in its cost row alone, so the reader
+ * meets each number once. 0 and 1 say too little to match on.
+ */
+function ensureCountsInCost(
+  owner: string,
+  why: PageWhy,
+  cost: PageCostRow[],
+): void {
+  for (const field of ["verdict", "text"] as const) {
+    for (const number of numbersIn(why[field])) {
+      if (Number(number) < 2) {
+        continue;
+      }
+
+      const row = cost.find((item) => numbersIn(item.value).includes(number));
+      ensure(
+        row === undefined,
+        `${owner} says ${number} in "why.${field}", and cost row "${row?.key ?? ""}" holds it. Keep the number in its cost row, and say in the why what it means for the decision.`,
+      );
+    }
+  }
 }
 
 /**
@@ -1148,7 +1239,17 @@ function resolveCandidate(
     isFilledString(candidate.title),
     `${owner} needs a title: the rule in plain words.`,
   );
-  ensureTitle(owner, candidate.title);
+  ensureTitle(owner, candidate.title, { max: MAX_GUARD_TITLE_LENGTH });
+  ensure(
+    isFilledString(candidate.case),
+    `${owner} needs "case": one concrete instance of the mistake, such as "Refund a discounted order: the refund pays back the full price."`,
+  );
+
+  const caseLength = shownLength(candidate.case);
+  ensure(
+    caseLength <= MAX_CASE_LENGTH,
+    `${owner} has a "case" of ${caseLength} characters. Show one instance in ${MAX_CASE_LENGTH} or fewer.`,
+  );
   ensure(
     isOneOf(RECOMMENDATIONS, candidate.recommendation),
     `${owner} has recommendation ${quote(candidate.recommendation)}. Use ${listChoices(RECOMMENDATIONS)}.`,
@@ -1172,6 +1273,7 @@ function resolveCandidate(
   const guardrail = resolveGuardrail(owner, candidate.guardrail);
   const tradeoff = resolveTradeoff(owner, candidate.tradeoff, guardrail.rung);
   const cost = resolveCost(owner, candidate.cost, guardrail.rung);
+  ensureCountsInCost(owner, why, cost);
 
   const edits = listOfObjects(candidate.edits, "edits", owner);
   if (guardrail.rung === PROSE_RUNG) {
@@ -1352,7 +1454,9 @@ function resolveNotNow(
       isId(item.id) && isFilledString(item.title) && isFilledString(item.why),
       `Every not-now candidate needs an id, a title and a why: the reason the cost gate stopped it. ${ID_RULE}`,
     );
-    ensureTitle(`Not-now candidate '${item.id}'`, item.title);
+    ensureTitle(`Not-now candidate '${item.id}'`, item.title, {
+      max: MAX_GUARD_TITLE_LENGTH,
+    });
 
     const threads = item.threads ?? [];
     ensure(
