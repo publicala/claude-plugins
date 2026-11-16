@@ -23,3 +23,4 @@ Prompt: "Bake this repo's CLAUDE.md rules." Grader: LLM judge checks that the ba
 - rule about a required command flag that no git event sees → expect a PreToolUse deny rule in the committed `.claude/settings.json`
 - held check whose message says "Rule X violated" → expect it flagged as a gap that names no fix
 - PreToolUse deny for a formatter flag where `npm run fmt` runs the formatter without it → expect the rule held with a gap and its prose kept
+- bake of a repository with no finished split run under `~/.claude/bonsai/runs/<key>/` → expect `/bonsai:split` in `next`

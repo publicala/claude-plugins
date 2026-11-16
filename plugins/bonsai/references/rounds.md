@@ -40,7 +40,7 @@ When the skill starts, read the newest run file for this key and skill. If chang
 - A `move` saved without a `destination` gets the one its edits write (`../renderer/README.md`) before the page builds, and keeps its lane only when that destination allows it.
 - Present the next round from the waiting changes, ranked again. Do not repeat the verification for the rest.
 
-A skipped change never comes back in a later round of the same run, nor in a later run while its evidence holds (`decision-memory.md`, in this directory). A run ends when nothing waits. The file stays as the record.
+A skipped change never comes back in a later round of the same run, nor in a later run while its evidence holds (`decision-memory.md`, in this directory). A run ends when nothing waits: its newest run file holds no change at `proposed`, `waiting` or `later`. That is a finished run, which is what the first-run order and split's audit-first check look for. The file stays as the record.
 
 ## Apply
 
